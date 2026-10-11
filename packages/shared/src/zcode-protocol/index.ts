@@ -115,10 +115,10 @@ export {
   type HookInvocationRow,
 } from "../zcode-protocol-v4/rows.js";
 
-export const XCODE_PROTOCOL_NAME = "ZCode Protocol" as const;
-export const XCODE_PROTOCOL_VERSION = 1 as const;
+export const ZCODE_PROTOCOL_NAME = "ZCode Protocol" as const;
+export const ZCODE_PROTOCOL_VERSION = 1 as const;
 // V4 wire 与 legacy 主协议并存；禁止为了 V4 physical framing 改写 legacy 版本。
-export const XCODE_PROTOCOL_V4_WIRE_VERSION = 3 as const;
+export const ZCODE_PROTOCOL_V4_WIRE_VERSION = 3 as const;
 export const zcodeRuntimeCapabilitiesSchema = z.object({
   independentPlanState: z.boolean().optional(),
 });
@@ -564,7 +564,7 @@ export const zcodeMcpTelemetryEventSchema = z.discriminatedUnion("kind", [
 export type ZCodeMcpTelemetryEvent = z.infer<typeof zcodeMcpTelemetryEventSchema>;
 
 /** MCP 每五分钟只探测一次，周期由生产者与设备总量过期判据共用。 */
-export const XCODE_MCP_RESOURCE_SAMPLE_INTERVAL_MS = 5 * 60_000;
+export const ZCODE_MCP_RESOURCE_SAMPLE_INTERVAL_MS = 5 * 60_000;
 
 export const zcodeMcpResourceSampleSchema = z
   .object({
@@ -1362,8 +1362,8 @@ export const zcodeSessionStateSnapshotSchema = z
   .object({
     protocol: z
       .object({
-        name: z.literal(XCODE_PROTOCOL_NAME),
-        version: z.literal(XCODE_PROTOCOL_VERSION),
+        name: z.literal(ZCODE_PROTOCOL_NAME),
+        version: z.literal(ZCODE_PROTOCOL_VERSION),
       })
       .strict(),
     session: zcodeSessionInfoSchema,
@@ -2049,7 +2049,7 @@ export const zcodeSubagentsReadRuntimeConfigParamsSchema = z
   .object({ sessionId: nonEmptyString })
   .strict();
 
-export const XCODE_SESSION_RUNTIME_PREFERENCES_REQUEST_TIMEOUT_MS = 15_000;
+export const ZCODE_SESSION_RUNTIME_PREFERENCES_REQUEST_TIMEOUT_MS = 15_000;
 
 export const zcodeSessionRequestRuntimePreferencesParamsSchema = z
   .object({
@@ -2061,7 +2061,7 @@ export type ZCodeSessionRequestRuntimePreferencesParams = z.infer<
   typeof zcodeSessionRequestRuntimePreferencesParamsSchema
 >;
 
-export const DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY = "preflight-v1" as const;
+export const DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY = "preflight-v1" as const;
 
 // 3.12.2：legacy 仅为旧协议接收兼容；Runtime 一律归一为上面的共享默认策略。
 export const zcodeModelContextBudgetStrategySchema = z.enum(["legacy", "preflight-v1"]);
@@ -2076,7 +2076,7 @@ export const zcodeSessionRuntimePreferencesResultSchema = z
     integratedTerminalShell: integratedTerminalShellSelectionSchema.optional(),
     // 兼容旧 Host：缺少字段时在协议解析边界使用当前默认策略。
     modelContextBudgetStrategy: zcodeModelContextBudgetStrategySchema.default(
-      DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
+      DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
     ),
   })
   .strict();
@@ -3238,13 +3238,13 @@ export const zcodeWorkflowsDeleteResultSchema = z.union([
 ]);
 export type ZCodeWorkflowsDeleteResult = z.infer<typeof zcodeWorkflowsDeleteResultSchema>;
 
-export const XCODE_WORKFLOWS_RUNS_MAX_LIMIT = 50;
+export const ZCODE_WORKFLOWS_RUNS_MAX_LIMIT = 50;
 export const zcodeWorkflowsRunsParamsSchema = z
   .object({
     workspace: zcodeWorkspaceRefSchema,
     /** 只要这个名字的 run（`dwf_run.name` 字面等值）；缺省即本项目全部 run。 */
     name: nonEmptyString.optional(),
-    limit: z.number().int().min(1).max(XCODE_WORKFLOWS_RUNS_MAX_LIMIT),
+    limit: z.number().int().min(1).max(ZCODE_WORKFLOWS_RUNS_MAX_LIMIT),
     // 缺省 `project`：只查 `dwf_run.cwd === workspacePath` 的 run。`global` 时**不**按 cwd 过滤，
     // 跨所有项目取该名字的运行历史（全局工作流在任何项目里跑，历史因此跨 cwd）；结果行带 `cwd`
     // 供 GUI 标项目。`workspace` 语义同 list（全局档只当载体）。

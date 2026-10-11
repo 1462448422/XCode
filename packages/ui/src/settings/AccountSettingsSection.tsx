@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Gift, Loader2Icon, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
 import { useServices } from "@/hooks/useServices.js";
-import { useXCodeStore } from "@/store/StoreProvider.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeStore } from "@/store/StoreProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { SettingsGroupCard } from "@/settings/SettingsPageParts.js";
 import {
   claimMarketingForAccount,

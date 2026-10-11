@@ -1,19 +1,18 @@
 import {
   createLocalServices,
   disposeServiceResourcesAndWait,
-  materializeZCodeBuiltinProviderConfig,
+  materializeXCodeBuiltinProviderConfig,
   getAppConfigDir,
-  ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV,
-  createTopicResourcePeers,
+  XCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV,
 } from "@zcode/services/node";
-import { IZCodeAgentService } from "@zcode/services";
-import { ZCODE_VERSION } from "@zcode/shared";
+import { IXCodeAgentService } from "@zcode/services";
+import { XCODE_VERSION } from "@zcode/shared";
 import { createCoreHttpServer } from "./http.js";
 import { installParentDisconnectHandler } from "./parentDisconnect.js";
 import { resolveCoreServerId } from "./serverIdentity.js";
 import { createTaskActivityTracker } from "./taskActivityTracker.js";
 
-declare const __ZCODE_BUILTIN_PROVIDER_CONFIG_JSON__: string | undefined;
+declare const __XCODE_BUILTIN_PROVIDER_CONFIG_JSON__: string | undefined;
 
 export async function runServerCore(generation: number): Promise<void> {
   let shutdown: ((reason: string) => Promise<void>) | undefined;
@@ -23,32 +22,27 @@ export async function runServerCore(generation: number): Promise<void> {
     if (shutdown) void shutdown("parent-disconnected");
     else parentDisconnected = true;
   });
-  const topicResourcePeers = createTopicResourcePeers();
-  const explicitZCodeBuiltinProviderConfigFilePath =
-    process.env[ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]?.trim();
-  const zcodeBuiltinProviderConfigFilePath = explicitZCodeBuiltinProviderConfigFilePath
-    ? explicitZCodeBuiltinProviderConfigFilePath
-    : typeof __ZCODE_BUILTIN_PROVIDER_CONFIG_JSON__ === "string"
-      ? await materializeZCodeBuiltinProviderConfig({
+  const explicitXCodeBuiltinProviderConfigFilePath =
+    process.env[XCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]?.trim();
+  const zcodeBuiltinProviderConfigFilePath = explicitXCodeBuiltinProviderConfigFilePath
+    ? explicitXCodeBuiltinProviderConfigFilePath
+    : typeof __XCODE_BUILTIN_PROVIDER_CONFIG_JSON__ === "string"
+      ? await materializeXCodeBuiltinProviderConfig({
           environmentConfigRoot: getAppConfigDir(),
-          content: __ZCODE_BUILTIN_PROVIDER_CONFIG_JSON__,
+          content: __XCODE_BUILTIN_PROVIDER_CONFIG_JSON__,
         })
       : undefined;
   if (!zcodeBuiltinProviderConfigFilePath) {
     throw new Error(
-      `当前构建未嵌入 ZCode Built-in Provider Config，且未设置 ${ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV}`,
+      `当前构建未嵌入 XCode Built-in Provider Config，且未设置 ${XCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV}`,
     );
   }
   const services = createLocalServices({
     zcodeBuiltinProviderConfigFilePath,
     serviceAuthorityMode: "standalone-server",
-    topicResourceRelayChannel: (request) => topicResourcePeers.getChannel(request),
   });
-  const taskActivityTracker = createTaskActivityTracker(services.getOptional(IZCodeAgentService));
-  const http = await createCoreHttpServer(services, {
-    serverId: await resolveCoreServerId(),
-    topicResourcePeers,
-  });
+  const taskActivityTracker = createTaskActivityTracker(services.getOptional(IXCodeAgentService));
+  const http = await createCoreHttpServer(services, { serverId: await resolveCoreServerId() });
   const send = (message: unknown): Promise<void> => {
     if (typeof process.send !== "function" || process.connected === false) return Promise.resolve();
     return new Promise((resolve) => {
@@ -66,7 +60,7 @@ export async function runServerCore(generation: number): Promise<void> {
     type: "ready",
     host: http.host,
     port: http.port,
-    version: ZCODE_VERSION,
+    version: XCODE_VERSION,
     generation,
   });
   let shutdownStarted = false;

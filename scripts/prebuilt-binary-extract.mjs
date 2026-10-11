@@ -78,7 +78,7 @@ export function findPrebuiltBinary(rootDir, binaryName) {
   return undefined;
 }
 
-export function assertPrebuiltArchiveSha256(expectedSha256) {
+function assertPrebuiltArchiveSha256(expectedSha256) {
   const normalizedExpectedSha256 = String(expectedSha256 ?? "")
     .trim()
     .toLowerCase();

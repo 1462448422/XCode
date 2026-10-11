@@ -1,7 +1,7 @@
 import { useServices } from "@/hooks/useServices.js";
 import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
-import type { IXCodeTaskService } from "@zcode/services";
-import type { XCodeTaskSnapshot } from "@zcode/shared";
+import type { IZCodeTaskService } from "@zcode/services";
+import type { ZCodeTaskSnapshot } from "@zcode/shared";
 import { uiMemoryDiagnosticsRegistry } from "@/lib/memoryDiagnostics.js";
 
 type GetTaskSnapshotParams = Parameters<IXCodeTaskService["getTaskSnapshot"]>[0];
@@ -38,7 +38,7 @@ uiMemoryDiagnosticsRegistry.register("taskSnapshotCache", () => ({
   persisted: persistedSnapshotCache.size,
 }));
 
-export function buildSnapshotDedupeKey(params: GetTaskSnapshotParams): string {
+function buildSnapshotDedupeKey(params: GetTaskSnapshotParams): string {
   return [
     params.workspacePath,
     params.workspaceIdentity ?? "",
@@ -183,11 +183,7 @@ function readPersistedSnapshotEntry(key: string) {
   return { etag: entry.etag, snapshot: entry.snapshot };
 }
 
-function writePersistedSnapshotEntry(
-  key: string,
-  etag: string,
-  snapshot: XCodeTaskSnapshot,
-): void {
+function writePersistedSnapshotEntry(key: string, etag: string, snapshot: XCodeTaskSnapshot): void {
   ensurePersistedSnapshotCacheLoaded();
   const serializedSnapshot = JSON.stringify(snapshot);
   const sizeBytes = new TextEncoder().encode(serializedSnapshot).byteLength;
@@ -263,11 +259,7 @@ function createXCodeTaskServiceProxy(service: IXCodeTaskService): IXCodeTaskServ
                 snapshot: fallbackResult.snapshot,
               };
               snapshotCache.set(requestKey, nextEntry);
-              writePersistedSnapshotEntry(
-                requestKey,
-                fallbackResult.etag,
-                fallbackResult.snapshot,
-              );
+              writePersistedSnapshotEntry(requestKey, fallbackResult.etag, fallbackResult.snapshot);
             }
             return fallbackResult.snapshot;
           }
@@ -277,11 +269,7 @@ function createXCodeTaskServiceProxy(service: IXCodeTaskService): IXCodeTaskServ
               snapshot: firstResult.snapshot,
             };
             snapshotCache.set(requestKey, nextEntry);
-            writePersistedSnapshotEntry(
-              requestKey,
-              firstResult.etag,
-              firstResult.snapshot,
-            );
+            writePersistedSnapshotEntry(requestKey, firstResult.etag, firstResult.snapshot);
           } else if (!firstResult.snapshot) {
             snapshotCache.delete(requestKey);
             deletePersistedSnapshotEntry(requestKey);

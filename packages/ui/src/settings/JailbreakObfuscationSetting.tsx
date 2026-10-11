@@ -1,7 +1,7 @@
 import type { ModelJailbreakObfuscationTier } from "@zcode/shared";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.js";
 import { useSettings } from "@/hooks/useSettingService.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { SettingsGroupCard, SettingsRow } from "@/settings/SettingsPageParts.js";
 
 /**

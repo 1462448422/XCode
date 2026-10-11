@@ -325,7 +325,7 @@ for (const code of ["engine_overloaded_error", "overloaded_error"]) {
   PROVIDER_BUSINESS_CODE_MAPPINGS.set(code, RETRYABLE_OVERLOAD_MAPPING);
 }
 
-// XCode fork: Qoder 业务码。
+// ZCode fork: Qoder 业务码。
 // Qoder 把失败藏在 HTTP 200 的 SSE 信封里（外层 statusCodeValue 常为 200，
 // 真实错误在 body 的 {"error":{"code":...}}），由 qoderProtocol 提取后以标准
 // SSE error 帧外抛。这里只登记**行为语义**（是否重试、归因到哪类失败），

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve as resolvePath } from "node:path";
-import { XCODE_AGENT_RUNTIME, sanitizeZCodeRuntimeEnvInPlace } from "@zcode/shared";
+import { ZCODE_AGENT_RUNTIME, sanitizeZCodeRuntimeEnvInPlace } from "@zcode/shared";
 import { getDataBaseDir, getProviderWorkspaceConfigDir } from "../paths.js";
 import { buildRuntimeProcessEnvPatch } from "./runtimeCommandEnv.js";
 
@@ -113,7 +113,7 @@ function resolveLegacyBundledResourceRoots(moduleDir?: string): Array<string | n
 }
 
 export function findZCodeAgentRuntimeBinary(): string | null {
-  const runtime = XCODE_AGENT_RUNTIME;
+  const runtime = ZCODE_AGENT_RUNTIME;
   const entrySegments = runtime.resolveEntrySegments(process.platform);
   const resourceSegments = [runtime.bundledResourceDir, ...entrySegments];
   const envPath = process.env[runtime.binaryEnvVar];
@@ -146,7 +146,7 @@ export function findZCodeAgentRuntimeBinary(): string | null {
  * 不查 GLM_BINARY_PATH——那个 env 指向原生二进制，语义不同。
  */
 export function findZCodeAgentRuntimeNodeBundle(): string | null {
-  const runtime = XCODE_AGENT_RUNTIME;
+  const runtime = ZCODE_AGENT_RUNTIME;
   const entrySegments = runtime.resolveNodeBundleSegments();
   const resourceSegments = [runtime.bundledResourceDir, ...entrySegments];
 

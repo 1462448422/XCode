@@ -13,20 +13,20 @@ import {
 import { installScriptSource } from "./zcode-distribution/installer.mjs";
 
 const root = resolve(import.meta.dirname, "..");
-const defaultOutDir = resolve(root, "dist", "zcode");
-const defaultBaseUrl = (await loadEndpointEnv()).ZCODE_DIST_BASE_URL?.trim() || "";
-const packageDirName = "zcode";
+const defaultOutDir = resolve(root, "dist", "xcode");
+const defaultBaseUrl = (await loadEndpointEnv()).XCODE_DIST_BASE_URL?.trim() || "";
+const packageDirName = "xcode";
 const usage = `Usage:
   pnpm build:zcode
   node scripts/build-zcode.mjs --skip-build
   node scripts/build-zcode.mjs --version 3.3.3-dev.1
-  node scripts/build-zcode.mjs --out-dir dist/zcode
+  node scripts/build-zcode.mjs --out-dir dist/xcode
   node scripts/build-zcode.mjs --base-url http://host/zcode/deps/zcode/
 
 Options:
   --skip-build        Reuse existing web/server/agent build outputs.
   --version <text>    Release version. Defaults to root package.json version.
-  --out-dir <path>    Output directory. Defaults to dist/zcode.
+  --out-dir <path>    Output directory. Defaults to dist/xcode.
   --base-url <url>    Default install.sh download base URL.
   --help, -h          Show this help.
 `;
@@ -154,7 +154,7 @@ async function buildOutputs(skipBuild) {
   run("pnpm", ["--filter", "@zcode/web", "build"]);
 }
 
-async function stageZCodePackage({ packageRoot, version }) {
+async function stageXCodePackage({ packageRoot, version }) {
   const webDist = resolve(root, "packages", "web", "dist");
   const serverDist = resolve(root, "packages", "server", "dist");
   const agentBundle = resolve(root, "apps", "zcode-cli", "packages", "cli", "dist", "zcode.cjs");
@@ -207,7 +207,7 @@ async function stageZCodePackage({ packageRoot, version }) {
     resolve(packageRoot, "package.json"),
     JSON.stringify(
       {
-        name: "zcode-runtime",
+        name: "xcode-runtime",
         private: true,
         type: "module",
         version,
@@ -233,7 +233,7 @@ async function createTarball({ packageParent, releaseDir, tarballName }) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (!options.help && !options.baseUrl)
-    throw new Error("Configure ZCODE_DIST_BASE_URL in .env or pass --base-url");
+    throw new Error("Configure XCODE_DIST_BASE_URL in .env or pass --base-url");
   if (options.help) {
     console.log(usage);
     return;
@@ -242,7 +242,7 @@ async function main() {
   const rootPackageJson = await readJson(resolve(root, "package.json"));
   const version = options.version ?? rootPackageJson.version;
   if (!version || typeof version !== "string") {
-    throw new Error("Unable to resolve ZCode version.");
+    throw new Error("Unable to resolve XCode version.");
   }
 
   await buildOutputs(options.skipBuild);
@@ -258,7 +258,7 @@ async function main() {
     force: true,
     recursive: true,
   });
-  await stageZCodePackage({
+  await stageXCodePackage({
     packageRoot,
     version,
   });

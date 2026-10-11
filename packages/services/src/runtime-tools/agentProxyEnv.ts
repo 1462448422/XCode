@@ -1,8 +1,8 @@
 import {
-  XCODE_AGENT_CA_CERT_ENV_KEY,
-  XCODE_HTTP_PROXY_ENV_KEY,
-  XCODE_NO_PROXY_ENV_KEY,
-  XCODE_WORKSPACE_IDENTITY_ENV,
+  ZCODE_AGENT_CA_CERT_ENV_KEY,
+  ZCODE_HTTP_PROXY_ENV_KEY,
+  ZCODE_NO_PROXY_ENV_KEY,
+  ZCODE_WORKSPACE_IDENTITY_ENV,
 } from "@zcode/shared";
 
 // 把设置页的 HTTP 代理、No Proxy 和自定义 CA 翻译成 agent 子进程的环境变量补丁。
@@ -21,9 +21,9 @@ const PROXY_ENV_KEYS = [
   "HTTP_PROXY",
   "HTTPS_PROXY",
   "ALL_PROXY",
-  XCODE_HTTP_PROXY_ENV_KEY,
+  ZCODE_HTTP_PROXY_ENV_KEY,
 ] as const;
-const NO_PROXY_ENV_KEYS = ["NO_PROXY", "no_proxy", XCODE_NO_PROXY_ENV_KEY] as const;
+const NO_PROXY_ENV_KEYS = ["NO_PROXY", "no_proxy", ZCODE_NO_PROXY_ENV_KEY] as const;
 
 export function buildAgentProxyEnv(httpProxy: string | undefined): Record<string, string> {
   const normalized = normalizeProxyValue(httpProxy);
@@ -46,7 +46,7 @@ export function buildAgentCaCertEnv(caCertPath: string | undefined): Record<stri
     // NODE_EXTRA_CA_CERTS 必须在 Node 进程启动前存在；ZCODE_AGENT_CA_CERT 则给运行时配置、
     // provider fetch 和工具子进程使用，避免清洗标准 CA 环境后丢失 app 显式注入的证书路径。
     NODE_EXTRA_CA_CERTS: trimmed,
-    [XCODE_AGENT_CA_CERT_ENV_KEY]: trimmed,
+    [ZCODE_AGENT_CA_CERT_ENV_KEY]: trimmed,
   };
 }
 
@@ -117,7 +117,7 @@ export function buildAgentWorkspaceIdentityEnv(
   workspaceIdentity: string | undefined,
 ): Record<string, string> {
   const trimmed = workspaceIdentity?.trim();
-  return trimmed ? { [XCODE_WORKSPACE_IDENTITY_ENV]: trimmed } : {};
+  return trimmed ? { [ZCODE_WORKSPACE_IDENTITY_ENV]: trimmed } : {};
 }
 
 function normalizeProxyValue(value: string | undefined): string | undefined {

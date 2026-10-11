@@ -1,18 +1,18 @@
 import { Emitter, type Event, type IDisposable } from "@zcode/rpc";
 import type {
-  IZCodeAgentService,
-  ZCodeAgentRuntimeLifecycleEvent,
-  ZCodeAgentWorkspaceTarget,
+  IXCodeAgentService,
+  XCodeAgentRuntimeLifecycleEvent,
+  XCodeAgentWorkspaceTarget,
 } from "@zcode/services";
 import type { ConversationTelemetryFact } from "@zcode/shared/zcode-protocol-v4";
 
-export interface TaskActivityTracker extends IDisposable {
+interface TaskActivityTracker extends IDisposable {
   readonly onDidChangeRunningTaskCount: Event<number>;
   readRunningTaskCount(): number;
 }
 
 type AgentActivitySource = Pick<
-  IZCodeAgentService,
+  IXCodeAgentService,
   "onAgentRuntimeLifecycle" | "onDynamicConversationTelemetryFact"
 >;
 
@@ -22,7 +22,7 @@ interface WorkspaceActivity {
   telemetry: IDisposable;
 }
 
-function workspaceKey(target: ZCodeAgentWorkspaceTarget): string {
+function workspaceKey(target: XCodeAgentWorkspaceTarget): string {
   return target.workspaceIdentity?.trim() || target.workspacePath;
 }
 
@@ -65,7 +65,7 @@ export function createTaskActivityTracker(
     publishCount();
   };
 
-  const acceptLifecycle = (event: ZCodeAgentRuntimeLifecycleEvent): void => {
+  const acceptLifecycle = (event: XCodeAgentRuntimeLifecycleEvent): void => {
     if (disposed) return;
     const key = event.workspaceKey || workspaceKey(event);
     if (event.state === "unavailable") {
@@ -74,7 +74,9 @@ export function createTaskActivityTracker(
     }
     removeWorkspace(key);
     const activeSessionIds = new Set<string>();
-    const telemetry = source?.onDynamicConversationTelemetryFact(event)((fact) => acceptFact(key, fact));
+    const telemetry = source?.onDynamicConversationTelemetryFact(event)((fact) =>
+      acceptFact(key, fact),
+    );
     if (!telemetry) return;
     workspaces.set(key, {
       activeSessionIds,

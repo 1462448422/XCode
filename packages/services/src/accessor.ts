@@ -53,7 +53,6 @@ export interface IServiceAccessor {
   readonly fileService: IFileService;
   readonly mediaPreviewService?: IMediaPreviewService;
   readonly cloudContentService?: ICloudContentService;
-  readonly marketingTouchService?: IMarketingTouchService;
   readonly gitService: IGitService;
   readonly gitCheckpointService: IGitCheckpointService;
   readonly systemService: ISystemService;
@@ -82,6 +81,8 @@ export interface IServiceAccessor {
   readonly codingPlanSubscriptionService: ICodingPlanSubscriptionService;
   readonly clientConfigService: IClientConfigService;
   readonly clientScenesService: IClientScenesService;
+  /** Marketing Touch 营销活动服务（banner/popup 下发 + 行为上报）。 */
+  readonly marketingTouchService: IMarketingTouchService;
   /** 闲时任务管理（独立服务面）。 */
   readonly offPeakTaskService: IOffPeakTaskService;
   readonly highspeedCardService: IHighspeedCardService;

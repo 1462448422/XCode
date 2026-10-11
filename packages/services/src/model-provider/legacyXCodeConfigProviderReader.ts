@@ -1,4 +1,4 @@
-/* oxlint-disable eslint(max-lines) -- 已发布旧 XCode config.json 的多版 Provider 结构读取集中在同一边界。 */
+/* oxlint-disable eslint(max-lines) -- 已发布旧 ZCode config.json 的多版 Provider 结构读取集中在同一边界。 */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
@@ -68,14 +68,14 @@ function normalizeBigModelCodingPlanAnthropicBaseUrlForEnv(
   env: Record<string, string | undefined> = process.env,
 ): string {
   const fallbackBaseUrl =
-    resolveRuntimeXCodeEnv(env) === "production"
+    resolveRuntimeZCodeEnv(env) === "production"
       ? BIGMODEL_CODING_PLAN_ANTHROPIC_BASE_URL
       : `${resolveBigModelApiOrigin(env)}/api/anthropic`;
   const normalizedBaseUrl = normalizeModelProviderBaseUrlForKind(
     baseUrl ?? fallbackBaseUrl,
     "anthropic",
   );
-  if (resolveRuntimeXCodeEnv(env) === "production") {
+  if (resolveRuntimeZCodeEnv(env) === "production") {
     return normalizedBaseUrl || fallbackBaseUrl;
   }
 
@@ -100,7 +100,7 @@ const RETIRED_ZAPI_PROVIDER_ID = "builtin:zapi";
 
 type JsonObject = Record<string, unknown>;
 
-interface XCodeConfigFile {
+interface ZCodeConfigFile {
   $schema?: string;
   provider?: Record<string, XCodeOpenCodeProviderConfig>;
   [key: string]: unknown;
@@ -728,7 +728,7 @@ function openCodeProviderToModelProviderConfig(
   });
 }
 
-async function readRawXCodeConfigFile(): Promise<XCodeConfigFile | null> {
+async function readRawXCodeConfigFile(): Promise<ZCodeConfigFile | null> {
   const filePath = getXCodeConfigFilePath();
   let raw: string;
   try {
@@ -925,13 +925,13 @@ function applyProviderStoreMigrations(providers: ModelProviderConfig[]): ModelPr
   );
 
   // 迁移边界只规范化旧文件里真实存在的值。模型 Properties、Option Specs 与
-  // reasoning mapping 由 XCode Built-in/Personal ModelConfigRules 在 Registry 中解析；
+  // reasoning mapping 由 ZCode Built-in/Personal ModelConfigRules 在 Registry 中解析；
   // 旧 Store 不能再按 Model ID 从另一份 Catalog 补值并把补值持久化回用户文件。
   return next.map(normalizeProviderForStore);
 }
 
 /** 只读取已发布旧 config.json；更早期的独立 Provider Store 已退出所有迁移链路。 */
-export async function readLegacyXCodeConfigProviders(): Promise<ModelProviderConfig[]> {
+export async function readLegacyZCodeConfigProviders(): Promise<ModelProviderConfig[]> {
   const configProviders = await readXCodeConfigProviders();
   return configProviders ? filterDeletedProviderModelsForRead(configProviders) : [];
 }
@@ -984,7 +984,7 @@ function resolveRuntimeBaseUrlForStore(
   }
 
   // 旧 store 可能还只有 endpoints.anthropic/openai。
-  // runtime config 只能保存当前 kind 的 baseURL，这里按 defaultKind 取一条旧入口。
+  // OpenCode runtime config 只能保存当前 kind 的 baseURL，这里按 defaultKind 取一条旧入口。
   return resolveLegacyRuntimeBaseUrlForKind(endpoints, defaultKind);
 }
 

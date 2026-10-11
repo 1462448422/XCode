@@ -44,14 +44,10 @@ import type {
   StartPlanPreviewConfig,
   ZCodeModelContextBudgetStrategy,
   ForceUpdateConfig,
-  CodingPlanBillingDiscountConfig,
   ManualClaimPlanPreviewSnapshot,
   ManualClaimPlanClaimRequest,
   ManualClaimPlanClaimResult,
   DynamicWorkflowClientConfig,
-  MarketingCaptchaConfig,
-  MarketingClaimPlanResponse,
-  MarketingManualPlanPreview,
 } from "@zcode/shared";
 import type { ModelSelectionView } from "@zcode/provider";
 import { ServiceChannels } from "@zcode/shared";
@@ -85,26 +81,6 @@ export interface ICodingPlanSubscriptionService {
   getBillingDiscount(): Promise<CodingPlanBillingDiscountConfig | undefined>;
   getRequestVerificationConfig(): Promise<RequestVerificationConfig | null>;
   getForceUpdateConfig(): Promise<ForceUpdateConfig | null>;
-  /** Coding Plan 活动/折扣配置（client/configs 下发）；未下发或未激活返回 null。 */
-  getBillingDiscount(): Promise<CodingPlanBillingDiscountConfig | null>;
-  /** 领取型活动套餐预览列表（官方 `/api/v1/zcode-plan/billing/preview`）。 */
-  getManualClaimPlanPreviews(): Promise<MarketingManualPlanPreview[]>;
-  /** 领取 manual claim 套餐（官方 `/api/v1/zcode-plan/billing/claim`）。 */
-  claimManualPlan(input: {
-    planId: string;
-    captchaVerifyParam?: string;
-    captchaRegion?: string;
-    /** 按该账号的 per-account JWT 领取（一键领取）；缺省用当前激活账号镜像。 */
-    accountRef?: string;
-  }): Promise<MarketingClaimPlanResponse>;
-  /** 按账号查 Start Plan 名下计划（billing/balance；一键领取「已有计划」判定）。 */
-  getManualClaimPlanPlans(input: {
-    accountRef?: string;
-  }): Promise<{
-    plans: Array<{ planId?: string; name?: string; status?: string; endsAt?: number | string | null }>;
-  }>;
-  /** 阿里云验证码配置（client/configs 的 captcha 字段）；未下发返回 null。 */
-  getCaptchaConfig(): Promise<MarketingCaptchaConfig | null>;
   productInfo(request: CodingPlanProductInfoRequest): Promise<CodingPlanProductInfo>;
   preview(request: CodingPlanPreviewRequest): Promise<CodingPlanPreviewResponse>;
   createSign(request: CodingPlanCreateSignRequest): Promise<CodingPlanAgreementResponse>;

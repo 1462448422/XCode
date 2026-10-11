@@ -45,7 +45,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog.js";
 import { Input } from "@/components/ui/input.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { applyCustomSkin, buildSkinTokenValues } from "@/useTheme.js";
 import { cn } from "@/components/lib/utils.js";
 import { logger } from "@/logger.js";

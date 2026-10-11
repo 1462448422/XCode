@@ -11,7 +11,7 @@ import {
   formatModelPickerValue as formatSharedModelSelection,
   getZCodeAgentAvailableModes as getSharedZCodeAgentAvailableModes,
   normalizeAvailableZCodeMode as normalizeSharedAvailableZCodeMode,
-  zcodeSessionSettingsToXCodeConfigOptions,
+  zcodeSessionSettingsToZCodeConfigOptions,
 } from "@zcode/shared";
 
 export const MODEL_CONFIG_ID = "model";

@@ -8,8 +8,8 @@ import {
   isZCodeModelOnlySyntheticUserMessage,
   resolveWorkspaceKey,
   resolveZCodeVisibleSessionTitle,
-  XCODE_AGENT_PROVIDER_NOT_READY_CODE,
-  XCODE_AGENT_PROVIDER,
+  ZCODE_AGENT_PROVIDER_NOT_READY_CODE,
+  ZCODE_AGENT_PROVIDER,
   type ZCodeTaskGoal,
   type ZCodeTaskMode,
   type ZCodeTaskMeta,
@@ -226,7 +226,7 @@ function buildBaselineMetaFromSummary(
     createdAt: summary.createdAt,
     updatedAt: summary.lastActivityAt,
     mode: "default",
-    provider: XCODE_AGENT_PROVIDER,
+    provider: ZCODE_AGENT_PROVIDER,
     ...(summary.parentSessionId ? { forkedFromTaskId: summary.parentSessionId } : {}),
     ...(status ? { status } : {}),
   };
@@ -322,7 +322,7 @@ export function createZCodeTaskIndexSyncer(
   const isProviderNotReadyError = (error: unknown): boolean =>
     typeof error === "object" &&
     error !== null &&
-    (error as { code?: unknown }).code === XCODE_AGENT_PROVIDER_NOT_READY_CODE;
+    (error as { code?: unknown }).code === ZCODE_AGENT_PROVIDER_NOT_READY_CODE;
   const isRuntimeUnavailableError = (error: unknown): boolean =>
     typeof error === "object" &&
     error !== null &&
@@ -1845,7 +1845,7 @@ function buildMetaFromSnapshot(
     // 历史 task 恢复时 snapshot.settings.thoughtLevel 可能仍是同 workspace 草稿态的最新值。
     // 当恢复入口已经带上 task-local thoughtLevel 时，sqlite 必须写入入口值，避免下次打开继续被污染。
     thoughtLevel: thoughtLevelOverride || snapshot.settings.thoughtLevel.current,
-    provider: XCODE_AGENT_PROVIDER,
+    provider: ZCODE_AGENT_PROVIDER,
     status: deriveZCodeTaskStatusFromSessionSnapshot(snapshot),
     lastError: snapshot.projection.lastError
       ? {

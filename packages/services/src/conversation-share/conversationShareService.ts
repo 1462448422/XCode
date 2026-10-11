@@ -26,7 +26,7 @@ import {
 import type { ConversationRow } from "@zcode/shared/zcode-protocol-v4";
 import {
   PROTOCOL_V4_LIMITS,
-  XCODE_ATTACHMENT_FAULT_CODES,
+  ZCODE_ATTACHMENT_FAULT_CODES,
   readZCodeAttachmentFaultCode,
 } from "@zcode/shared/zcode-protocol-v4";
 import { Emitter } from "@zcode/rpc";
@@ -511,8 +511,8 @@ function isDefiniteMissingAttachment(error: unknown): boolean {
   const faultCode = readZCodeAttachmentFaultCode(error);
   if (faultCode) {
     return (
-      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareStatNotFound ||
-      faultCode === XCODE_ATTACHMENT_FAULT_CODES.statNotFile
+      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareStatNotFound ||
+      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.statNotFile
     );
   }
   const message = error instanceof Error ? error.message : String(error);
@@ -523,10 +523,10 @@ function isAttachmentAuthorizationError(error: unknown): boolean {
   const faultCode = readZCodeAttachmentFaultCode(error);
   if (faultCode) {
     return (
-      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareStatNotAuthorized ||
-      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareReadNotAuthorized ||
-      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareStatConnectionUntrusted ||
-      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareReadConnectionUntrusted
+      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareStatNotAuthorized ||
+      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareReadNotAuthorized ||
+      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareStatConnectionUntrusted ||
+      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareReadConnectionUntrusted
     );
   }
   const message = error instanceof Error ? error.message : String(error);
@@ -537,8 +537,8 @@ function isAttachmentAuthorizationError(error: unknown): boolean {
 function isAttachmentTooLargeError(error: unknown): boolean {
   const faultCode = readZCodeAttachmentFaultCode(error);
   return (
-    faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareStatTooLarge ||
-    faultCode === XCODE_ATTACHMENT_FAULT_CODES.previewTooLarge
+    faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareStatTooLarge ||
+    faultCode === ZCODE_ATTACHMENT_FAULT_CODES.previewTooLarge
   );
 }
 

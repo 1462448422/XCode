@@ -35,7 +35,7 @@ export type {
 } from "./protocol.js";
 export type { WorkspacePurpose } from "./workspacePurpose.js";
 export { DEFAULT_LOCALE } from "./protocol.js";
-export { XCODE_VERSION, XCODE_COMMIT, XCODE_BUILD_TIME } from "./version.js";
+export { ZCODE_VERSION, ZCODE_COMMIT, ZCODE_BUILD_TIME } from "./version.js";
 export type { HelloMessage, HelloAckMessage } from "./handshake.js";
 export type { ArmsRumEnv, ZCodeEnv, ZCodeProductFlavor } from "./env.js";
 export type { RemoteAssetInstallMode } from "./remoteAssetInstallMode.js";
@@ -68,13 +68,13 @@ export {
   serializeShortcutBinding,
 } from "./shortcutCommands.js";
 export {
-  XCODE_ENV,
-  XCODE_PRODUCT_FLAVOR,
-  XCODE_APP_VERSION_ENV,
-  XCODE_BUILD_COMMIT_ID_ENV,
-  RUNTIME_XCODE_DEBUG,
-  XCODE_ARMS_RUM_ENDPOINT,
-  XCODE_TELEMETRY_REPORT_ENDPOINT,
+  ZCODE_ENV,
+  ZCODE_PRODUCT_FLAVOR,
+  ZCODE_APP_VERSION_ENV,
+  ZCODE_BUILD_COMMIT_ID_ENV,
+  RUNTIME_ZCODE_DEBUG,
+  ZCODE_ARMS_RUM_ENDPOINT,
+  ZCODE_TELEMETRY_REPORT_ENDPOINT,
   ZCODE_AUTO_UPDATE_ENABLED,
   mapZCodeEnvToArmsRumEnv,
   normalizeZCodeEnv,
@@ -333,7 +333,7 @@ export * from "./localTtft.js";
 export * from "./pluginStoreOrder.js";
 export * from "./clientConfig.js";
 export * from "./pluginStoreOrdering.js";
-export * from "./marketingTouch.js";
+export * from "./marketing-touch.js";
 export * from "./rewardsEmbedded.js";
 export * from "./rewardsBridge.js";
 export * from "./session-debug.js";
@@ -359,3 +359,21 @@ export {
   isRequestSecurityFailure,
 } from "./request-security-edition/policy.js";
 export * from "./request-security-edition/verification-policy.js";
+// ── 1010 marketingTouch 选择性导出（无命名冲突的符号）──
+export {
+  marketingAssetSchema,
+  marketingNavigationSchema,
+  marketingActionSchema,
+  marketingVisualSchema,
+  marketingPopupSchema,
+  marketingDeliverySchema,
+  type MarketingAsset,
+  type MarketingAction,
+  type MarketingPopup,
+  type MarketingVisual,
+  type MarketingDelivery,
+  type MarketingBannerDelivery,
+  type MarketingPopupDelivery,
+  type MarketingTouchSnapshot,
+  parseMarketingTouchResponse,
+} from "./marketingTouch.js";

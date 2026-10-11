@@ -7,34 +7,25 @@ import { runCommand } from "./spawn-command.mjs";
 
 // adapters tsc 在内存受限机器上会 OOM（exit 134），给整条构建链路提高堆上限。
 process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + " " : ""}--max-old-space-size=8192`;
-import { stageDevCuaPluginRuntime } from "./stage-dev-cua-plugin-runtime.mjs";
 import {
   stageBuiltinProviderConfig,
   resolveBuiltinProviderBuildEnvironment,
 } from "./builtin-provider-config.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const useTurboBuild = process.env.ZCODE_DESKTOP_AGENT_BUILD_MODE === "turbo";
-const useBootstrapWithRemoteBuild = process.env.ZCODE_BOOTSTRAP_WITH_REMOTE === "1";
+const useTurboBuild = process.env.XCODE_DESKTOP_AGENT_BUILD_MODE === "turbo";
+const useBootstrapWithRemoteBuild = process.env.XCODE_BOOTSTRAP_WITH_REMOTE === "1";
 const pnpmRunEnv = {
   ...process.env,
-  ZCODE_ENV: await resolveBuiltinProviderBuildEnvironment({ root: repoRoot }),
+  XCODE_ENV: await resolveBuiltinProviderBuildEnvironment({ root: repoRoot }),
   // pnpm 11 的 verify-deps-before-run 会在 apps/zcode-cli 子 workspace
   // 执行每个 run 前触发 pnpm install；子 workspace 运行时依赖根仓库 @zcode/shared，
   // 自动 install 无法解析根 workspace 包，导致 dev:desktop:test 和 E2E onPrepare 失败。
   PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false",
 };
-// Bug 根因：filesystem plugin seed 若缺少 Sharp closure，会一直到 screenshot/zoom 才报错。
-// 此脚本同时服务本地 Dev、prebuild、server CLI 和 packaged desktop agent；三条构建分支
-// 都必须补齐同一份可复制 runtime。ZCODE_CUA_DEV_MODE 只传给 staging helper，不进入最终
-// product/runtime 环境，因此这里描述的是 staging 输入，而不是产品运行模式。
-const cuaPluginRuntimeStagingEnv = {
-  ...process.env,
-  ZCODE_CUA_DEV_MODE: "1",
-};
-// 修复原因：桌面 Agent 构建有普通 pnpm 和 bootstrap:with-remote 直跑 tsc 两条路径。
-// 过去两条路径分别维护依赖顺序，新增 @zcode/telemetry 后只更新了 bootstrap 依赖，
-// 干净 CI 中 telemetry/dist 尚不存在，bootstrap 会因无法解析类型入口而失败。
+// 桌面 Agent 构建有普通 pnpm 和 bootstrap:with-remote 直跑 tsc 两条路径。
+// 过去两条路径分别维护依赖顺序，新增 workspace 依赖时只更新了 bootstrap 依赖，
+// 干净 CI 中该依赖的 dist 尚不存在，bootstrap 会因无法解析类型入口而失败。
 // 两条路径统一从这一份有序清单派生，避免后续新增 workspace 依赖时再次漂移。
 const cliWorkspaceBuilds = [
   { packageName: "@zcode/shared-types", packageDir: "shared-types" },
@@ -93,7 +84,7 @@ async function verifyRequiredDevPluginRuntimeArtifacts() {
  * 把刚构建出的 agent bundle 暂存进 bundled-agents。
  *
  * 必须做：dev 未打包时 agent 二进制由 desktopRuntimeEnv.ts 的
- * resolveBundledZCodeAgentBinaryPath() 解析，候选**只有** bundled-agents/，没有
+ * resolveBundledXCodeAgentBinaryPath() 解析，候选**只有** bundled-agents/，没有
  * cli/dist/。只靠打包链暂存会让 dev 一直跑上一次打包留下的那份 —— 实测陈旧
  * 3 天，任何 agent CLI 侧改动在 dev 里静默不生效，把「改动没进去」伪装成「代码没作用」。
  * 实现与打包链共用 stage-agent-bundle.mjs，两边不可能再各自漂移。
@@ -148,7 +139,6 @@ async function runBootstrapWithRemoteBuild() {
 if (useBootstrapWithRemoteBuild) {
   await runBootstrapWithRemoteBuild();
   stageDevAgentBundle();
-  stageDevCuaPluginRuntime({ env: cuaPluginRuntimeStagingEnv });
   process.exit(0);
 }
 
@@ -170,7 +160,6 @@ if (!useTurboBuild) {
     stdio: "inherit",
   });
   stageDevAgentBundle();
-  stageDevCuaPluginRuntime({ env: cuaPluginRuntimeStagingEnv });
   process.exit(0);
 }
 
@@ -192,4 +181,3 @@ runCommand(
   },
 );
 stageDevAgentBundle();
-stageDevCuaPluginRuntime({ env: cuaPluginRuntimeStagingEnv });

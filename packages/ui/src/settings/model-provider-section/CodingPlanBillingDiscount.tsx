@@ -1,7 +1,7 @@
 import { BadgePercent } from "lucide-react";
-import type { CodingPlanBillingDiscountText } from "@zcode/shared";
+import type { CodingPlanBillingDiscountConfig } from "@zcode/shared";
 import { useCodingPlanBillingDiscount } from "@/hooks/useCodingPlanBillingDiscount.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { cn } from "@/components/lib/utils.js";
 
 /**

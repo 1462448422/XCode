@@ -79,7 +79,7 @@ export function buildNativeSearchToolsWindows({
     LC_ALL: "C",
   };
 
-  console.log("==> ZCode native search build");
+  console.log("==> XCode native search build");
   console.log(`    target:  ${plan.platformKey}`);
   console.log(`    output:  ${plan.outputDir}`);
   console.log(`    workdir: ${workDir}`);
@@ -109,14 +109,14 @@ export function buildNativeSearchToolsWindows({
         config.generator,
         "-A",
         config.generatorArchitecture,
-        `-DZCODE_BUILD_PATH=${toCmakePath(workDir)}`,
-        `-DZCODE_UGREP_OUTPUT_DIR=${toCmakePath(cmakeOutputDir)}`,
-        `-DZCODE_UGREP_SOURCE_DIR=${toCmakePath(sources.ugrep)}`,
-        `-DZCODE_PCRE2_SOURCE_DIR=${toCmakePath(sources.pcre2)}`,
-        `-DZCODE_ZLIB_SOURCE_DIR=${toCmakePath(sources.zlib)}`,
-        `-DZCODE_BZIP2_SOURCE_DIR=${toCmakePath(sources.bzip2)}`,
-        `-DZCODE_ZSTD_SOURCE_DIR=${toCmakePath(sources.zstd)}`,
-        `-DZCODE_BROTLI_SOURCE_DIR=${toCmakePath(sources.brotli)}`,
+        `-DXCODE_BUILD_PATH=${toCmakePath(workDir)}`,
+        `-DXCODE_UGREP_OUTPUT_DIR=${toCmakePath(cmakeOutputDir)}`,
+        `-DXCODE_UGREP_SOURCE_DIR=${toCmakePath(sources.ugrep)}`,
+        `-DXCODE_PCRE2_SOURCE_DIR=${toCmakePath(sources.pcre2)}`,
+        `-DXCODE_ZLIB_SOURCE_DIR=${toCmakePath(sources.zlib)}`,
+        `-DXCODE_BZIP2_SOURCE_DIR=${toCmakePath(sources.bzip2)}`,
+        `-DXCODE_ZSTD_SOURCE_DIR=${toCmakePath(sources.zstd)}`,
+        `-DXCODE_BROTLI_SOURCE_DIR=${toCmakePath(sources.brotli)}`,
       ],
       { env, quiet },
     );

@@ -1,7 +1,7 @@
 import {
-  buildRuntimeXCodeEndpointUrls,
-  XCODE_ENV,
-  type RuntimeXCodeEndpointEnv,
+  buildRuntimeZCodeEndpointUrls,
+  ZCODE_ENV,
+  type RuntimeZCodeEndpointEnv,
 } from "@zcode/shared";
 
 interface RendererImportMetaEnv {
@@ -14,7 +14,7 @@ function readRendererImportMetaEnv(): RendererImportMetaEnv {
     {}) as RendererImportMetaEnv;
 }
 
-export function createRendererXCodeEndpointEnv(
+function createRendererXCodeEndpointEnv(
   env: RendererImportMetaEnv = readRendererImportMetaEnv(),
 ): RuntimeXCodeEndpointEnv {
   return {

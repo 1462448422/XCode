@@ -11,9 +11,20 @@ import { scanXCodeDataDirectoryInWorker } from "./zcodeDataSizeWorkerClient.js";
 
 export type { XCodeDataSizeTelemetryState } from "./zcodeDataSizeTelemetryState.js";
 
-export const XCODE_DATA_SIZE_SCAN_MAX_DURATION_MS = 30_000;
-export const XCODE_DATA_SIZE_SCAN_MAX_FILES = 200_000;
-export const XCODE_DATA_SIZE_DAILY_INT
+const XCODE_DATA_SIZE_SCAN_MAX_DURATION_MS = 30_000;
+const XCODE_DATA_SIZE_SCAN_MAX_FILES = 200_000;
+const XCODE_DATA_SIZE_DAILY_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const XCODE_DATA_SIZE_IDLE_POLL_MS = 5 * 60 * 1000;
+const XCODE_DATA_SIZE_IDLE_WAIT_FALLBACK_MS = 6 * 60 * 60 * 1000;
+const XCODE_DATA_SIZE_MINIMUM_IDLE_SECONDS = 5 * 60;
+const XCODE_DATA_SIZE_STARTUP_MIN_DELAY_MS = 2 * 60 * 1000;
+const XCODE_DATA_SIZE_STARTUP_JITTER_MAX_MS = 8 * 60 * 1000;
+const XCODE_DATA_SIZE_DAILY_JITTER_MAX_MS = 60 * 60 * 1000;
+const XCODE_DATA_SIZE_ABORTED_RETRY_MS = 30 * 60 * 1000;
+const XCODE_DATA_SIZE_FAILURE_RETRY_MS = 6 * 60 * 60 * 1000;
+const XCODE_DATA_SIZE_ACTIVITY_POLL_MS = 1_000;
+
+interface XCodeDataSizeTelemetryTiming {
   abortedRetryMs: number;
   activityPollMs: number;
   dailyIntervalMs: number;
@@ -78,7 +89,7 @@ function stringifyProperties(
   );
 }
 
-export function buildXCodeDataSizeArmsPayload(params: {
+function buildXCodeDataSizeArmsPayload(params: {
   context: {
     appVersion: string;
     armsEnv: ArmsRumEnv;
@@ -138,7 +149,7 @@ function unrefTimer(timer: ReturnType<typeof setTimeout> | ReturnType<typeof set
   }
 }
 
-export function createXCodeDataSizeTelemetryScheduler(
+function createXCodeDataSizeTelemetryScheduler(
   dependencies: XCodeDataSizeTelemetrySchedulerDependencies,
 ): { start: () => Promise<void>; stop: () => void } {
   const timing = { ...DEFAULT_TIMING, ...dependencies.timing };

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button.js";
 import { ModelInputCapabilityBadge } from "@/components/ModelInputCapabilityBadge.js";
 import { Switch } from "@/components/ui/switch.js";
 import { Checkbox } from "@/components/ui/checkbox.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useProviderModelDraft } from "@/settings/model-provider-section/useProviderModelDraft.js";
 import { ProviderModelMetadataDialog } from "@/settings/model-provider-section/ProviderModelMetadataDialog.js";
 import { formatModelContextWindowLabel } from "@/lib/tokenNumberFormat.js";
@@ -36,7 +36,7 @@ export function ModelRowInput({
   selected,
   onSelectedChange,
   selectTestId,
-  /** XCode fork：provider 的 api.headers，读取模型元数据表（Qoder 可读名/倍率）。 */
+  /** ZCode fork：provider 的 api.headers，读取模型元数据表（Qoder 可读名/倍率）。 */
   providerMetaHeaders,
 }: {
   model: ProviderSettingsFormModel;
@@ -55,15 +55,15 @@ export function ModelRowInput({
   onDelete?: () => void;
   onEnabledChange?: (enabled: boolean) => void;
   onTest?: (model: string) => Promise<ModelConnectivityResult>;
-  /** XCode fork：批量删除勾选态。 */
+  /** ZCode fork：批量删除勾选态。 */
   selected?: boolean;
-  /** XCode fork：传入即渲染行首勾选框（内置模型不传，保持不可勾选）。 */
+  /** ZCode fork：传入即渲染行首勾选框（内置模型不传，保持不可勾选）。 */
   onSelectedChange?: (checked: boolean) => void;
   selectTestId?: string;
-  /** XCode fork：provider 的 api.headers，读取模型元数据表（Qoder 可读名/倍率）。 */
+  /** ZCode fork：provider 的 api.headers，读取模型元数据表（Qoder 可读名/倍率）。 */
   providerMetaHeaders?: Record<string, string>;
 }) {
-  const { intl, locale } = useXCodeIntl();
+  const { intl, locale } = useZCodeIntl();
   const { showFeedback } = useProviderDetailFeedback();
   const [isTesting, setIsTesting] = useState(false);
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
@@ -259,7 +259,7 @@ export function ModelRowInput({
     { id: "settings.modelProvider.contextWindowBadgeLabel" },
     { value: contextWindowLabel },
   );
-  // XCode fork：可读名与倍率来自拉取上游时写入的 overlay 元数据表（真实值，
+  // ZCode fork：可读名与倍率来自拉取上游时写入的 overlay 元数据表（真实值，
   // 上游改价/改名后重新拉取即生效），不是静态映射。缺失时静默不显示。
   const qoderMeta = parseQoderModelMeta(readQoderModelMetaHeaderValue(providerMetaHeaders));
   const qoderDisplayName = qoderMeta[model.modelId]?.name;
@@ -270,7 +270,7 @@ export function ModelRowInput({
   return (
 <div className="space-y-2 px-3 py-2">
       <div className="flex items-center gap-2">
-        {/* XCode fork：批量删除勾选框。Radix Checkbox 渲染为 button，已被
+        {/* ZCode fork：批量删除勾选框。Radix Checkbox 渲染为 button，已被
             列表拖拽的交互逃生门排除，不会误触排序。 */}
         {onSelectedChange ? (
           <Checkbox
@@ -291,7 +291,7 @@ export function ModelRowInput({
           >
             {model.modelId}
           </span>
-          {/* XCode fork：Qoder 国际版在旁边补一个更小的可读名，主显示仍是模型 ID，
+          {/* ZCode fork：Qoder 国际版在旁边补一个更小的可读名，主显示仍是模型 ID，
               与其他提供商的展示逻辑完全一致。 */}
           {qoderDisplayName ? (
             <span

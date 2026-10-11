@@ -1,4 +1,4 @@
-export interface ParentDisconnectSource {
+interface ParentDisconnectSource {
   once(event: "disconnect", listener: () => void): unknown;
   off(event: "disconnect", listener: () => void): unknown;
 }

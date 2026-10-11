@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { XCodeImportSessionsResult, XCodeImportableSessionCandidate } from "@zcode/shared";
+import type { ZCodeImportSessionsResult, ZCodeImportableSessionCandidate } from "@zcode/shared";
 import { logger } from "@/logger.js";
 import { useXCodeTaskService } from "@/hooks/useXCodeTaskService.js";
 import { useTabStoreApi } from "@/store/TabStoreProvider.js";

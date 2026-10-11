@@ -16,7 +16,7 @@ import {
   type SavePersonalModelDraftInput,
 } from "@zcode/provider";
 import { logger } from "@/logger.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { Switch } from "@/components/ui/switch.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { isImeComposingKeyEvent } from "@/lib/imeComposition.js";
@@ -37,11 +37,11 @@ import {
   resolveModelProviderDisplayName,
 } from "./constants.js";
 import { useProviderDetailFeedback } from "./ProviderDetailFeedback.js";
-import { MODEL_PROVIDER_TEXT_IDLE_TRIGGER_MS, useIdleTrigger } from "./useIdleTrigger.js";
+import { useIdleTrigger } from "./useIdleTrigger.js";
 import { useOptimisticReorder } from "./useOptimisticReorder.js";
 
-export type ProviderNameEditKeyAction = "commit" | "cancel";
-export type ProviderDraftCleanupAction = "commit" | "skip-delete";
+type ProviderNameEditKeyAction = "commit" | "cancel";
+type ProviderDraftCleanupAction = "commit" | "skip-delete";
 interface ProviderSaveNotificationTarget {
   modelId?: string;
   operation?: "delete";
@@ -49,16 +49,14 @@ interface ProviderSaveNotificationTarget {
   draftOwnsRetry?: boolean;
 }
 
-export const PROVIDER_TEXT_INPUT_IDLE_SAVE_MS = MODEL_PROVIDER_TEXT_IDLE_TRIGGER_MS;
-
-export function shouldApplyProviderSaveCompletion(
+function shouldApplyProviderSaveCompletion(
   currentRevision: number,
   completedRevision: number,
 ): boolean {
   return currentRevision === completedRevision;
 }
 
-export function resolveProviderDraftCleanupAction({
+function resolveProviderDraftCleanupAction({
   deleteRequested,
 }: {
   deleteRequested: boolean;
@@ -75,7 +73,7 @@ function isPromiseLike(value: unknown): value is PromiseLike<void> {
   );
 }
 
-export function runProviderDeleteWithDraftCleanupGuard({
+function runProviderDeleteWithDraftCleanupGuard({
   deleteRequestedRef,
   onDelete,
 }: {
@@ -105,7 +103,7 @@ export function runProviderDeleteWithDraftCleanupGuard({
   deleteRequestedRef.current = false;
 }
 
-export function resolveProviderNameEditKeyAction(event: {
+function resolveProviderNameEditKeyAction(event: {
   key: string;
   compositionActive?: boolean;
   isComposing?: boolean;
@@ -215,7 +213,7 @@ export function InlineEditableProviderCard({
   headerActionsVisible?: boolean;
   settingsRevision?: number;
 }) {
-  const { intl } = useXCodeIntl();
+  const { intl } = useZCodeIntl();
   const { dismissFeedback, showFeedback } = useProviderDetailFeedback();
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(getProviderFormLabel(provider));
@@ -833,7 +831,7 @@ export function InlineEditableProviderCard({
         }
       }
 
-      // XCode fork：把上游的可读名与倍率写进 provider overlay 的模型元数据表。
+      // ZCode fork：把上游的可读名与倍率写进 provider overlay 的模型元数据表。
       // 存headers 而非模型规则——规则 schema 是 strict 的，加字段会波及所有
       // provider 的配置解析（未知键被拒会让整层 personal 配置加载失败）。
       const metaEntries = items

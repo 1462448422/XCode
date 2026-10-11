@@ -3,7 +3,7 @@ import { Copy, ExternalLink, Loader2Icon, LogIn, RefreshCw, Trash2, UserRound } 
 import { Button } from "@/components/ui/button.js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog.js";
 import { Input } from "@/components/ui/input.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 import { useOptionalPlatform } from "@/hooks/usePlatform.js";
 import { useServices } from "@/hooks/useServices.js";

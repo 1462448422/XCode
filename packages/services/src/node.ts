@@ -81,7 +81,7 @@ export type {
 export {
   setDataBaseDir,
   getDataBaseDir,
-  getXCodeDataRootDir,
+  getZCodeDataRootDir,
   getConversationWorkspaceDir,
   getAppConfigDir,
   getExportLogStageDir,
@@ -92,7 +92,7 @@ export {
   getGitCheckpointIndexRootDir,
   copyDataDirectory,
   validateDataBaseDirTarget,
-  XCODE_WINDOWS_APP_INSTALL_DIR_ENV,
+  ZCODE_WINDOWS_APP_INSTALL_DIR_ENV,
 } from "./paths.js";
 export { createGitService } from "./git/gitService.js";
 export { GitCommitMessageGenerator } from "./git/gitCommitMessageGenerator.js";
@@ -204,10 +204,6 @@ export {
   IModelSelectionService,
   IProviderSettingsService,
 } from "./model-provider/providerFacadeServices.js";
-import { setCodeBuddyAccountStore } from "./model-provider/codebuddyAuth.js";
-import { setQoderAccountStore } from "./model-provider/qoderAuth.js";
-import { fetchQoderProStatusViaGateway } from "./model-provider/qoderUpstreamModels.js";
-import { createUpstreamModelListFetcher } from "./model-provider/upstreamModelListFetcher.js";
 export { createAccountRequestAuthService } from "./model-provider/accountRequestAuthService.js";
 export type { IAccountRequestAuthService } from "./model-provider/accountRequestAuthService.js";
 export { createAccountProviderRequestAuthService } from "./model-provider/accountProviderRequestAuthService.js";
@@ -372,6 +368,10 @@ import { createOnboardingRecordService } from "./onboarding/onboardingRecordServ
 import { createLegacyTeamOrganizationResolver } from "./model-provider/legacyTeamOrganizationResolver.js";
 import { createObservableSettingService } from "./setting/observableSettingService.js";
 import { createCredentialService } from "./credential/credentialService.js";
+import { setCodeBuddyAccountStore } from "./model-provider/codebuddyAuth.js";
+import { setQoderAccountStore } from "./model-provider/qoderAuth.js";
+import { fetchQoderProStatusViaGateway } from "./model-provider/qoderUpstreamModels.js";
+import { createUpstreamModelListFetcher } from "./model-provider/upstreamModelListFetcher.js";
 import { createBroadcastService } from "./broadcast/broadcastService.js";
 import { createZCodeAgentService } from "./zcode-agent/zcodeAgentService.js";
 import type { ZCodeAgentCommandResolver } from "./zcode-agent/zcodeAgentProcessManager.js";
@@ -548,8 +548,8 @@ import {
 import { HELPER_APP_NAME } from "@zcode/zcode-cua/broker/helperConstants";
 import { resolveBrokerSocketPath } from "@zcode/zcode-cua/broker/socketPath";
 import {
-  DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
-  XCODE_JWT_INVALID_BROADCAST_CHANNEL,
+  DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
+  ZCODE_JWT_INVALID_BROADCAST_CHANNEL,
   formatLogPrefix,
   isCredentialDecryptError,
   isStartPlanModelProviderId,
@@ -565,16 +565,16 @@ import {
   isZCodeCuaMcpCommand,
   isZCodeCuaMcpPackageArg,
   isZCodeCuaInternalFeatureEnabled,
-  XCODE_CUA_PLUGIN_AUTHORITY_ENV_KEY,
+  ZCODE_CUA_PLUGIN_AUTHORITY_ENV_KEY,
   type ZCodeAutomation,
   type ZCodeAutomationRun,
   getCapturedZCodeAgentTelemetryEnv,
-  XCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
+  ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
   ZAI_PROVIDER_ID,
   zcodeAccountAccessSchema,
   zcodeProviderAccountAccessSchema,
-  XCODE_VERSION,
-  ZCodeEnv,
+  ZCODE_VERSION,
+  ZCODE_ENV,
   buildRuntimeZCodeApiUrl,
 } from "@zcode/shared";
 
@@ -1154,7 +1154,7 @@ export function createLocalServices(options: {
   onOffPeakSchedulerWakeRequested?: () => void;
   // 注入点：默认 resolver 已能覆盖 dev/桌面/SSH 远端三类形态；
   // 测试或特殊宿主想强制走自定义 binary/参数时从这里注入。
-  zcodeAgentCommandResolver?: XCodeAgentCommandResolver;
+  zcodeAgentCommandResolver?: ZCodeAgentCommandResolver;
   /** Desktop Main 提前异步采集的本机 runtime 环境；Local Host 注入后不再同步启动 login shell。 */
   runtimeProcessEnvPatch?: Record<string, string>;
   /** 本地桌面上次 workspace 缺失时，仅用于 Agent 子进程 spawn.cwd 兜底。 */
@@ -1218,7 +1218,7 @@ export function createLocalServices(options: {
   initializeRuntimeProcessEnv(options?.runtimeProcessEnvPatch);
 
   const desktopContextPromptEnabledRaw =
-    process.env[desktopContextPromptEnabled]?.trim();
+    process.env[ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV]?.trim();
   const desktopContextPromptEnabled =
     desktopContextPromptEnabledRaw === "1"
       ? true
@@ -1389,7 +1389,7 @@ export function createLocalServices(options: {
     zcodeBuiltinEnvironment: {
       environmentConfigRoot: resolveAppConfigDir(),
       platform: clientConfigPlatform,
-      appVersion: XCODE_VERSION,
+      appVersion: ZCODE_VERSION,
       resolveEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
       onRefreshResult: (event) => {
         if (event.result === "updated")
@@ -1397,11 +1397,11 @@ export function createLocalServices(options: {
         else providerConfigLog.debug(undefined, "ZCode Built-in 刷新检查", event);
       },
       fetchRelease: (endpointOrigin, signal) =>
-        fetchXCodeBuiltinRemoteRelease({
+        fetchZCodeBuiltinRemoteRelease({
           apiClient,
           endpointOrigin,
           signal,
-          appVersion: XCODE_VERSION,
+          appVersion: ZCODE_VERSION,
           platform: clientConfigPlatform,
         }),
     },
@@ -1509,7 +1509,6 @@ export function createLocalServices(options: {
         return providerConnectivityAgentService.testModelConnectivity(input);
       },
     }),
-    // XCode fork：上游模型列表拉取由 Host 直接 HTTP；CN 的 PRO 状态查询走 gateway + COSY。
     fetchUpstreamModels: createUpstreamModelListFetcher({
       fetch: hostApiNetworkTransport.fetch,
     }),
@@ -2008,7 +2007,7 @@ export function createLocalServices(options: {
           resolveOffPeakClientConfig: () => codingPlanSubscriptionService.getOffPeakClientConfig(),
           resolveOffPeakTaskService: () => offPeakTaskServiceForAgent,
         };
-  const zcodeAgentService = zcodeAgentService({
+  const zcodeAgentService = createZCodeAgentService({
     ...(agentAccountProviderConfigSource
       ? { accountProviderConfigSource: agentAccountProviderConfigSource }
       : {}),
@@ -2024,7 +2023,7 @@ export function createLocalServices(options: {
     ...(resolveDynamicWorkflowUserMode ? { resolveDynamicWorkflowUserMode } : {}),
     forwardDynamicWorkflowUserMode: options?.forwardDynamicWorkflowUserMode,
     commandResolver: options?.zcodeAgentCommandResolver,
-    presentationSurface: resolveXCodeAgentPresentationSurface({
+    presentationSurface: resolveZCodeAgentPresentationSurface({
       runtimeSurface: options?.agentTelemetry?.runtimeSurface,
       serviceAuthorityMode: options?.serviceAuthorityMode,
       desktopContextPromptEnabled,
@@ -2133,7 +2132,7 @@ export function createLocalServices(options: {
           process.platform === "win32" ? getStableCuaPipeName() : resolveBrokerSocketPath();
         cuaProductHelperEnv = {
           [BROKER_SOCKET_ENV]: brokerSocket,
-          [XCODE_CUA_PLUGIN_AUTHORITY_ENV_KEY]: randomBytes(16).toString("hex"),
+          [ZCODE_CUA_PLUGIN_AUTHORITY_ENV_KEY]: randomBytes(16).toString("hex"),
         };
         if (process.platform === "win32") {
           const recipe = await resolveStableCuaWinRecipe();
@@ -2199,7 +2198,7 @@ export function createLocalServices(options: {
           resolveSessionRuntimePreferences: async (scope) => {
             // 预算已统一，不能把可选远端配置作为本地/手机 shared-host 建会话的前置条件。
             const settings = await settingService.get();
-            const modelContextBudgetStrategy = DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY;
+            const modelContextBudgetStrategy = DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY;
             return {
               askUserQuestionAutoResolutionEnabled:
                 settings.askUserQuestionAutoResolutionEnabled !== false,
@@ -2223,7 +2222,7 @@ export function createLocalServices(options: {
   // mapServiceEvent 路径，导致 task_complete 永远不会写回 sqlite，侧边栏 spinner 不停。
   // 在 services 层装配一个共享的 taskIndexRepo + syncer，session 任意入口都会唤醒
   // shadow 订阅，把 runtime 终态收敛进 sqlite。
-  const zcodeTaskIndexSyncer = zcodeTaskIndexSyncer({
+  const zcodeTaskIndexSyncer = createZCodeTaskIndexSyncer({
     agentService: zcodeAgentService,
     taskIndexRepo,
   });
@@ -2299,7 +2298,7 @@ export function createLocalServices(options: {
         // 401 分类后可能已完成新登录；只有队列内真正清理的旧会话才广播过期。
         if (invalidated) {
           void broadcastService.send({
-            channel: XCODE_JWT_INVALID_BROADCAST_CHANNEL,
+            channel: ZCODE_JWT_INVALID_BROADCAST_CHANNEL,
             payload: {},
           });
         }
@@ -2378,7 +2377,7 @@ export function createLocalServices(options: {
   // services 集合建好后在 return 前统一登记进 sharedSqliteRepos 侧表
   const sqliteReposToClose: Array<{ close(): void }> = [];
   const marketingAssets = createMarketingAssetRegistry({
-    allowLoopback: XCODE_ENV === "test" || process.env.NODE_ENV === "development",
+    allowLoopback: ZCODE_ENV === "test" || process.env.NODE_ENV === "development",
   });
   const services = new ServiceCollection()
     .register(
@@ -2388,7 +2387,7 @@ export function createLocalServices(options: {
         getToken: () => credentialService.load("zcodejwttoken"),
         getDeviceMid: () => options?.agentTelemetry?.getDeviceMid?.(),
         baseUrl: buildRuntimeZCodeApiUrl(process.env, "/"),
-        appVersion: XCODE_VERSION,
+        appVersion: ZCODE_VERSION,
         onSnapshot: (snapshot) => marketingAssets.accept(snapshot),
       }),
     )
@@ -2448,7 +2447,7 @@ export function createLocalServices(options: {
         apiClient,
         resolveRequestContext: async () => ({
           endpointOrigin: await resolveCurrentZCodeEndpointOrigin(),
-          appVersion: XCODE_VERSION,
+          appVersion: ZCODE_VERSION,
           platform: `${process.platform}-${process.arch}`,
         }),
       }),

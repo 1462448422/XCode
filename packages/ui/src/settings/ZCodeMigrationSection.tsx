@@ -23,7 +23,7 @@ import type {
   ClaudeMigrationRange,
   ClaudeMigrationWorkspaceFilterMode,
 } from "@/hooks/useClaudeSessionMigration.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { MigrationCandidatesCard } from "@/settings/MigrationCandidatesCard.js";
 
 const RANGE_OPTIONS: readonly ClaudeMigrationRange[] = ["7d", "30d", "90d", "all"];

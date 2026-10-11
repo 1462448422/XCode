@@ -41,7 +41,7 @@ const runtimeModuleLookupRoots = [
 const pnpmCommand = "pnpm";
 const DEFAULT_TARGET_OS = "mac";
 const DEFAULT_TARGET_ARCH = "arm64";
-const desktopDistDir = process.env.ZCODE_DESKTOP_DIST_DIR || "dist";
+const desktopDistDir = process.env.XCODE_DESKTOP_DIST_DIR || "dist";
 const desktopDistRoot = resolve(desktopRoot, desktopDistDir);
 const desktopProductIdentity = resolveDesktopProductIdentity(process.env);
 
@@ -91,11 +91,10 @@ const requiredRuntimeModules = [
   // Bugfix: telemetry 的 OTLP exporter 在启动阶段依赖 sdk-metrics；开发态 hoist 会掩盖
   // electron-builder 漏包。最终产物必须机械校验该闭包，禁止可生成但无法启动的安装包流出。
   "@opentelemetry/sdk-metrics",
-  // 与 afterPack 注入名单同口径：校验 OTLP proto 导出链（exporter → otlp-transformer → protobufjs）完整进包，
-  // 缺包产物在打包阶段直接失败，而不是等安装后启动崩溃。
+  // 与注入闭包同口径：校验 OTLP proto 导出链（exporter → otlp-transformer → protobufjs）完整进包。
   "@opentelemetry/exporter-trace-otlp-proto",
   "@opentelemetry/exporter-metrics-otlp-proto",
-  // Bugfix: @arms/rum-core 运行时会从 CJS 入口继续 require('@babel/runtime/helpers/*')。
+  // @arms/rum-core 运行时会从 CJS 入口继续 require('@babel/runtime/helpers/*')。
   // 它把 @babel/runtime 挂在 peerDependencies，pnpm workspace 开发态通常能解析，
   // 但如果生产包没把该 peer 运行时带进 app.asar，已安装应用会在主进程启动阶段直接崩溃。
   // 这里把 @babel/runtime 纳入 bundle 后机械校验，防止坏包继续流出。
@@ -151,7 +150,7 @@ export function resolveElectronMirror(env = process.env) {
 
 export function createElectronRuntimeMirrorEnv(mirror) {
   return {
-    ZCODE_ELECTRON_RUNTIME_MIRROR: mirror,
+    XCODE_ELECTRON_RUNTIME_MIRROR: mirror,
     // @electron/get 的 Electron runtime 环境变量是全局读取的。
     // 如果传给 electron-builder 主进程，会覆盖 dmg-builder 等 generic artifact 的 mirrorOptions。
     ELECTRON_MIRROR: "",
@@ -162,13 +161,9 @@ export function createElectronRuntimeMirrorEnv(mirror) {
 }
 
 function resolveDefaultElectronBuilderBinariesMirror(env = process.env) {
-  // 修复：未配置内网依赖源时（例如开源构建）内网地址解析会抛错，打包直接失败；
-  // 此时回退到 electron-builder 官方 release 下载地址。内部构建行为不变。
-  try {
-    return `${resolveIntranetDepsBaseUrl(env)}/electron-builder-binaries/`;
-  } catch {
-    return OFFICIAL_ELECTRON_BUILDER_BINARIES_MIRROR;
-  }
+  return env.XCODE_DEPS_BASE_URL?.trim() || env.INTRANET_MACHINE_HOST?.trim()
+    ? `${resolveIntranetDepsBaseUrl(env)}/electron-builder-binaries/`
+    : NPMMIRROR_ELECTRON_BUILDER_BINARIES_MIRROR;
 }
 
 export function resolveElectronBuilderBinariesMirror(env = process.env) {
@@ -265,8 +260,8 @@ function printHelp() {
   -h, --help                   查看帮助
 
 环境变量:
-  ZCODE_TARGET_OS              与 --os 等价
-  ZCODE_TARGET_ARCH            与 --arch 等价
+  XCODE_TARGET_OS              与 --os 等价
+  XCODE_TARGET_ARCH            与 --arch 等价
 `);
 }
 
@@ -288,10 +283,10 @@ function normalizeArch(rawArch) {
 
 function parseArgs(argv) {
   const options = {
-    os: process.env.ZCODE_TARGET_OS ?? null,
-    arch: process.env.ZCODE_TARGET_ARCH ?? null,
-    skipPrepare: process.env.ZCODE_SKIP_PREPARE === "1",
-    skipBuild: process.env.ZCODE_SKIP_BUILD === "1",
+    os: process.env.XCODE_TARGET_OS ?? null,
+    arch: process.env.XCODE_TARGET_ARCH ?? null,
+    skipPrepare: process.env.XCODE_SKIP_PREPARE === "1",
+    skipBuild: process.env.XCODE_SKIP_BUILD === "1",
     dryRun: false,
     positionals: [],
   };
@@ -721,8 +716,8 @@ async function main() {
   console.log(`[bundle] skipPrepare=${skipPrepare} skipBuild=${skipBuild}`);
 
   const buildEnv = {
-    ZCODE_TARGET_OS: os,
-    ZCODE_TARGET_ARCH: arch,
+    XCODE_TARGET_OS: os,
+    XCODE_TARGET_ARCH: arch,
     ...createElectronRuntimeMirrorEnv(resolveElectronMirror()),
     ...createElectronBuilderBinariesMirrorEnv(resolveElectronBuilderBinariesMirror()),
   };

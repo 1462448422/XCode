@@ -4,9 +4,9 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import type { ApiClient, FeedbackDeviceInfo } from "@zcode/shared";
 import {
   buildRuntimeZCodeApiUrl,
-  XCODE_BUILD_TIME,
-  XCODE_COMMIT,
-  XCODE_VERSION,
+  ZCODE_BUILD_TIME,
+  ZCODE_COMMIT,
+  ZCODE_VERSION,
 } from "@zcode/shared";
 import { Emitter } from "@zcode/rpc";
 import { arch, platform, release, type as osType } from "node:os";

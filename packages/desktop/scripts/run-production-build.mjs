@@ -17,7 +17,6 @@ export function resolveDesktopProductionCleanPaths(cwd) {
     resolve(cwd, "out/host"),
     resolve(cwd, "out/preload"),
     resolve(cwd, "out/renderer"),
-    resolve(cwd, "out/plugin-sandbox"),
     resolve(cwd, "out/.main-build-ready"),
     resolve(cwd, "out/.host-build-ready"),
     resolve(cwd, "out/.preload-build-ready"),
@@ -25,8 +24,8 @@ export function resolveDesktopProductionCleanPaths(cwd) {
 }
 
 export async function cleanDesktopProductionOutput({ cwd }) {
-  if (process.env.ZCODE_E2E_KEEP_BUILD_CACHE === "1") {
-    console.log("[build] ZCODE_E2E_KEEP_BUILD_CACHE=1, skipping clean");
+  if (process.env.XCODE_E2E_KEEP_BUILD_CACHE === "1") {
+    console.log("[build] XCODE_E2E_KEEP_BUILD_CACHE=1, skipping clean");
     return;
   }
   // 生产构建之前如果已有开发态/旧生产态 out，tsup 不会主动删除过期 chunk。

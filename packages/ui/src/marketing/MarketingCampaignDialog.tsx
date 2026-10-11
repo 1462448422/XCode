@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog.js";
 import { Button } from "@/components/ui/button.js";
 import { MarketingHeroTicket } from "@/marketing/MarketingHeroTicket.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import type { MarketingTouchPhase } from "@/hooks/useMarketingTouchCampaign.js";
 
 /**

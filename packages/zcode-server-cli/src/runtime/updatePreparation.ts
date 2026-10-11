@@ -9,13 +9,16 @@ import { fetchReleaseCatalog, fetchReleaseJson, ReleaseDownloader } from "./rele
 import { ReleaseInstaller } from "./releaseInstaller.js";
 import { ReleaseManager } from "./releaseManager.js";
 
-export type UpdatePreparation =
+type UpdatePreparation =
   | { status: "up-to-date"; version: string }
   | { status: "prepared"; version: string; discard: () => Promise<void> }
   | { status: "prepared-offline"; version: string };
 
 async function pathExists(path: string): Promise<boolean> {
-  return await access(path).then(() => true, () => false);
+  return await access(path).then(
+    () => true,
+    () => false,
+  );
 }
 
 function sameRelease(left: ReleaseManifest | null, right: ReleaseManifest): boolean {
@@ -24,7 +27,12 @@ function sameRelease(left: ReleaseManifest | null, right: ReleaseManifest): bool
 
 function isStalePending(pending: ReleaseManifest, current: ReleaseManifest): boolean {
   if (sameRelease(pending, current)) return true;
-  if (pending.archiveSha256 && current.archiveSha256 && pending.archiveSha256 === current.archiveSha256) return true;
+  if (
+    pending.archiveSha256 &&
+    current.archiveSha256 &&
+    pending.archiveSha256 === current.archiveSha256
+  )
+    return true;
   // 只清理不可能比 current 更新的遗留候选；未来版本的 pending 仍保留，供用户在
   // catalog 暂时回滚或离线时显式应用。
   return pending.version.localeCompare(current.version, undefined, { numeric: true }) <= 0;
@@ -56,12 +64,12 @@ function createPreparedReleaseDiscarder(input: {
 }
 
 export async function prepareOnlineUpdate(layout: ServerLayout): Promise<UpdatePreparation> {
-  const catalogUrl = process.env.ZCODE_SERVER_RELEASE_MANIFEST_URL?.trim();
+  const catalogUrl = process.env.XCODE_SERVER_RELEASE_MANIFEST_URL?.trim();
   if (!catalogUrl) {
     const pending = await new ReleaseManager(layout).readPending();
     if (!pending) {
       throw new Error(
-        "ZCode Server release source is not configured and no offline pending release is available",
+        "XCode Server release source is not configured and no offline pending release is available",
       );
     }
     return { status: "prepared-offline", version: pending.version };
@@ -113,7 +121,10 @@ export async function prepareOnlineUpdate(layout: ServerLayout): Promise<UpdateP
       expectedSizeBytes: release.archiveSizeBytes,
     });
     const releaseVersion = release.appVersion ?? release.version;
-    const releaseDir = join(layout.releasesDir, `${releaseVersion}-${target}-${release.archiveSha256.toLowerCase().slice(0, 12)}`);
+    const releaseDir = join(
+      layout.releasesDir,
+      `${releaseVersion}-${target}-${release.archiveSha256.toLowerCase().slice(0, 12)}`,
+    );
     const releaseDirExisted = await pathExists(releaseDir);
     const previousPending = await new ReleaseManager(layout).readPending();
     const prepared = await new ReleaseInstaller(layout).installArchive({
@@ -175,10 +186,11 @@ async function prepareComponentUpdate(input: {
       const remoteComponent = remoteManifest.components.find(
         (candidate) => candidate.id === component.id,
       );
-      const pathsUnchanged = currentComponent && remoteComponent
-        ? currentComponent.paths.length === remoteComponent.paths.length &&
-          currentComponent.paths.every((path, index) => path === remoteComponent.paths[index])
-        : false;
+      const pathsUnchanged =
+        currentComponent && remoteComponent
+          ? currentComponent.paths.length === remoteComponent.paths.length &&
+            currentComponent.paths.every((path, index) => path === remoteComponent.paths[index])
+          : false;
       if (currentComponent?.sha256 === component.sha256 && pathsUnchanged) continue;
       if (!component.archiveUrl || !component.archiveSha256) return null;
       const extension = component.archiveUrl.toLowerCase().endsWith(".zip") ? "zip" : "tar.gz";
@@ -188,13 +200,15 @@ async function prepareComponentUpdate(input: {
         sha256: component.sha256,
         extension,
       });
-      const cached = cachedArchive ?? await downloadComponent({
-        cache,
-        component,
-        extension,
-        target: input.target,
-        temporaryDir,
-      });
+      const cached =
+        cachedArchive ??
+        (await downloadComponent({
+          cache,
+          component,
+          extension,
+          target: input.target,
+          temporaryDir,
+        }));
       changed.push({ componentId: component.id, sha256: component.sha256, archivePath: cached });
     }
     const releaseId = `${input.release.version}-${input.target}-${input.release.archiveSha256.slice(0, 12)}`;
@@ -236,7 +250,9 @@ async function prepareComponentUpdate(input: {
 
 async function downloadComponent(input: {
   cache: ComponentCache;
-  component: NonNullable<Awaited<ReturnType<typeof fetchReleaseCatalog>>["releases"][number]["components"]>[number];
+  component: NonNullable<
+    Awaited<ReturnType<typeof fetchReleaseCatalog>>["releases"][number]["components"]
+  >[number];
   extension: string;
   target: ReturnType<typeof currentServerTarget>;
   temporaryDir: string;

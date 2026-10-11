@@ -2,9 +2,9 @@ import { z } from "zod";
 import type { CommandAgentSource } from "./command-types.js";
 import type { ZCodeProvider } from "./zcode-task-types-core.js";
 
-export const XCODE_AGENT_PROVIDER = "glm" satisfies ZCodeProvider;
-export const XCODE_AGENT_PROVIDER_LABEL = "ZCode Agent";
-export const XCODE_COMMAND_AGENT_SOURCE = "zcodeAgent" satisfies CommandAgentSource;
+export const ZCODE_AGENT_PROVIDER = "glm" satisfies ZCodeProvider;
+export const ZCODE_AGENT_PROVIDER_LABEL = "ZCode Agent";
+export const ZCODE_COMMAND_AGENT_SOURCE = "zcodeAgent" satisfies CommandAgentSource;
 
 /**
  * 解析持久化/relay 数据时的 provider 归一 schema：
@@ -13,20 +13,20 @@ export const XCODE_COMMAND_AGENT_SOURCE = "zcodeAgent" satisfies CommandAgentSou
  */
 export const legacyZCodeProviderSchema = z
   .enum(["claude", "opencode", "gemini", "codex", "glm"])
-  .transform((): typeof XCODE_AGENT_PROVIDER => XCODE_AGENT_PROVIDER);
+  .transform((): typeof ZCODE_AGENT_PROVIDER => ZCODE_AGENT_PROVIDER);
 
 export const ZCODE_ENABLED_AGENT_PROVIDERS = [
-  XCODE_AGENT_PROVIDER,
+  ZCODE_AGENT_PROVIDER,
 ] as const satisfies readonly ZCodeProvider[];
 
-export const XCODE_COMMAND_AGENT_SOURCES = [
-  XCODE_COMMAND_AGENT_SOURCE,
+export const ZCODE_COMMAND_AGENT_SOURCES = [
+  ZCODE_COMMAND_AGENT_SOURCE,
 ] as const satisfies readonly CommandAgentSource[];
 
 export function normalizeAgentProviderToZCodeAgent(
   _provider?: ZCodeProvider | null,
 ): ZCodeProvider {
-  return XCODE_AGENT_PROVIDER;
+  return ZCODE_AGENT_PROVIDER;
 }
 
 export function normalizeAgentProvidersToZCodeAgent(
@@ -38,11 +38,11 @@ export function normalizeAgentProvidersToZCodeAgent(
 export function normalizeCommandAgentSourceToZCodeAgent(
   _agentSource?: CommandAgentSource | null,
 ): CommandAgentSource {
-  return XCODE_COMMAND_AGENT_SOURCE;
+  return ZCODE_COMMAND_AGENT_SOURCE;
 }
 
 export function isZCodeAgentProvider(
   provider: ZCodeProvider | null | undefined,
-): provider is typeof XCODE_AGENT_PROVIDER {
-  return provider === XCODE_AGENT_PROVIDER;
+): provider is typeof ZCODE_AGENT_PROVIDER {
+  return provider === ZCODE_AGENT_PROVIDER;
 }

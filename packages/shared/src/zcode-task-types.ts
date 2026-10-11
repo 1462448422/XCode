@@ -119,7 +119,7 @@ export interface ZCodeSwitchAgentResult {
 }
 
 /** 外部原生 session 导入的来源 provider；与 agent runtime 的 ZCodeProvider 解耦，当前仅 Claude Code。 */
-export type ZCodeImportSessionSourceProvider = "claude";
+export type ZCodeImportSessionSourceProvider = "claude" | "zcode";
 
 /** 外部原生 session 的导入候选。 */
 export interface ZCodeImportableSessionCandidate {

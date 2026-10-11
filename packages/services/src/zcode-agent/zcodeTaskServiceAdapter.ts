@@ -38,7 +38,7 @@ import {
   resolveWorkspaceKey,
   resolveZCodeVisibleSessionTitle,
   textFromZCodeMessageParts,
-  XCODE_AGENT_PROVIDER,
+  ZCODE_AGENT_PROVIDER,
   zcodeBackgroundTaskNotificationToolUpdateStatus,
   appendZCodeStreamingToolInputDelta,
   buildZCodeStreamingToolInputPreview,
@@ -218,7 +218,7 @@ type ZCodeTerminalStreamEvent =
   | Extract<ZCodeStreamEvent, { type: "task_complete" }>
   | Extract<ZCodeStreamEvent, { type: "task_error" }>;
 
-const GLM_PROVIDER: ZCodeProvider = XCODE_AGENT_PROVIDER;
+const GLM_PROVIDER: ZCodeProvider = ZCODE_AGENT_PROVIDER;
 const EMPTY_SLASH_COMMANDS: ZCodeSlashCommand[] = [];
 const logger = createServiceLogger("zcode-task-service");
 const ASK_USER_QUESTION_TOOL_NAME = "AskUserQuestion";

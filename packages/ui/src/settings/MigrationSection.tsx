@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card.js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.js";
-import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { ZCodeMigrationSection } from "@/settings/ZCodeMigrationSection.js";
 import { useZCodeDataMigration } from "@/hooks/useZCodeDataMigration.js";
 

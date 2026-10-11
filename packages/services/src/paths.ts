@@ -4,31 +4,28 @@ import { cp } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, join, win32 } from "node:path";
 import { homedir } from "node:os";
-import {
-  DATA_BASE_DIR_FORBIDDEN_WINDOWS_INSTALL_DIR_ERROR_CODE,
-  XCODE_AGENT_RUNTIME,
-} from "@zcode/shared";
+import { DATA_BASE_DIR_FORBIDDEN_WINDOWS_INSTALL_DIR_ERROR_CODE, ZCODE_AGENT_RUNTIME } from "@zcode/shared";
 
 let _dataBaseDir: string | null = null;
-export const XCODE_WINDOWS_APP_INSTALL_DIR_ENV = "XCODE_WINDOWS_APP_INSTALL_DIR";
-const envDataBaseDir = process.env.XCODE_DATA_BASE_DIR?.trim() || null;
-// 与 settingService 的 resolveUserHomeDir() 同一解析链（含 XCODE_DESKTOP_HOME_DIR）：
+export const ZCODE_WINDOWS_APP_INSTALL_DIR_ENV = "ZCODE_WINDOWS_APP_INSTALL_DIR";
+const envDataBaseDir = process.env.ZCODE_DATA_BASE_DIR?.trim() || null;
+// 与 settingService 的 resolveUserHomeDir() 同一解析链（含 ZCODE_DESKTOP_HOME_DIR）：
 // 独立 dev/e2e 实例设了自己的 home，这里若只认 HOME 会指向真实家目录，
 // 与 setting.json 的位置（resolveUserHomeDir 侧）不一致。
 const defaultDataBaseDir =
-  process.env.XCODE_DESKTOP_HOME_DIR?.trim() || process.env.HOME?.trim() || homedir();
+  process.env.ZCODE_DESKTOP_HOME_DIR?.trim() || process.env.HOME?.trim() || homedir();
 
-// 命名约定（fork）：环境变量前缀保持 XCODE_（沿用官方，避免破坏脚本/CI）；
-// 应用数据目录固定用 .xcode（fork 品牌）。XCODE_DATA_BASE_DIR 只是「父级基目录」，
-// 真正的数据根目录见 getXCodeDataRootDir() = {base}/.xcode。
+// 命名约定（fork）：环境变量前缀保持 ZCODE_（沿用官方，避免破坏脚本/CI）；
+// 应用数据目录固定用 .xcode（fork 品牌）。ZCODE_DATA_BASE_DIR 只是「父级基目录」，
+// 真正的数据根目录见 getZCodeDataRootDir() = {base}/.xcode。
 
-export interface DataBaseDirTargetValidationOptions {
+interface DataBaseDirTargetValidationOptions {
   platform?: NodeJS.Platform | string;
   env?: Record<string, string | undefined>;
   appInstallDir?: string | null;
 }
 
-export type DataBaseDirTargetValidationResult =
+type DataBaseDirTargetValidationResult =
   | { ok: true }
   | {
       ok: false;
@@ -41,7 +38,7 @@ export function setDataBaseDir(dir: string | null): void {
   _dataBaseDir = dir?.trim() || null;
 }
 
-/** Get the current base directory. Priority: setDataBaseDir() > env XCODE_DATA_BASE_DIR > homedir(). */
+/** Get the current base directory. Priority: setDataBaseDir() > env ZCODE_DATA_BASE_DIR > homedir(). */
 export function getDataBaseDir(): string {
   if (_dataBaseDir) return _dataBaseDir;
   if (envDataBaseDir) return envDataBaseDir;
@@ -51,7 +48,7 @@ export function getDataBaseDir(): string {
 }
 
 /** {dataBaseDir}/.xcode */
-export function getXCodeDataRootDir(): string {
+export function getZCodeDataRootDir(): string {
   return join(getDataBaseDir(), ".xcode");
 }
 
@@ -75,7 +72,7 @@ export function getZcodeHomeRoots(): string[] {
   }
   // 2) 真实家目录（旧 ZCode 的默认位置；setting.json 本体也在这里）
   homes.add(
-    process.env.XCODE_DESKTOP_HOME_DIR?.trim() ||
+    process.env.ZCODE_DESKTOP_HOME_DIR?.trim() ||
       process.env.HOME?.trim() ||
       process.env.USERPROFILE?.trim() ||
       homedir(),
@@ -101,7 +98,7 @@ export function getZcodeHomeRoots(): string[] {
 /** 读旧 ZCode 的 setting.json（固定在 {真实家目录}/.zcode/v2/），取其 dataBaseDir。 */
 function readLegacyZcodeDeclaredDataBaseDir(): string | null {
   const home =
-    process.env.XCODE_DESKTOP_HOME_DIR?.trim() ||
+    process.env.ZCODE_DESKTOP_HOME_DIR?.trim() ||
     process.env.HOME?.trim() ||
     process.env.USERPROFILE?.trim() ||
     homedir();
@@ -138,12 +135,12 @@ export function findZcodeDataDir(): string | null {
 
 /** 非项目对话共享的真实工作目录；默认 ~/.xcode/workspace/default。 */
 export function getConversationWorkspaceDir(): string {
-  return join(getXCodeDataRootDir(), "workspace", "default");
+  return join(getZCodeDataRootDir(), "workspace", "default");
 }
 
 /** {dataBaseDir}/.xcode/v2 */
 export function getAppConfigDir(): string {
-  return join(getXCodeDataRootDir(), "v2");
+  return join(getZCodeDataRootDir(), "v2");
 }
 
 function readEnvValue(env: Record<string, string | undefined>, key: string): string | undefined {
@@ -204,12 +201,12 @@ function collectWindowsForbiddenAppInstallDirs(
   const localAppData = readEnvValue(env, "LOCALAPPDATA");
   const candidates = [
     options.appInstallDir,
-    readEnvValue(env, XCODE_WINDOWS_APP_INSTALL_DIR_ENV),
-    // fork 分离：安装目录随 productName 变为 XCode，数据目录禁止指向其中
-    programFiles ? win32.join(programFiles, "XCode") : null,
-    programFilesX86 ? win32.join(programFilesX86, "XCode") : null,
-    programW6432 ? win32.join(programW6432, "XCode") : null,
-    localAppData ? win32.join(localAppData, "Programs", "XCode") : null,
+    readEnvValue(env, ZCODE_WINDOWS_APP_INSTALL_DIR_ENV),
+    // fork 分离：安装目录随 productName 变为 ZCode，数据目录禁止指向其中
+    programFiles ? win32.join(programFiles, "ZCode") : null,
+    programFilesX86 ? win32.join(programFilesX86, "ZCode") : null,
+    programW6432 ? win32.join(programW6432, "ZCode") : null,
+    localAppData ? win32.join(localAppData, "Programs", "ZCode") : null,
   ];
   const seen = new Set<string>();
   const result: string[] = [];
@@ -252,15 +249,15 @@ export function validateDataBaseDirTarget(
 }
 
 export function getExportLogStageDir(): string {
-  return join(getXCodeDataRootDir(), "export-log-stage");
+  return join(getZCodeDataRootDir(), "export-log-stage");
 }
 
 export function getExportLogDir(): string {
-  return join(getXCodeDataRootDir(), "export-log");
+  return join(getZCodeDataRootDir(), "export-log");
 }
 
 export function getFeedbackRootDir(): string {
-  return join(getXCodeDataRootDir(), "feedback");
+  return join(getZCodeDataRootDir(), "feedback");
 }
 
 export function getFeedbackAttachmentDir(): string {
@@ -272,7 +269,7 @@ export function getFeedbackLogArchiveDir(): string {
 }
 
 export function getGitCheckpointIndexRootDir(): string {
-  return join(getXCodeDataRootDir(), "git-checkpoint-index");
+  return join(getZCodeDataRootDir(), "git-checkpoint-index");
 }
 
 /** ~/.xcode/v2/tasks-index.sqlite */
@@ -285,7 +282,7 @@ function getWorkspaceKey(workspacePath: string, workspaceIdentity?: string): str
   return workspaceIdentity?.trim() || workspacePath;
 }
 
-/** 与 XCode session 持久化一致：使用 workspaceKey 的 SHA-256 前 12 位 */
+/** 与 ZCode session 持久化一致：使用 workspaceKey 的 SHA-256 前 12 位 */
 export function getWorkspaceHash(workspacePath: string, workspaceIdentity?: string): string {
   return createHash("sha256")
     .update(getWorkspaceKey(workspacePath, workspaceIdentity))
@@ -349,11 +346,9 @@ export async function copyDataDirectory(oldBaseDir: string, newBaseDir: string):
 
 /**
  * GLM（唯一 agent provider）的配置目录：~/.zcode/cli。
- * Bugfix：GLM 配置改为直接读写新版 zcode-cli 的全局配置目录，不做 workspace 隔离，
- * 避免同机不同工作区配置漂移。
  */
 export function getProviderWorkspaceConfigDir(): string {
-  return XCODE_AGENT_RUNTIME.nativeConfigDir
-    ? join(getDataBaseDir(), XCODE_AGENT_RUNTIME.nativeConfigDir)
+  return ZCODE_AGENT_RUNTIME.nativeConfigDir
+    ? join(getDataBaseDir(), ZCODE_AGENT_RUNTIME.nativeConfigDir)
     : join(getDataBaseDir(), ".zcode", "cli");
 }

@@ -1,9 +1,9 @@
 import {
-  isXCodeAgentProvider,
+  isZCodeAgentProvider,
   resolveModelProviderFamilySpecByProviderId,
   zcodeProviderAccountAccessSchema,
-  type XCodeProviderAccountAccess,
-  type XCodeProvider,
+  type ZCodeProviderAccountAccess,
+  type ZCodeProvider,
 } from "@zcode/shared";
 import type { ModelSelectionView } from "@zcode/services";
 import type { ModelSelectGroup } from "@/ModelConfigSelect.js";
@@ -26,16 +26,16 @@ export interface ModelProviderGroupLabelOptions {
 }
 
 function supportsRegistryApiFormat(
-  selectedProvider: XCodeProvider,
+  selectedProvider: ZCodeProvider,
   apiFormat: string | null | undefined,
 ): boolean {
   if (!apiFormat) return false;
-  // 仅剩 glm（XCode Agent）provider；三方 CLI 的 api format 差异已随 provider 下线。
-  return isXCodeAgentProvider(selectedProvider);
+  // 仅剩 glm（ZCode Agent）provider；三方 CLI 的 api format 差异已随 provider 下线。
+  return isZCodeAgentProvider(selectedProvider);
 }
 
 export function buildRegistryModelSelectGroups(
-  selectedProvider: XCodeProvider,
+  selectedProvider: ZCodeProvider,
   view: ModelSelectionView,
   labels: ModelProviderGroupLabelOptions = {},
 ): ModelSelectGroup[] {
@@ -49,7 +49,7 @@ export function buildRegistryModelSelectGroups(
       ? getRegistryAccountProviderGroupPresentation(provider.providerId, accountAccess.data, labels)
       : null;
 
-    // XCode fork：Qoder 的选择器只显示上游可读名（Qwen3.8-Max），不显示原始 ID
+    // ZCode fork：Qoder 的选择器只显示上游可读名（Qwen3.8-Max），不显示原始 ID
     // ——ID 对用户不可读。数据来自拉取上游时写入的 overlay 元数据表；value 仍是
     // modelId，请求上游不受影响。其他 provider 无元数据，行为与改动前一致。
     const qoderMeta = parseQoderModelMeta(
@@ -65,7 +65,7 @@ export function buildRegistryModelSelectGroups(
         items: provider.models.map(({ modelId, config }) => ({
           key: `registry-provider:${provider.providerId}:${modelId}`,
           value: encodeCustomModelValue(provider.providerId, modelId),
-          // XCode fork：Qoder 的选择器只显示上游可读名（Qwen3.8-Max），不显示
+          // ZCode fork：Qoder 的选择器只显示上游可读名（Qwen3.8-Max），不显示
           // 原始 ID——ID 对用户不可读。value 仍是 modelId，请求上游不受影响；
           // 其他 provider 无元数据，行为与改动前一致。
           name: qoderMeta[modelId]?.name ?? modelId,
@@ -84,7 +84,7 @@ export function buildRegistryModelSelectGroups(
 
 function getRegistryAccountProviderGroupPresentation(
   providerId: string,
-  access: XCodeProviderAccountAccess,
+  access: ZCodeProviderAccountAccess,
   labels: ModelProviderGroupLabelOptions,
 ): Pick<ModelSelectGroup, "label" | "labelBadge"> {
   const familySpec = resolveModelProviderFamilySpecByProviderId(providerId);

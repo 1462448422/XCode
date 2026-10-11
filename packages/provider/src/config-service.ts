@@ -162,7 +162,7 @@ export class ProviderConfigService implements ProviderSource<ProviderConfigSnaps
         // 通用保存入口只解析 ProviderConfig，曾绕过 Personal Source Schema，
         // 允许固定 Account Provider 的 access 被写盘，直到下次读取才整份拒绝。
         throw new Error(
-          `固定 Account Provider 的 Access 只能由 XCode Built-in Config 声明: ${providerId}`,
+          `固定 Account Provider 的 Access 只能由 ZCode Built-in Config 声明: ${providerId}`,
         );
       }
       // 普通保存曾同时承担创建语义，删除后的迟到保存可以凭空复活 Overlay。
@@ -302,10 +302,12 @@ export class ProviderConfigService implements ProviderSource<ProviderConfigSnaps
     const zcodeBuiltin = await this.#zcodeBuiltinSource.read();
     return this.#updatePersonal((current) => {
       assertMembershipCurrent(membership, providerId, current);
+      const builtinProvider =
+        zcodeBuiltin.providers.get(providerId) ??
+        resolveTemplateBaseline(zcodeBuiltin, current.providers, providerId);
       const provider = writableProviderOverlay(zcodeBuiltin, current, providerId);
       const modelOrder = normalizeModelOrder(
-        membership?.inheritedModelIds ??
-          resolveProviderBuiltinModelIds(zcodeBuiltin, current.providers, providerId),
+        membership?.inheritedModelIds ?? builtinProvider?.builtinModelIds ?? [],
         provider.personalModelIds ?? [],
         modelIds,
       );
@@ -530,36 +532,8 @@ export class ProviderConfigService implements ProviderSource<ProviderConfigSnaps
       const inherited =
         membership?.inheritedModelIds ??
         resolveProviderBuiltinModelIds(builtin, current.providers, normalizedProviderId);
-      if (inherited.includes(normalizedModelId)) {
-        // XCode fork：Built-in 模型可删。删除即“拍平”该 Provider 的模型名单：
-        // 个人层用 builtinModelIds=[] 覆盖继承名单，剩余 Built-in 模型转入
-        // personal 名单（配置仍由 Built-in 规则逐字段合成），本次删除随后走
-        // 普通 Personal 删除。账号型 Provider 的模型名单是运行时连接事实，
-        // 不在可删范围。
-        if (builtin.providers.get(normalizedProviderId)?.access?.type === "zhipu-account") {
-          throw new Error(`Built-in Model 不能删除: ${normalizedProviderId}/${normalizedModelId}`);
-        }
-        const remaining = inherited.filter((candidate) => candidate !== normalizedModelId);
-        const currentPersonal = (provider?.personalModelIds ?? []).filter(
-          (candidate) => candidate !== normalizedModelId,
-        );
-        const nextPersonal = uniqueInOrder([...currentPersonal, ...remaining]);
-        const nextProvider = (provider ?? new ProviderConfigValue({}))
-          .withBuiltinModelIds([])
-          .withPersonalModelIds(nextPersonal)
-          .withModelOrder(
-            normalizeModelOrder(
-              [],
-              nextPersonal,
-              (provider?.modelOrder ?? []).filter((candidate) => candidate !== normalizedModelId),
-            ),
-          );
-        return {
-          providers: current.providers.set(normalizedProviderId, nextProvider),
-          models: current.models.deleteExact(normalizedProviderId, normalizedModelId),
-          providerOrder: current.providerOrder,
-        };
-      }
+      if (inherited.includes(normalizedModelId))
+        throw new Error(`Built-in Model 不能删除: ${normalizedProviderId}/${normalizedModelId}`);
       if (!provider?.personalModelIds?.includes(normalizedModelId)) {
         throw new Error(`Personal Model 不存在: ${normalizedProviderId}/${normalizedModelId}`);
       }
@@ -644,11 +618,7 @@ function normalizePersonalProviderMembership(
   inheritedModelIds?: readonly ModelId[],
 ): ProviderConfig | undefined {
   if (!personal) return undefined;
-  // XCode fork：成员基线先看动态视图事实，再看个人层覆盖（拍平标记），
-  // 最后才是静态 Built-in 名单——否则拍平后的名单会被通用保存清回 Built-in。
-  const builtinModelIds = uniqueInOrder(
-    inheritedModelIds ?? personal.builtinModelIds ?? builtin?.builtinModelIds ?? [],
-  );
+  const builtinModelIds = uniqueInOrder(inheritedModelIds ?? builtin?.builtinModelIds ?? []);
   const builtinSet = new Set(builtinModelIds);
   const personalModelIds = uniqueInOrder(personal.personalModelIds ?? []).filter(
     (modelId) => !builtinSet.has(modelId),
@@ -764,10 +734,7 @@ function resolveProviderBuiltinModelIds(
   personalProviders: ProviderConfigMap,
   providerId: ProviderId,
 ): readonly ModelId[] {
-  // XCode fork：个人层可用 builtinModelIds 覆盖（Built-in 模型删除时拍平名单），
-  // 覆盖后（含空数组）以个人层为准，静态 Built-in 名单不再参与归属判断。
   return (
-    personalProviders.get(providerId)?.builtinModelIds ??
     builtin.providers.get(providerId)?.builtinModelIds ??
     resolveTemplateBaseline(builtin, personalProviders, providerId)?.builtinModelIds ??
     []

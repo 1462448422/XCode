@@ -3,7 +3,7 @@ import type {
   MarketingCampaignButton,
   MarketingHero,
   MarketingTextContent,
-  MarketingDelivery,
+  MarketingTouchDelivery,
 } from "@zcode/shared";
 import { prepareMarketingBundle } from "./prepareMarketingBundle.js";
 

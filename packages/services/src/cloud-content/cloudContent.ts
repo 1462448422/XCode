@@ -1,4 +1,5 @@
-import { ServiceChannels, type CloudContentBundle, type MarketingAsset } from "@zcode/shared";
+import { ServiceChannels, type CloudContentBundle } from "@zcode/shared";
+import type { MarketingAsset } from "@zcode/shared/marketingTouch";
 import { createServiceDescriptor } from "#src/descriptors.js";
 
 export interface ICloudContentService {

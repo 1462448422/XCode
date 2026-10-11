@@ -2,9 +2,9 @@ import { createLocalServices, type ZCodeAgentCommandResolver } from "@zcode/serv
 import type { IChannel } from "@zcode/rpc";
 import {
   parseServiceAuthorityMode,
-  XCODE_REMOTE_HTTP_PROXY_ENV_KEY,
-  XCODE_REMOTE_NO_PROXY_ENV_KEY,
-  XCODE_REMOTE_RUNTIME_NETWORK_AUTHORITY_ENV_KEY,
+  ZCODE_REMOTE_HTTP_PROXY_ENV_KEY,
+  ZCODE_REMOTE_NO_PROXY_ENV_KEY,
+  ZCODE_REMOTE_RUNTIME_NETWORK_AUTHORITY_ENV_KEY,
 } from "@zcode/shared";
 
 export interface CreateStdioServicesOptions {

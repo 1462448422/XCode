@@ -6,7 +6,7 @@ export type BuiltinZCodeSlashCommandHelpEntry = {
   usage: string;
 };
 
-export const BUILTIN_XCODE_SLASH_COMMAND_HELP_ENTRIES: readonly BuiltinZCodeSlashCommandHelpEntry[] = [
+export const BUILTIN_ZCODE_SLASH_COMMAND_HELP_ENTRIES: readonly BuiltinZCodeSlashCommandHelpEntry[] = [
   {
     details: [
       "Shows command-center help locally without creating a session or sending a model prompt.",
