@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { MarketingHero, MarketingInteractiveBundleHero } from "@zcode/shared";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 
 /**

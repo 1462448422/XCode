@@ -1,14 +1,10 @@
-import {
-  readRequestVerificationConfig,
-  requestVerificationClaimHeaders,
-  isRequestVerificationMessage,
-  type RequestVerificationClientConfig,
-} from "@zcode/shared";
 /* eslint-disable max-lines -- Coding Plan provider 需要集中维护 BigModel 支付宝与 Z.ai Stripe/PayPal 接口映射，拆分会让共享鉴权和响应解包更难追踪。 */
+import { buildXCodeSourceHeaders } from "../providers/sourceHeaders.js";
+import { ensureDeviceMidForAccount } from "../device/deviceMid.js";
+import { buildZaiStartPlanBalanceUrl, type ZaiStartPlanBalanceEnvelope } from "../model-provider/zaiStartPlanBilling.js";
 import type {
   ApiClient,
   ApiRequestInit,
-  RequestVerificationConfig,
   ForceUpdateConfig,
   CodingPlanAgreementResponse,
   CodingPlanBatchPreviewRequest,
@@ -25,11 +21,11 @@ import type {
   CodingPlanPaypalSupportResponse,
   CodingPlanProductInfo,
   CodingPlanProductInfoRequest,
-  CodingPlanBillingDiscountConfig,
   CodingPlanStaticTeamProduct,
   CodingPlanStaticProductsConfig,
   CodingPlanStaticTeamProductsConfig,
   CodingPlanSubscriptionProviderId,
+  CodingPlanBillingDiscountConfig,
   CodingPlanPreviewRequest,
   CodingPlanPreviewResponse,
   CodingPlanStripeBindRequest,
@@ -56,34 +52,38 @@ import type {
   EnterpriseCodingPlanProjectApiKeyUnavailableReason,
   EnterpriseCodingPlanProjectContext,
   StartPlanPreviewConfig,
-  ManualClaimPlanClaimRequest,
-  ManualClaimPlanClaimResult,
-  ManualClaimPlanPreviewSnapshot,
-  ZCodeModelContextBudgetStrategy,
+  XCodeModelContextBudgetStrategy,
   DynamicWorkflowClientConfig,
+  MarketingCaptchaConfig,
+  MarketingClaimPlanResponse,
+  MarketingManualPlanPreview,
+  MarketingManualPlanPreviewResponse,
 } from "@zcode/shared";
 import type { ModelSelectionView } from "@zcode/provider";
 import type { OffPeakClientConfig } from "./codingPlanSubscription.js";
 import {
   BIGMODEL_PROVIDER_ID,
   BUILTIN_MODEL_PROVIDER_IDS,
-  REQUEST_VERIFICATION_REQUIRED,
   CODING_PLAN_SYSTEM_BUSY,
-  buildRuntimeZCodeApiUrl,
+  buildRuntimeXCodeApiUrl,
   isZaiCodingPlanProviderId,
   resolveBigModelApiOrigin,
   resolveZaiBusinessBaseUrl,
   ZAI_PROVIDER_ID,
-  ZCODE_VERSION,
-  DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
+  XCODE_VERSION,
+  DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
   createDynamicWorkflowClientConfig,
   normalizeDynamicWorkflowMode,
   resolveDynamicWorkflowClientConfig,
   DEFAULT_DYNAMIC_WORKFLOW_MODE,
-  ZCODE_DYNAMIC_WORKFLOW_MODE_ENV,
+  XCODE_DYNAMIC_WORKFLOW_MODE_ENV,
 } from "@zcode/shared";
 import type { ICredentialService } from "../credential/credential.js";
 import { readApiJson } from "../providers/api/apiJson.js";
+import {
+  XCODE_MANUAL_PLAN_CLAIM_URL,
+  XCODE_MANUAL_PLAN_PREVIEW_URL,
+} from "../providers/api/apiEndpoints.js";
 import { createServiceLogger } from "../logger/serviceLogger.js";
 import {
   ensureBigModelTeamPlanProjectApiKeyWithStatus,
@@ -93,19 +93,12 @@ import {
 
 const BIGMODEL_CODING_PLAN_API_PREFIX = "/api/biz";
 const ZAI_CODING_PLAN_PAY_API_PREFIX = "/api/pay";
-const ZCODE_CLIENT_CONFIG_API_PREFIX = "/api/v1/client/configs";
+const XCODE_CLIENT_CONFIG_API_PREFIX = "/api/v1/client/configs";
 const REQUEST_TIMEOUT_MS = 15_000;
 const CLIENT_CONFIG_CACHE_TTL_MS = 60 * 60 * 1000;
 const CODING_PLAN_ZAI_OVERSEAS_PAYMENT_REQUIRED = "coding_plan_zai_overseas_payment_required";
-const ZCODE_JWT_TOKEN_KEY = "zcodejwttoken";
+const XCODE_JWT_TOKEN_KEY = "zcodejwttoken";
 const log = createServiceLogger("codingPlanSubscription");
-
-// 合并时曾丢失秒到毫秒的边界转换，导致客户端用本机时间误判待生效权益。
-function readServerTimeMilliseconds(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? value * 1_000
-    : undefined;
-}
 
 interface RemoteEnvelope<T> {
   code?: number;
@@ -114,70 +107,33 @@ interface RemoteEnvelope<T> {
   data?: T | null;
 }
 
-interface ManualClaimPlanPreviewPayload {
-  server_time?: number;
-  plans?: Array<{
-    plan_id?: string;
-    name?: string;
-    description?: string;
-    priority?: number;
-    entitlements?: Array<{
-      entitlement_id?: string;
-      show_name?: string;
-      meter?: string;
-      unit_type?: string;
-      capabilities?: string[];
-      grant_units?: number;
-      period?: string;
-      priority?: number;
-      effective_at?: number;
-    }>;
-  }>;
-}
-
-interface ManualClaimPlanClaimPayload {
-  server_time?: number;
-  message?: unknown;
-  plan?: {
-    user_plan_id?: string;
-    plan_id?: string;
-    status?: string;
-    starts_at?: number;
-    ends_at?: number;
-    entitlements?: Array<{
-      entitlement_id?: string;
-      show_name?: string;
-      effective_at?: number;
-    }>;
-  };
-}
-
-interface ZCodeClientConfigEnvelope {
+interface XCodeClientConfigEnvelope {
   code?: number;
   msg?: string;
   success?: boolean;
   data?: {
-    configs?:
-      | (RequestVerificationClientConfig & {
-          forceUpdate?: ForceUpdateConfig | null;
-          codingPlanBillingDiscount?: CodingPlanBillingDiscountConfig;
-          codingPlanStaticProducts?: CodingPlanStaticProductsConfig;
-          codingPlanStaticTeamProducts?: CodingPlanStaticTeamProductsConfig;
-          startPlanPreview?: StartPlanPreviewConfig | null;
-          // 闲时任务灰度（服务端）：内层字段服务端为 snake_case，与外层 camelCase 混排。
-          offPeak?: {
-            enable_offpeak_task?: boolean;
-          } | null;
-          modelContextBudget?: {
-            strategy?: unknown;
-          } | null;
-          // 动态工作流灰度：mode 的取值域由
-          // shared 的 normalizeDynamicWorkflowMode 裁决，这里保持 unknown，不在类型层假设服务端合法。
-          dynamicWorkflow?: {
-            mode?: unknown;
-          } | null;
-        })
-      | null;
+    configs?: {
+      forceUpdate?: ForceUpdateConfig | null;
+      codingPlanStaticProducts?: CodingPlanStaticProductsConfig;
+      codingPlanStaticTeamProducts?: CodingPlanStaticTeamProductsConfig;
+      startPlanPreview?: StartPlanPreviewConfig | null;
+      // 活动/折扣（官方 client/configs 下发，键为 locale 的文案映射）。
+      codingPlanBillingDiscount?: CodingPlanBillingDiscountConfig | null;
+      // 阿里云验证码配置（官方 client/configs 下发的 captcha 字段），用于领取活动。
+      captcha?: MarketingCaptchaConfig | null;
+      // 闲时任务灰度（服务端）：内层字段服务端为 snake_case，与外层 camelCase 混排。
+      offPeak?: {
+        enable_offpeak_task?: boolean;
+      } | null;
+      modelContextBudget?: {
+        strategy?: unknown;
+      } | null;
+      // 动态工作流灰度：mode 的取值域由
+      // shared 的 normalizeDynamicWorkflowMode 裁决，这里保持 unknown，不在类型层假设服务端合法。
+      dynamicWorkflow?: {
+        mode?: unknown;
+      } | null;
+    } | null;
   } | null;
 }
 
@@ -215,9 +171,9 @@ export class BigModelCodingPlanSubscriptionProvider {
   protected readonly apiClient: ApiClient;
   protected readonly credentialService: Pick<ICredentialService, "load">;
   private readonly resolveOffPeakModelSelectionView?: () => Promise<ModelSelectionView>;
-  private clientConfigSnapshot: ZCodeClientConfigEnvelope | null = null;
+  private clientConfigSnapshot: XCodeClientConfigEnvelope | null = null;
   private clientConfigSnapshotExpiresAt = 0;
-  private clientConfigRequest: Promise<ZCodeClientConfigEnvelope> | null = null;
+  private clientConfigRequest: Promise<XCodeClientConfigEnvelope> | null = null;
 
   constructor(options: BigModelCodingPlanSubscriptionProviderOptions) {
     this.apiClient = options.apiClient;
@@ -274,145 +230,12 @@ export class BigModelCodingPlanSubscriptionProvider {
     return unwrapClientConfigStartPlanPreview(payload);
   }
 
-  async getManualClaimPlanPreviews(): Promise<ManualClaimPlanPreviewSnapshot> {
-    const token = (await this.credentialService.load(ZCODE_JWT_TOKEN_KEY))?.trim();
-    const url = new URL(buildRuntimeZCodeApiUrl(process.env, "/api/v1/zcode-plan/billing/preview"));
-    url.searchParams.set("app_version", ZCODE_VERSION);
-    url.searchParams.set("platform", resolveClientPlatformKey());
-    const payload = await readCodingPlanApiJson<RemoteEnvelope<ManualClaimPlanPreviewPayload>>(
-      this.apiClient,
-      url,
-      {
-        method: "GET",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        timeoutMs: REQUEST_TIMEOUT_MS,
-      },
-    );
-    // 新 ZCode billing 接口沿用平台 envelope（code=0 成功），不能复用
-    // BigModel 支付接口的 code=200 解包器，否则合法 preview 会被误判失败。
-    if (payload.code !== undefined && payload.code !== 0) {
-      throw new Error(payload.msg?.trim() || "manual_claim_preview_failed");
-    }
-    if (!payload.data) {
-      throw new Error(payload.msg?.trim() || "manual_claim_preview_missing_data");
-    }
-    const data = payload.data;
-    const serverTime = readServerTimeMilliseconds(data.server_time);
-    const plans = (data.plans ?? []).flatMap((plan) => {
-      const planId = plan.plan_id?.trim() ?? "";
-      if (!planId) return [];
-      return [
-        {
-          planId,
-          name: plan.name?.trim() || planId,
-          description: plan.description?.trim() ?? "",
-          priority: Number.isFinite(plan.priority) ? (plan.priority ?? 0) : 0,
-          entitlements: (plan.entitlements ?? []).flatMap((entitlement) => {
-            const entitlementId = entitlement.entitlement_id?.trim() ?? "";
-            if (!entitlementId) return [];
-            return [
-              {
-                entitlementId,
-                showName: entitlement.show_name?.trim() ?? "",
-                meter: entitlement.meter?.trim() ?? "",
-                unitType: entitlement.unit_type?.trim() ?? "",
-                capabilities: entitlement.capabilities ?? [],
-                grantUnits: Number.isFinite(entitlement.grant_units)
-                  ? (entitlement.grant_units ?? 0)
-                  : 0,
-                period: entitlement.period?.trim() ?? "",
-                priority: Number.isFinite(entitlement.priority) ? (entitlement.priority ?? 0) : 0,
-                ...(Number.isFinite(entitlement.effective_at)
-                  ? { effectiveAt: entitlement.effective_at }
-                  : {}),
-              },
-            ];
-          }),
-        },
-      ];
-    });
-    return { ...(serverTime === undefined ? {} : { serverTime }), plans };
-  }
-
-  async claimManualPlan(request: ManualClaimPlanClaimRequest): Promise<ManualClaimPlanClaimResult> {
-    const token = (await this.credentialService.load(ZCODE_JWT_TOKEN_KEY))?.trim();
-    if (!token) {
-      return { success: false, code: 401, message: "" };
-    }
-    const payload = await readCodingPlanApiJson<
-      Omit<RemoteEnvelope<ManualClaimPlanClaimPayload>, "code"> & { code?: number | string }
-    >(
-      this.apiClient,
-      new URL(buildRuntimeZCodeApiUrl(process.env, "/api/v1/zcode-plan/billing/claim")),
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          ...requestVerificationClaimHeaders(request),
-          "X-ZCode-App-Version": ZCODE_VERSION,
-          "X-Platform": resolveClientPlatformKey(),
-        },
-        body: JSON.stringify({ plan_id: request.planId }),
-        timeoutMs: REQUEST_TIMEOUT_MS,
-      },
-    );
-    // 领取接口的错误码可能是数字字符串；缺失 code 仍不推断成功。
-    const rawCode = payload.code;
-    const code =
-      typeof rawCode === "number"
-        ? rawCode
-        : typeof rawCode === "string" && /^\d+$/.test(rawCode)
-          ? Number(rawCode)
-          : -1;
-    const serverTime = readServerTimeMilliseconds(payload.data?.server_time);
-    if (code !== 0 || !payload.data?.plan) {
-      const failureEndsAt = payload.data?.plan?.ends_at;
-      return {
-        success: false,
-        code,
-        // 服务端已完成翻译，顶层 msg 不是用户文案；空值由 UI 本地化兜底。
-        message: typeof payload.data?.message === "string" ? payload.data.message : "",
-        ...(serverTime === undefined ? {} : { serverTime }),
-        // 保留既有结果字段兼容其他调用方；营销提示不再据此推导文案。
-        ...(Number.isFinite(failureEndsAt) ? { failureEndsAt } : {}),
-      };
-    }
-    const plan = payload.data.plan;
-    return {
-      success: true,
-      code,
-      message: payload.msg?.trim() ?? "",
-      ...(serverTime === undefined ? {} : { serverTime }),
-      plan: {
-        userPlanId: plan.user_plan_id?.trim() ?? "",
-        planId: plan.plan_id?.trim() || request.planId,
-        status: plan.status?.trim() ?? "",
-        ...(Number.isFinite(plan.starts_at) ? { startsAt: plan.starts_at } : {}),
-        ...(Number.isFinite(plan.ends_at) ? { endsAt: plan.ends_at } : {}),
-        entitlements: (plan.entitlements ?? []).flatMap((entitlement) => {
-          const entitlementId = entitlement.entitlement_id?.trim() ?? "";
-          if (!entitlementId) return [];
-          return [
-            {
-              entitlementId,
-              showName: entitlement.show_name?.trim() ?? "",
-              ...(Number.isFinite(entitlement.effective_at)
-                ? { effectiveAt: entitlement.effective_at }
-                : {}),
-            },
-          ];
-        }),
-      },
-    };
-  }
-
   /**
    * 闲时任务灰度配置：复用 client/configs 通道零新增请求。
    * forceRefresh 供"打开 Automations 入口补拉"（1h 快照否则灰度翻转最长 1h 不可见）。
    */
   async getOffPeakClientConfig(options?: { forceRefresh?: boolean }): Promise<OffPeakClientConfig> {
-    if (process.env["ZCODE_OFFPEAK_MOCK"] === "1") {
+    if (process.env["XCODE_OFFPEAK_MOCK"] === "1") {
       // mock 已经明确替代远端曝光配置，不能再先等待 /client/configs：
       // 离线 Desktop E2E 会一直停在 Loading，根本无法进入闲时执行链。
       const modelSelectionView = await this.resolveOffPeakModelSelectionView?.();
@@ -430,7 +253,7 @@ export class BigModelCodingPlanSubscriptionProvider {
   /**
    * 动态工作流灰度快照：与闲时任务同走
    * client/configs，零新增请求。三条边界：
-   *   1. 本地覆盖（ZCODE_DYNAMIC_WORKFLOW_MODE）在任何网络动作之前裁决，命中即返回——
+   *   1. 本地覆盖（XCODE_DYNAMIC_WORKFLOW_MODE）在任何网络动作之前裁决，命中即返回——
    *      preview 构建和开发者手测因此不受 1h 快照与首次 Host 竞态影响；
    *   2. forceRefresh 与 Off-Peak 同义，清掉快照后重拉（灰度翻转最长 1h 不可见）；
    *   3. 请求失败 fail-closed：返回 default（disabled）并 warn，绝不把异常抛给调用方——
@@ -440,7 +263,7 @@ export class BigModelCodingPlanSubscriptionProvider {
     forceRefresh?: boolean;
   }): Promise<DynamicWorkflowClientConfig> {
     // 覆盖合法即短路：判据（normalize）与快照构造（resolve）都留在 shared，这里不复述取值域。
-    if (normalizeDynamicWorkflowMode(process.env[ZCODE_DYNAMIC_WORKFLOW_MODE_ENV])) {
+    if (normalizeDynamicWorkflowMode(process.env[XCODE_DYNAMIC_WORKFLOW_MODE_ENV])) {
       return resolveDynamicWorkflowClientConfig({ remote: undefined, env: process.env });
     }
     if (options?.forceRefresh) {
@@ -461,23 +284,130 @@ export class BigModelCodingPlanSubscriptionProvider {
     }
   }
 
-  async getModelContextBudgetStrategy(): Promise<ZCodeModelContextBudgetStrategy> {
+  async getModelContextBudgetStrategy(): Promise<XCodeModelContextBudgetStrategy> {
     // 3.12.2：预算统一为 preflight-v1；保留兼容方法，但不能再为每次建会话等待远端配置。
-    return DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY;
-  }
-
-  async getBillingDiscount(): Promise<CodingPlanBillingDiscountConfig | undefined> {
-    const payload = await this.getClientConfigs();
-    return unwrapClientConfigBillingDiscount(payload);
-  }
-
-  async getRequestVerificationConfig(): Promise<RequestVerificationConfig | null> {
-    return readRequestVerificationConfig((await this.getClientConfigs()).data?.configs);
+    return DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY;
   }
 
   async getForceUpdateConfig(): Promise<ForceUpdateConfig | null> {
     const payload = await this.getClientConfigs();
     return unwrapClientConfigForceUpdate(payload);
+  }
+
+  async getBillingDiscount(): Promise<CodingPlanBillingDiscountConfig | null> {
+    const payload = await this.getClientConfigs();
+    return unwrapClientConfigBillingDiscount(payload);
+  }
+
+  /**
+   * 领取型活动套餐预览（`GET /api/v1/zcode-plan/billing/preview`）。
+   * 走 ZCode 平台 JWT 鉴权，与 marketing/touch 同一通道身份。
+   */
+  async getManualClaimPlanPreviews(): Promise<MarketingManualPlanPreview[]> {
+    const payload = await readCodingPlanApiJson<MarketingManualPlanPreviewResponse>(
+      this.apiClient,
+      XCODE_MANUAL_PLAN_PREVIEW_URL,
+      {
+        method: "GET",
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        headers: await this.loadZcodePlatformAuthHeaders(),
+      },
+    );
+    return (payload.plans ?? []) as MarketingManualPlanPreview[];
+  }
+
+  /**
+   * 领取 manual claim 套餐（`POST /api/v1/zcode-plan/billing/claim`）。
+   * 携带阿里云验证码校验参数（captchaVerifyParam / captchaRegion）。
+   *
+   * 响应为业务信封 `{ code, msg, data, logid }`，成功以 `code === 0` 判定；
+   * `data` 无顶层 success 字段，控制器读取 `result.success`，因此这里归一化。
+   */
+  async claimManualPlan(input: {
+    planId: string;
+    captchaVerifyParam?: string;
+    captchaRegion?: string;
+    /** 按该账号的 per-account JWT 领取（一键领取）；缺省用当前激活账号镜像。 */
+    accountRef?: string;
+  }): Promise<MarketingClaimPlanResponse> {
+    const headers = await this.loadZcodePlatformAuthHeaders(input.accountRef);
+    if (input.captchaVerifyParam) {
+      headers["X-Aliyun-Captcha-Verify-Param"] = input.captchaVerifyParam;
+    }
+    if (input.captchaRegion) {
+      headers["X-Aliyun-Captcha-Verify-Region"] = input.captchaRegion;
+    }
+    const envelope = await readCodingPlanApiJson<{
+      code: number;
+      msg?: string;
+      data?: { message?: string; server_time?: number; [key: string]: unknown };
+      logid?: string;
+    }>(this.apiClient, XCODE_MANUAL_PLAN_CLAIM_URL, {
+      method: "POST",
+      timeoutMs: REQUEST_TIMEOUT_MS,
+      headers,
+      body: JSON.stringify({ plan_id: input.planId }),
+    });
+    return {
+      success: envelope.code === 0,
+      code: envelope.code,
+      message: envelope.data?.message || envelope.msg,
+    };
+  }
+
+  /** 按账号查 Start Plan 名下计划（billing/balance，一键领取「已有计划」判定）。 */
+  async getManualClaimPlanPlans(input: {
+    accountRef?: string;
+  }): Promise<{
+    plans: Array<{ planId?: string; name?: string; status?: string; endsAt?: number | string | null }>;
+  }> {
+    const headers = await this.loadZcodePlatformAuthHeaders(input.accountRef);
+    const envelope = await readCodingPlanApiJson<ZaiStartPlanBalanceEnvelope>(
+      this.apiClient,
+      buildZaiStartPlanBalanceUrl(),
+      { method: "GET", timeoutMs: REQUEST_TIMEOUT_MS, headers },
+    );
+    if (envelope.code !== 0) {
+      throw new Error(envelope.msg || "balance request failed");
+    }
+    return {
+      plans: (envelope.data?.plans ?? []).map((plan) => ({
+        planId: plan.plan_id,
+        name: plan.name,
+        status: plan.status,
+        endsAt: plan.ends_at,
+      })),
+    };
+  }
+
+  /** 阿里云验证码配置（复用 client/configs 的 captcha 字段）。 */
+  async getCaptchaConfig(): Promise<MarketingCaptchaConfig | null> {
+    const payload = await this.getClientConfigs();
+    return unwrapClientConfigCaptcha(payload);
+  }
+
+  private async loadZcodePlatformAuthHeaders(accountRef?: string): Promise<Record<string, string>> {
+    // 一键领取：source 头（X-Device-Mid/X-ZCode-App-Version 等）跟随目标账号，
+    // 否则 apiClient 注入的激活账号 mid 与该账号 JWT 不配对会被服务端拒绝。
+    if (accountRef) {
+      ensureDeviceMidForAccount(accountRef);
+    }
+    const sourceHeaders = accountRef ? buildXCodeSourceHeaders({ accountRef }) : {};
+    // 一键领取按账号凭据直领：accountRef 给定时读 per-account JWT（zcodejwt:{ref}，
+    // 与 oauthCredentialRepo 的 accountZcodeJwtKey 同 key 约定），不读全局镜像、不切激活账号。
+    const token = (
+      await this.credentialService.load(
+        accountRef ? `zcodejwt:${accountRef}` : XCODE_JWT_TOKEN_KEY,
+      )
+    )?.trim();
+    if (!token) {
+      throw new Error("zcode_jwt_required");
+    }
+    return {
+      ...sourceHeaders,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
   }
 
   async preview(request: CodingPlanPreviewRequest): Promise<CodingPlanPreviewResponse> {
@@ -798,7 +728,7 @@ export class BigModelCodingPlanSubscriptionProvider {
     return unwrapEnvelope(payload, endpoint.providerId);
   }
 
-  private async getClientConfigs(): Promise<ZCodeClientConfigEnvelope> {
+  private async getClientConfigs(): Promise<XCodeClientConfigEnvelope> {
     if (this.clientConfigSnapshot && this.clientConfigSnapshotExpiresAt > Date.now()) {
       return this.clientConfigSnapshot;
     }
@@ -806,14 +736,14 @@ export class BigModelCodingPlanSubscriptionProvider {
       return await this.clientConfigRequest;
     }
 
-    // client/configs 和其他 ZCode 平台接口必须共享运行时 endpoint；
-    // E2E/测试环境会通过 ZCODE_BASE_URL 指向本地 mock，硬编码线上域名会让套餐状态不可控。
+    // client/configs 和其他 XCode 平台接口必须共享运行时 endpoint；
+    // E2E/测试环境会通过 XCODE_BASE_URL 指向本地 mock，硬编码线上域名会让套餐状态不可控。
     const url = resolveCodingPlanClientConfigUrl(process.env);
-    url.searchParams.set("app_version", ZCODE_VERSION);
+    url.searchParams.set("app_version", XCODE_VERSION);
     url.searchParams.set("platform", resolveClientPlatformKey());
     // StartPlanCard 和套餐列表都来自同一个 client/configs。
     // 同屏分别读取 preview/products 时必须合并请求，避免未登录设置页重复打远端配置。
-    this.clientConfigRequest = readCodingPlanApiJson<ZCodeClientConfigEnvelope>(
+    this.clientConfigRequest = readCodingPlanApiJson<XCodeClientConfigEnvelope>(
       this.apiClient,
       url,
       {
@@ -860,7 +790,7 @@ export class BigModelCodingPlanSubscriptionProvider {
     if (!token) {
       throw new Error("bigmodel_oauth_required");
     }
-    const zcodeJwtToken = (await this.credentialService.load(ZCODE_JWT_TOKEN_KEY))?.trim();
+    const zcodeJwtToken = (await this.credentialService.load(XCODE_JWT_TOKEN_KEY))?.trim();
     if (zcodeJwtToken && token === zcodeJwtToken) {
       // 旧版 BigModel OAuth callback 曾把 zcode JWT 同时写进
       // oauth:bigmodel:access_token，付费套餐预览会拿它去打 bigmodel.cn 并报令牌过期。
@@ -1015,8 +945,8 @@ export class BigModelCodingPlanSubscriptionProvider {
   }
 }
 
-export function resolveCodingPlanClientConfigUrl(env: NodeJS.ProcessEnv): URL {
-  return new URL(buildRuntimeZCodeApiUrl(env, ZCODE_CLIENT_CONFIG_API_PREFIX));
+function resolveCodingPlanClientConfigUrl(env: NodeJS.ProcessEnv): URL {
+  return new URL(buildRuntimeXCodeApiUrl(env, XCODE_CLIENT_CONFIG_API_PREFIX));
 }
 
 function resolveFallbackEnterpriseTeamPlanProduct(
@@ -1318,27 +1248,27 @@ function normalizeStaticProductProviderIds<T>(
 }
 
 function unwrapClientConfigProducts(
-  payload: ZCodeClientConfigEnvelope,
+  payload: XCodeClientConfigEnvelope,
 ): CodingPlanStaticProductsConfig {
   if (payload.code !== undefined && payload.code !== 0) {
-    throw new Error(payload.msg?.trim() || "ZCode client config request failed");
+    throw new Error(payload.msg?.trim() || "XCode client config request failed");
   }
   const products = payload.data?.configs?.codingPlanStaticProducts;
   if (!products || typeof products !== "object") {
-    throw new Error("ZCode client config missing Coding Plan products");
+    throw new Error("XCode client config missing Coding Plan products");
   }
   return normalizeStaticProductProviderIds(products);
 }
 
 function unwrapClientConfigTeamProducts(
-  payload: ZCodeClientConfigEnvelope,
+  payload: XCodeClientConfigEnvelope,
 ): CodingPlanStaticTeamProductsConfig {
   if (payload.code !== undefined && payload.code !== 0) {
-    throw new Error(payload.msg?.trim() || "ZCode client config request failed");
+    throw new Error(payload.msg?.trim() || "XCode client config request failed");
   }
   const products: unknown = payload.data?.configs?.codingPlanStaticTeamProducts;
   if (!products || typeof products !== "object") {
-    throw new Error("ZCode client config missing Coding Plan team products");
+    throw new Error("XCode client config missing Coding Plan team products");
   }
   for (const providerProducts of Object.values(products)) {
     if (
@@ -1347,7 +1277,7 @@ function unwrapClientConfigTeamProducts(
     ) {
       // 远端配置没有运行时类型保障；无效静态目录必须整体降级为读取失败，
       // 让 UI 继续使用实时 pricing 恢复团队订阅身份，不能在合并阶段抛错。
-      throw new Error("ZCode client config has invalid Coding Plan team products");
+      throw new Error("XCode client config has invalid Coding Plan team products");
     }
   }
   return normalizeStaticProductProviderIds(products as CodingPlanStaticTeamProductsConfig);
@@ -1394,24 +1324,11 @@ function isValidCardCopyConfigItem(value: unknown): boolean {
   );
 }
 
-function unwrapClientConfigBillingDiscount(
-  payload: ZCodeClientConfigEnvelope,
-): CodingPlanBillingDiscountConfig | undefined {
-  if (payload.code !== undefined && payload.code !== 0) {
-    throw new Error(payload.msg?.trim() || "ZCode client config request failed");
-  }
-  const configs = payload.data?.configs;
-  if (!configs || !("codingPlanBillingDiscount" in configs)) {
-    return undefined;
-  }
-  return configs.codingPlanBillingDiscount;
-}
-
 function unwrapClientConfigStartPlanPreview(
-  payload: ZCodeClientConfigEnvelope,
+  payload: XCodeClientConfigEnvelope,
 ): StartPlanPreviewConfig | null {
   if (payload.code !== undefined && payload.code !== 0) {
-    throw new Error(payload.msg?.trim() || "ZCode client config request failed");
+    throw new Error(payload.msg?.trim() || "XCode client config request failed");
   }
   const preview = payload.data?.configs?.startPlanPreview;
   if (!preview) {
@@ -1422,7 +1339,7 @@ function unwrapClientConfigStartPlanPreview(
     typeof preview.name !== "string" ||
     !Array.isArray(preview.entitlements)
   ) {
-    throw new Error("ZCode client config invalid Start Plan preview");
+    throw new Error("XCode client config invalid Start Plan preview");
   }
   return {
     planId: preview.planId,
@@ -1432,10 +1349,10 @@ function unwrapClientConfigStartPlanPreview(
 }
 
 function unwrapClientConfigForceUpdate(
-  payload: ZCodeClientConfigEnvelope,
+  payload: XCodeClientConfigEnvelope,
 ): ForceUpdateConfig | null {
   if (payload.code !== undefined && payload.code !== 0) {
-    throw new Error(payload.msg?.trim() || "ZCode client config request failed");
+    throw new Error(payload.msg?.trim() || "XCode client config request failed");
   }
 
   const forceUpdate = payload.data?.configs?.forceUpdate;
@@ -1449,6 +1366,44 @@ function unwrapClientConfigForceUpdate(
   }
 
   return { minimalVersion: minimalVersion.trim() };
+}
+
+function unwrapClientConfigBillingDiscount(
+  payload: XCodeClientConfigEnvelope,
+): CodingPlanBillingDiscountConfig | null {
+  if (payload.code !== undefined && payload.code !== 0) {
+    throw new Error(payload.msg?.trim() || "XCode client config request failed");
+  }
+
+  const discount = payload.data?.configs?.codingPlanBillingDiscount;
+  if (!discount || typeof discount !== "object") {
+    return null;
+  }
+
+  // 官方语义：至少一个 locale 的 badgeBody 存在才算活跃（active），否则前端隐藏。
+  const active = Object.values(discount).some(
+    (text) => text && typeof text === "object" && typeof (text as { badgeBody?: unknown }).badgeBody === "string" && ((text as { badgeBody: string }).badgeBody).trim() !== "",
+  );
+  if (!active) {
+    return null;
+  }
+
+  return discount;
+}
+
+function unwrapClientConfigCaptcha(
+  payload: XCodeClientConfigEnvelope,
+): MarketingCaptchaConfig | null {
+  if (payload.code !== undefined && payload.code !== 0) {
+    throw new Error(payload.msg?.trim() || "XCode client config request failed");
+  }
+
+  const captcha = payload.data?.configs?.captcha;
+  if (!captcha || typeof captcha !== "object") {
+    return null;
+  }
+
+  return captcha;
 }
 
 function isValidStartPlanPreviewEntitlement(
@@ -1475,9 +1430,6 @@ function normalizeRemoteErrorMessage(
   const message = msg?.trim();
   if (message && isUnrenderableRemoteErrorMessage(message)) {
     return CODING_PLAN_SYSTEM_BUSY;
-  }
-  if (message && isRequestVerificationMessage(message)) {
-    return REQUEST_VERIFICATION_REQUIRED;
   }
   const providerName = resolveCodingPlanProviderName(providerId);
   return message || `${providerName} request failed${code ? `: ${code}` : ""}`;
@@ -1540,21 +1492,21 @@ function dropUndefined(value: Record<string, unknown>): Record<string, unknown> 
 
 /**
  * 闲时任务灰度判据（纯函数供单测）：远端只提供曝光开关，模型成员和事实
- * 来自 ZCode Built-in Provider / Model Config。
- * mock 模式（ZCODE_OFFPEAK_MOCK=1）只替代产品曝光与套餐状态；模型候选仍来自 Registry。
+ * 来自 XCode Built-in Provider / Model Config。
+ * mock 模式（XCODE_OFFPEAK_MOCK=1）只替代产品曝光与套餐状态；模型候选仍来自 Registry。
  */
 export function resolveOffPeakClientConfig(
-  payload: ZCodeClientConfigEnvelope,
+  payload: XCodeClientConfigEnvelope,
   env: NodeJS.ProcessEnv,
   modelSelectionView: ModelSelectionView = EMPTY_OFF_PEAK_MODEL_SELECTION_VIEW,
 ): OffPeakClientConfig {
   const hasModels = modelSelectionView.providers.some((provider) => provider.models.length > 0);
-  if (env["ZCODE_OFFPEAK_MOCK"] === "1") {
+  if (env["XCODE_OFFPEAK_MOCK"] === "1") {
     return {
       enabled: hasModels,
       modelSelectionView,
-      // ZCODE_OFFPEAK_MOCK_NO_PLAN=1 演示「非 coding plan 锁定」态；缺省视为已订阅。
-      codingPlanActive: env["ZCODE_OFFPEAK_MOCK_NO_PLAN"] !== "1",
+      // XCODE_OFFPEAK_MOCK_NO_PLAN=1 演示「非 coding plan 锁定」态；缺省视为已订阅。
+      codingPlanActive: env["XCODE_OFFPEAK_MOCK_NO_PLAN"] !== "1",
     };
   }
   const raw = payload.data?.configs?.offPeak;

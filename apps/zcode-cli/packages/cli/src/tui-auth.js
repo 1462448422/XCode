@@ -12,7 +12,7 @@ export async function loginForTui(deps, options) {
             cause: dotenvResult.error,
         });
     }
-    const login = deps.loginZCodeCli ?? (await loadBootstrapModule()).loginZCodeCli;
+    const login = deps.loginXCodeCli ?? (await loadBootstrapModule()).loginXCodeCli;
     return await login({
         abortSignal: options?.abortSignal,
         env,
@@ -58,6 +58,6 @@ export async function logoutForTui(deps) {
             cause: dotenvResult.error,
         });
     }
-    const logout = deps.logoutZCodeCli ?? (await loadBootstrapModule()).logoutZCodeCli;
+    const logout = deps.logoutXCodeCli ?? (await loadBootstrapModule()).logoutXCodeCli;
     return await logout({ env });
 }

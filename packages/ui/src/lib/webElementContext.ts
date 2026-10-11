@@ -346,15 +346,3 @@ export function dispatchWebElementContextAddToChat(payload: WebElementContextPay
     }),
   );
 }
-
-export function dispatchWebElementContextRemoveFromChat(payload: {
-  id: string;
-  workspacePath: string;
-  workspaceIdentity?: string;
-}) {
-  window.dispatchEvent(
-    new CustomEvent(WEB_ELEMENT_CONTEXT_REMOVE_FROM_CHAT_EVENT, {
-      detail: payload,
-    }),
-  );
-}

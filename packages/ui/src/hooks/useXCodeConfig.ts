@@ -8,8 +8,8 @@ import { useShallow } from "zustand/react/shallow";
 import { resolveTaskRestorePreloadConfigOptions } from "@/lib/taskModelRecovery.js";
 import {
   getTaskMeta,
-  useZCodeSessionStore,
-  selectWorkspaceZCodeState,
+  useXCodeSessionStore,
+  selectWorkspaceXCodeState,
 } from "@/store/zcodeSessionStore.js";
 import type { ConfigOptionsStatus } from "@/store/zcodeSessionStoreTypes.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";

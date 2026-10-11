@@ -140,6 +140,11 @@ export interface AgentRuntimeTurnMethods {
     targetMessageId: MessageId;
     traceContext: TraceContext;
   }): Promise<ConversationRewindResult>;
+  /** XCode fork：原地编辑已完成助手消息文本（transcript 权威 + 重建 runtime history）。 */
+  editAssistantMessageText(options: {
+    messageId: string;
+    newText: string;
+  }): Promise<void>;
   rewindWorkspaceToMessage(options: {
     abortSignal?: AbortSignal;
     events: SessionEvent[];
@@ -214,7 +219,6 @@ export interface AgentRuntimeTurnMethods {
       sourceCommandId?: string;
       trigger?: CompactTrigger;
       model?: Model;
-      agentListingTools?: readonly { name: string }[];
       activeEntries?: readonly RuntimeMessageEntry[];
     },
   ): Promise<{
@@ -301,7 +305,6 @@ export interface AgentRuntimeTurnMethods {
     traceContext: TraceContext,
     events: SessionEvent[],
     options?: {
-      persist?: boolean;
       onStatus?: (event: ModelNetworkStatusEvent) => void;
       streamRecovery?: ModelStreamRecoveryStatus;
     },

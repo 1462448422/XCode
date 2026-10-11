@@ -10,7 +10,7 @@ interface NormalizeToolExecutionInputOptions {
 
 export type RuntimeInputValidationIssue = Readonly<Record<string, unknown>>;
 
-export interface PreparedInitialToolExecutionInput {
+interface PreparedInitialToolExecutionInput {
   input: unknown;
   runtimeValidationIssues?: readonly RuntimeInputValidationIssue[];
 }
@@ -27,9 +27,7 @@ interface SafeParseSchema<T = unknown> {
 // inputs as JSON strings instead of objects. We normalize safely here so bad
 // input degrades into a recoverable validation error rather than crashing the
 // executor before it can return a structured tool failure.
-export function normalizeToolExecutionInput(
-  options: NormalizeToolExecutionInputOptions,
-): unknown {
+export function normalizeToolExecutionInput(options: NormalizeToolExecutionInputOptions): unknown {
   return prepareToolExecutionInput(options).input;
 }
 

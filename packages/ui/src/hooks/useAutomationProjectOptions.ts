@@ -4,7 +4,7 @@ import { useTabStore } from "@/store/TabStoreProvider.js";
 import { isWorkspaceTab, type WorkspaceTabState } from "@/store/tabStore.js";
 import { useLocalWorkspaceScopes } from "@/hooks/useLocalWorkspaceScopes.js";
 
-export interface AutomationProjectOption {
+interface AutomationProjectOption {
   workspacePath: string;
   label: string;
   workspacePurpose?: WorkspacePurpose;
@@ -14,11 +14,11 @@ export function isRemoteAutomationWorkspace(tab: WorkspaceTabState | undefined):
   return Boolean(tab?.remoteSessionId || tab?.remoteTarget || tab?.workspaceIdentity);
 }
 
-export interface AutomationProjectOptionsConfig {
+interface AutomationProjectOptionsConfig {
   includeConversationWorkspace?: boolean;
 }
 
-export function resolveAutomationProjectOptions(
+function resolveAutomationProjectOptions(
   workspaceTabs: WorkspaceTabState[],
   config: AutomationProjectOptionsConfig = {},
 ): AutomationProjectOption[] {

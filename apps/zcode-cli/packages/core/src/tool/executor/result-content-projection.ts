@@ -6,15 +6,15 @@ import {
 import { findOfficialCuaFrameContentPair } from "@zcode/zcode-cua/frame-contract";
 import type { ToolResultSerialization } from "../types.js";
 
-export interface HookStringProjection {
+interface HookStringProjection {
   content: string;
   truncated: boolean;
 }
 
-export const OFFICIAL_CUA_TEXT_TRUNCATION_MARKER =
+const OFFICIAL_CUA_TEXT_TRUNCATION_MARKER =
   "[Official CUA text truncated by resultBudget. Re-observe with detail=compact or a narrower window before relying on omitted state.]";
 
-export const OFFICIAL_CUA_FRAME_CONTRACT_ERROR_CODE = "official_cua_frame_pair_not_leading";
+const OFFICIAL_CUA_FRAME_CONTRACT_ERROR_CODE = "official_cua_frame_pair_not_leading";
 
 export class OfficialCuaFrameContractError extends Error {
   readonly code = OFFICIAL_CUA_FRAME_CONTRACT_ERROR_CODE;

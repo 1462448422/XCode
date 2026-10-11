@@ -10,7 +10,6 @@ import type {
   ResolvedAiSdkModel,
 } from "./runner-runtime.js";
 import { createModelRequestAttributionHeaders, type ModelStatusContext } from "./runner-status.js";
-import { withoutModelQuerySourceHeader } from "./model-request-headers.js";
 
 type ExperimentalIncludeWithResponseBody = {
   requestBody?: boolean;
@@ -18,7 +17,7 @@ type ExperimentalIncludeWithResponseBody = {
 };
 
 /** zcode-plan 业务码常只出现在 finish chunk 的 response.body，流式路径需显式开启。 */
-export function shouldIncludeStreamResponseBody(resolved: ResolvedAiSdkModel): boolean {
+function shouldIncludeStreamResponseBody(resolved: ResolvedAiSdkModel): boolean {
   return (
     resolved.providerKind === "openai-compatible" && resolved.accountAccess?.mode === "start-plan"
   );
@@ -28,9 +27,8 @@ function mergeRequestHeaders(
   providerHeaders: Record<string, string> | undefined,
   attributionHeaders: Record<string, string>,
 ): Record<string, string> {
-  // 通用大小写去重会改变旧归因头的 SDK 合并结果；本次只剔除 query-source 静态值。
   return {
-    ...withoutModelQuerySourceHeader(providerHeaders),
+    ...providerHeaders,
     ...attributionHeaders,
   };
 }
@@ -88,7 +86,7 @@ export function createGenerateTextOptions(input: {
       input.resolved.headers,
       createModelRequestAttributionHeaders(input.statusContext),
     ),
-    // ZCode owns system-message construction in core/context. Keep AI SDK from
+    // XCode owns system-message construction in core/context. Keep AI SDK from
     // printing its generic system-message warning to process stderr.
     allowSystemInMessages: true,
     maxRetries: 0,
@@ -146,7 +144,7 @@ export function createStreamTextOptions(input: {
       input.resolved.headers,
       createModelRequestAttributionHeaders(input.statusContext),
     ),
-    // ZCode owns system-message construction in core/context. Keep AI SDK from
+    // XCode owns system-message construction in core/context. Keep AI SDK from
     // printing its generic system-message warning to process stderr.
     allowSystemInMessages: true,
     maxRetries: 0,

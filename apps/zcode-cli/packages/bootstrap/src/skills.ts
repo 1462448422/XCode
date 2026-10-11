@@ -4,14 +4,11 @@ import { createNodeSkillAdapter } from "@zcode/adapters/skills";
 import type { Logger, SkillContent, SkillDiagnostic, SkillLoadOutcome } from "@zcode/contracts";
 import { resolveBundledSkillRoots } from "./app/bundled-skills.js";
 import { getCliStorageRoot } from "./app/paths.js";
-import { filterVisualizeSkillRoots } from "./app/visualize-skill-gate.js";
-import { resolveZCodePlugins } from "./plugins.js";
+import { resolveXCodePlugins } from "./plugins.js";
 import { collectDisabledPaths } from "./skill-command-overrides.js";
 
-export interface ListZCodeSkillsOptions {
+export interface ListXCodeSkillsOptions {
   env?: NodeJS.ProcessEnv;
-  /** 协议宿主草稿目录使用；CLI 命令缺省关闭。 */
-  includeVisualize?: boolean;
   logger?: Logger;
   projectConfigPath?: string;
   skipUserConfig?: boolean;
@@ -19,19 +16,19 @@ export interface ListZCodeSkillsOptions {
   workingDirectory?: string;
 }
 
-export interface InspectZCodeSkillOptions extends ListZCodeSkillsOptions {
+export interface InspectXCodeSkillOptions extends ListXCodeSkillsOptions {
   name: string;
 }
 
-export interface ZCodeSkillInspection {
+export interface XCodeSkillInspection {
   diagnostics: SkillDiagnostic[];
   skill: SkillContent;
 }
 
-export async function listZCodeSkills(
-  options: ListZCodeSkillsOptions = {},
+export async function listXCodeSkills(
+  options: ListXCodeSkillsOptions = {},
 ): Promise<SkillLoadOutcome> {
-  const discovery = createSkillDiscovery(options);
+  const discovery = await createSkillDiscovery(options);
   if (!discovery.enabled) {
     return {
       diagnostics: [],
@@ -45,10 +42,10 @@ export async function listZCodeSkills(
   });
 }
 
-export async function inspectZCodeSkill(
-  options: InspectZCodeSkillOptions,
-): Promise<ZCodeSkillInspection> {
-  const discovery = createSkillDiscovery(options);
+export async function inspectXCodeSkill(
+  options: InspectXCodeSkillOptions,
+): Promise<XCodeSkillInspection> {
+  const discovery = await createSkillDiscovery(options);
   if (!discovery.enabled) {
     throw new Error("Skills are disabled.");
   }
@@ -75,7 +72,7 @@ export async function inspectZCodeSkill(
   };
 }
 
-function createSkillDiscovery(options: ListZCodeSkillsOptions):
+async function createSkillDiscovery(options: ListXCodeSkillsOptions): Promise<
   | {
       enabled: false;
       workingDirectory: string;
@@ -84,7 +81,8 @@ function createSkillDiscovery(options: ListZCodeSkillsOptions):
       enabled: true;
       skillPort: ReturnType<typeof createNodeSkillAdapter>;
       workingDirectory: string;
-    } {
+    }
+> {
   const workingDirectory = resolve(options.workingDirectory ?? process.cwd());
   const configResult = createConfig({
     env: options.env,
@@ -100,7 +98,7 @@ function createSkillDiscovery(options: ListZCodeSkillsOptions):
       workingDirectory,
     };
   }
-  const pluginOutcome = resolveZCodePlugins({
+  const pluginOutcome = resolveXCodePlugins({
     configResult,
     env: options.env,
     logger: options.logger,
@@ -110,8 +108,8 @@ function createSkillDiscovery(options: ListZCodeSkillsOptions):
     workingDirectory,
   });
 
-  // 内置技能包与插件技能根并列注入：`zcode skills list`、引用目录与 runtime 看到同一份发现结果。
-  const bundledSkillRoots = resolveBundledSkillRoots({
+  // 内置技能包与插件技能根并列注入：`xcode skills list`、引用目录与 runtime 看到同一份发现结果。
+  const bundledSkillRoots = await resolveBundledSkillRoots({
     cliStorageRoot: getCliStorageRoot(resolvePath(configResult.config.storage.dir)),
     logger: options.logger,
   });
@@ -120,10 +118,7 @@ function createSkillDiscovery(options: ListZCodeSkillsOptions):
     enabled: true,
     skillPort: createNodeSkillAdapter({
       extraRoots: configResult.config.skills.roots,
-      extraResolvedRoots: [
-        ...filterVisualizeSkillRoots(pluginOutcome.skillRoots, options.includeVisualize),
-        ...bundledSkillRoots,
-      ],
+      extraResolvedRoots: [...pluginOutcome.skillRoots, ...bundledSkillRoots],
       disabledPaths: collectDisabledPaths(configResult.config.skillOverrides),
     }),
     workingDirectory,

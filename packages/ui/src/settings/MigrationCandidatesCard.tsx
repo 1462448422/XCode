@@ -1,25 +1,35 @@
 import { Check, Download, Loader2, TriangleAlert } from "lucide-react";
 import type {
-  ZCodeImportSessionsResult,
-  ZCodeImportableSessionCandidate,
-  ZCodeImportedSessionSkippedItem,
+  XCodeImportSessionsResult,
+  XCodeImportableSessionCandidate,
+  XCodeImportedSessionSkippedItem,
 } from "@zcode/shared";
 import type { ClaudeSessionMigrationSupportState } from "@/hooks/useClaudeSessionMigration.js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.js";
 import { Badge } from "@/components/ui/badge.js";
 import { Button } from "@/components/ui/button.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { cn } from "@/components/lib/utils.js";
 
+const KNOWN_REASON_MESSAGE_IDS: Record<string, string> = {
+  session_not_found_or_workspace_mismatch:
+    "settings.migration.reason.session_not_found_or_workspace_mismatch",
+  workspace_path_missing: "settings.migration.reason.workspace_path_missing",
+  session_not_found: "settings.migration.reason.session_not_found",
+  already_imported: "settings.migration.reason.already_imported",
+  zcode_db_missing: "settings.migration.reason.zcode_db_missing",
+  dest_db_missing: "settings.migration.reason.dest_db_missing",
+  dest_db_not_initialized: "settings.migration.reason.dest_db_not_initialized",
+};
+
 function getKnownReasonLabel(
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useXCodeIntl>["intl"],
   reason: string,
 ): string {
-  if (reason === "session_not_found_or_workspace_mismatch") {
-    return intl.formatMessage({
-      id: "settings.migration.reason.session_not_found_or_workspace_mismatch",
-    });
+  const messageId = KNOWN_REASON_MESSAGE_IDS[reason];
+  if (messageId) {
+    return intl.formatMessage({ id: messageId });
   }
 
   return reason;
@@ -30,9 +40,9 @@ function ImportIssuesList({
   items,
 }: {
   title: string;
-  items: ZCodeImportedSessionSkippedItem[];
+  items: XCodeImportedSessionSkippedItem[];
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   if (items.length === 0) {
     return null;
@@ -77,25 +87,29 @@ export function MigrationCandidatesCard({
   lastImportResult,
   isImporting,
   dateTimeFormatter,
+  titleId = "settings.migration.candidatesTitle",
+  descriptionId = "settings.migration.candidatesDescription",
   onToggleSelection,
   onSelectAll,
   onClearSelection,
   onImportSelected,
 }: {
   supportState: ClaudeSessionMigrationSupportState;
-  candidates: ZCodeImportableSessionCandidate[];
+  candidates: XCodeImportableSessionCandidate[];
   selectedSessionIds: string[];
   selectedCount: number;
   importError: string | null;
-  lastImportResult: ZCodeImportSessionsResult | null;
+  lastImportResult: XCodeImportSessionsResult | null;
   isImporting: boolean;
   dateTimeFormatter: Intl.DateTimeFormat;
+  titleId?: string;
+  descriptionId?: string;
   onToggleSelection: (sessionId: string) => void;
   onSelectAll: () => void;
   onClearSelection: () => void;
   onImportSelected: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   return (
     <Card className="border border-border bg-card py-0 shadow-none">
@@ -104,7 +118,7 @@ export function MigrationCandidatesCard({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>
-                {intl.formatMessage({ id: "settings.migration.candidatesTitle" })}
+                {intl.formatMessage({ id: titleId })}
               </CardTitle>
               <Badge variant="outline">
                 {intl.formatMessage(
@@ -120,28 +134,10 @@ export function MigrationCandidatesCard({
               </Badge>
             </div>
             <CardDescription>
-              {intl.formatMessage({ id: "settings.migration.candidatesDescription" })}
+              {intl.formatMessage({ id: descriptionId })}
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!supportState.supported || candidates.length === 0 || isImporting}
-              onClick={onSelectAll}
-            >
-              {intl.formatMessage({ id: "settings.migration.selectAll" })}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={selectedCount === 0 || isImporting}
-              onClick={onClearSelection}
-            >
-              {intl.formatMessage({ id: "settings.migration.clearSelection" })}
-            </Button>
             <Button
               type="button"
               size="sm"
@@ -202,6 +198,26 @@ export function MigrationCandidatesCard({
           </div>
         ) : (
           <div className="space-y-2">
+            <div className="flex items-center justify-end gap-2 pb-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!supportState.supported || isImporting}
+                onClick={onSelectAll}
+              >
+                {intl.formatMessage({ id: "settings.migration.selectAll" })}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={selectedCount === 0 || isImporting}
+                onClick={onClearSelection}
+              >
+                {intl.formatMessage({ id: "settings.migration.clearSelection" })}
+              </Button>
+            </div>
             {candidates.map((candidate) => {
               const isSelected = selectedSessionIds.includes(candidate.sessionId);
 

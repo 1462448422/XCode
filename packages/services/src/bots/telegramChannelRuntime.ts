@@ -44,7 +44,6 @@ interface TelegramChannelRuntimeDeps {
     provider: "telegram",
     payload: unknown,
   ): Promise<BotProviderCallbackResult>;
-  acquirePollingLock?: typeof acquireTelegramPollingLock;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -104,7 +103,7 @@ export function createTelegramChannelRuntime(deps: TelegramChannelRuntimeDeps) {
     while (!signal.aborted) {
       let lock: Awaited<ReturnType<typeof acquireTelegramPollingLock>>;
       try {
-        lock = await (deps.acquirePollingLock ?? acquireTelegramPollingLock)(
+        lock = await acquireTelegramPollingLock(
           token,
           bot.id,
         );
@@ -130,7 +129,7 @@ export function createTelegramChannelRuntime(deps: TelegramChannelRuntimeDeps) {
           provider: "telegram",
           status: "idle",
           messageId: "bots.runtime.telegramLongPollingHandledElsewhere",
-          message: "Telegram long polling is handled by another ZCode window.",
+          message: "Telegram long polling is handled by another XCode window.",
           offset: await deps.readTelegramOffset(bot.id),
         });
         await waitFor(BOT_RUNTIME_LOCK_RETRY_MS, signal);

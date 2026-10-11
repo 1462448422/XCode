@@ -14,12 +14,12 @@ import {
   type SplitDirection,
 } from "@/v4/paneLayoutTree.js";
 
-export const PANE_LAYOUT_STORAGE_KEY = "zcode-v4-pane-layout:v2";
-/** 一期单值分屏的旧 key（只读迁移，不再写入）。 */
-export const PANE_LAYOUT_STORAGE_KEY_V1 = "zcode-v4-pane-layout:v1";
+const PANE_LAYOUT_STORAGE_KEY = "zcode-v4-pane-layout:v2";
+/** 旧版单值分屏的 key（只读迁移，不再写入）。 */
+const PANE_LAYOUT_STORAGE_KEY_V1 = "zcode-v4-pane-layout:v1";
 
-/** v1 迁移用的保留 pane id（一期 split pane 固定 id，e2e/testid 契约沿用）。 */
-export const V4_LEGACY_SPLIT_PANE_ID = "split";
+/** v1 迁移用的保留 pane id（旧版 split pane 固定 id，e2e/testid 契约沿用）。 */
+const V4_LEGACY_SPLIT_PANE_ID = "split";
 
 interface PersistedScopeV2 {
   workspacePath: string;
@@ -76,9 +76,7 @@ function sanitizeNode(raw: unknown): PaneLayoutNode | null {
       type: "split",
       id: record.id,
       direction: record.direction,
-      ratio: clampSplitRatio(
-        typeof record.ratio === "number" ? record.ratio : Number.NaN,
-      ),
+      ratio: clampSplitRatio(typeof record.ratio === "number" ? record.ratio : Number.NaN),
       first,
       second,
     };
@@ -91,20 +89,15 @@ function sanitizeScope(raw: unknown): PaneWorkspaceScope | null {
     return null;
   }
   const record = raw as Partial<PersistedScopeV2>;
-  if (
-    typeof record.workspacePath !== "string" ||
-    record.workspacePath.length === 0
-  ) {
+  if (typeof record.workspacePath !== "string" || record.workspacePath.length === 0) {
     return null;
   }
   return {
     workspacePath: record.workspacePath,
-    ...(typeof record.workspaceIdentity === "string" &&
-    record.workspaceIdentity.trim().length > 0
+    ...(typeof record.workspaceIdentity === "string" && record.workspaceIdentity.trim().length > 0
       ? { workspaceIdentity: record.workspaceIdentity }
       : {}),
-    ...(typeof record.remoteSessionId === "string" &&
-    record.remoteSessionId.length > 0
+    ...(typeof record.remoteSessionId === "string" && record.remoteSessionId.length > 0
       ? { remoteSessionId: record.remoteSessionId }
       : {}),
   };
@@ -116,9 +109,7 @@ function sanitizeScope(raw: unknown): PaneWorkspaceScope | null {
  * 叶子数 ≤ 上限、每个非 primary 叶子有合法绑定。恢复出的 session 绑定补
  * restoredUnvalidated（等 sessions-index 验证）；focusedPaneId 不在树中回 primary。
  */
-export function sanitizePersistedPaneLayout(
-  raw: unknown,
-): PaneLayoutSnapshot | null {
+function sanitizePersistedPaneLayout(raw: unknown): PaneLayoutSnapshot | null {
   if (typeof raw !== "object" || raw === null) {
     return null;
   }
@@ -148,17 +139,13 @@ export function sanitizePersistedPaneLayout(
     if (typeof rawBinding !== "object" || rawBinding === null) {
       return null;
     }
-    const scope = sanitizeScope(
-      (rawBinding as Partial<PersistedBindingV2>).workspaceScope,
-    );
+    const scope = sanitizeScope((rawBinding as Partial<PersistedBindingV2>).workspaceScope);
     if (!scope) {
       return null;
     }
     const rawSessionId = (rawBinding as Partial<PersistedBindingV2>).sessionId;
     const sessionId =
-      typeof rawSessionId === "string" && rawSessionId.length > 0
-        ? rawSessionId
-        : null;
+      typeof rawSessionId === "string" && rawSessionId.length > 0 ? rawSessionId : null;
     panes[paneId] = {
       workspaceScope: scope,
       sessionId,
@@ -166,8 +153,7 @@ export function sanitizePersistedPaneLayout(
     };
   }
   const focusedPaneId =
-    typeof record.focusedPaneId === "string" &&
-    paneIds.includes(record.focusedPaneId)
+    typeof record.focusedPaneId === "string" && paneIds.includes(record.focusedPaneId)
       ? record.focusedPaneId
       : V4_PRIMARY_PANE_ID;
   return { root, panes, focusedPaneId };
@@ -182,9 +168,7 @@ function isPlausibleLocalPath(value: string): boolean {
  * 旧版 v1（单值 splitPane）→ v2 迁移：v1 只存了 workspaceKey（identity ?? path），
  * 无法还原远程 scope——仅当它是可信本地路径时迁移为双叶子树，否则丢弃回单 pane（null）。
  */
-export function migratePersistedPaneLayoutV1(
-  raw: unknown,
-): PaneLayoutSnapshot | null {
+function migratePersistedPaneLayoutV1(raw: unknown): PaneLayoutSnapshot | null {
   if (typeof raw !== "object" || raw === null) {
     return null;
   }
@@ -203,9 +187,7 @@ export function migratePersistedPaneLayoutV1(
   }
   const rawSessionId = record.splitPane?.sessionId;
   const sessionId =
-    typeof rawSessionId === "string" && rawSessionId.length > 0
-      ? rawSessionId
-      : null;
+    typeof rawSessionId === "string" && rawSessionId.length > 0 ? rawSessionId : null;
   return {
     root: {
       type: "split",

@@ -2,12 +2,12 @@
    轮询同步（offPeakTaskSync）、终态核销 outbox 与 3102 续跑重取号，稳定后再按职责拆分。 */
 /* off-peak 任务编排服务（host 域，仿 automationService 形态）。
    职责：
-   - 创建即取号（POST /ticket 成功才落库，§4.1）；3103/3101 抛类型化错误给 UI
-   - 取消/暂停/继续/删除/编辑 的状态守卫编排（D29-3/D30-7/D30-10）
-   - offPeakTaskSync：有非终态任务才批量轮询 /ticket/status（轮询触发服务端晋级，D25/D26），
-     写回 schedulable/位次/next_poll_at；expired 且非 paused → 同 task_id 自动重取号（D26/D27）
-   - 终态核销 outbox：终态即 settle、失败随轮询周期捎带补报、启动扫描（D22/§7.7）
-   - 3102 续跑：host 终态回写识别标记后调 handleTicketExpiredDuringRun → 回队重取号（§4.6） */
+   - 创建即取号（POST /ticket 成功才落库）；3103/3101 抛类型化错误给 UI
+   - 取消/暂停/继续/删除/编辑 的状态守卫编排
+   - offPeakTaskSync：有非终态任务才批量轮询 /ticket/status（轮询触发服务端晋级），
+     写回 schedulable/位次/next_poll_at；expired 且非 paused → 同 task_id 自动重取号
+   - 终态核销 outbox：终态即 settle、失败随轮询周期捎带补报、启动扫描
+   - 3102 续跑：host 终态回写识别标记后调 handleTicketExpiredDuringRun → 回队重取号 */
 import { randomUUID } from "node:crypto";
 import { ZodError } from "zod";
 import {
@@ -17,8 +17,8 @@ import {
   type OffPeakTaskCreateErrorCategory,
   type OffPeakTaskCreateFailureStage,
   type OffPeakTaskCreateResult,
-  type ZCodeOffPeakTask,
-  type ZCodeOffPeakTaskCreateParams,
+  type XCodeOffPeakTask,
+  type XCodeOffPeakTaskCreateParams,
 } from "@zcode/shared";
 import type { ServiceLogger } from "../logger/serviceLogger.js";
 import { isOffPeakBoundSessionConflict, type OffPeakTaskRepo } from "./offPeakTaskRepo.js";
@@ -27,11 +27,11 @@ import { OffPeakServerError, type OffPeakServerClient } from "./offPeakServerCli
 import type { ModelSelection, ModelSelectionValidation } from "@zcode/provider";
 
 /** 轮询下限/上限与失败退避（服务端 next_poll_after 优先，钳制防打爆/防饿死）。 */
-export const OFF_PEAK_SYNC_MIN_INTERVAL_MS = 5_000;
-export const OFF_PEAK_SYNC_MAX_INTERVAL_MS = 5 * 60_000;
+const OFF_PEAK_SYNC_MIN_INTERVAL_MS = 5_000;
+const OFF_PEAK_SYNC_MAX_INTERVAL_MS = 5 * 60_000;
 const SYNC_FAILURE_BASE_MS = 10_000;
 
-export interface OffPeakTaskServiceDeps {
+interface OffPeakTaskServiceDeps {
   repo: OffPeakTaskRepo;
   client: OffPeakServerClient;
   /** 与 ticket/runtime 共用 resolver 后的脱敏结果，供 renderer 创建门控。 */
@@ -64,20 +64,15 @@ export interface OffPeakTaskServiceDeps {
 }
 
 const VALID_CREATE_PERMISSION_MODES = new Set([
-  "default",
   "yolo",
-  "guarded",
   "plan",
   "edit",
-  "acceptEdits",
   "auto",
-  "dontAsk",
-  "bypassPermissions",
   "autoEdit",
   "build",
 ]);
 
-function isValidCreateParams(params: ZCodeOffPeakTaskCreateParams): boolean {
+function isValidCreateParams(params: XCodeOffPeakTaskCreateParams): boolean {
   return (
     typeof params.title === "string" &&
     params.title.trim().length > 0 &&
@@ -90,7 +85,7 @@ function isValidCreateParams(params: ZCodeOffPeakTaskCreateParams): boolean {
   );
 }
 
-export function classifyOffPeakCreateFailure(
+function classifyOffPeakCreateFailure(
   error: unknown,
   failureStage: OffPeakTaskCreateFailureStage,
 ): Pick<
@@ -169,7 +164,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
   }
 
   /** 创建即取号（取号成功才落库）；失败只返回稳定分类，绝不跨 RPC 返回 raw error。 */
-  async createTask(params: ZCodeOffPeakTaskCreateParams): Promise<OffPeakTaskCreateResult> {
+  async createTask(params: XCodeOffPeakTaskCreateParams): Promise<OffPeakTaskCreateResult> {
     let providerName = "";
     try {
       providerName = await this.deps.resolveTelemetryProviderName();
@@ -196,7 +191,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
         providerName,
       };
     }
-    const normalizedParams: ZCodeOffPeakTaskCreateParams = {
+    const normalizedParams: XCodeOffPeakTaskCreateParams = {
       ...params,
       modelSelection: selection.selection,
     };
@@ -225,7 +220,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
         providerName,
       };
     }
-    let created: ZCodeOffPeakTask;
+    let created: XCodeOffPeakTask;
     try {
       created = await this.deps.repo.create(normalizedParams, {
         offPeakTaskId,
@@ -276,7 +271,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
    * 取消（任意非终态）：先落终态再停 loop——顺序保证 loop 的 stopped 迟到回写
    * 被终态守卫丢弃，不会覆盖 cancelled（幂等）。
    */
-  async cancelTask(offPeakTaskId: string): Promise<ZCodeOffPeakTask | null> {
+  async cancelTask(offPeakTaskId: string): Promise<XCodeOffPeakTask | null> {
     const existing = await this.deps.repo.get(offPeakTaskId);
     if (!existing || isOffPeakTerminalStatus(existing.status)) return existing;
     const cancelled = await this.deps.repo.markTerminal(offPeakTaskId, {
@@ -301,7 +296,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
   }
 
   /** Pause：停止本地派发，票留服务端队列继续排。 */
-  async pauseTask(offPeakTaskId: string): Promise<ZCodeOffPeakTask | null> {
+  async pauseTask(offPeakTaskId: string): Promise<XCodeOffPeakTask | null> {
     const paused = await this.deps.repo.setPaused(offPeakTaskId, true, {
       now: this.now(),
     });
@@ -313,7 +308,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
    * Continue：票活着 = 恢复派发（零成本）；票已废（expired/not_found/无票）= 此刻手动
    * 重取号回队尾（额度消耗必须由用户显式动作触发）。
    */
-  async continueTask(offPeakTaskId: string): Promise<ZCodeOffPeakTask | null> {
+  async continueTask(offPeakTaskId: string): Promise<XCodeOffPeakTask | null> {
     const resumed = await this.deps.repo.setPaused(offPeakTaskId, false, {
       now: this.now(),
     });
@@ -362,7 +357,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
   }
 
   /** Delete history：仅写本地可见性标记，任务与会话继续保留。 */
-  async deleteHistory(offPeakTaskId: string): Promise<ZCodeOffPeakTask | null> {
+  async deleteHistory(offPeakTaskId: string): Promise<XCodeOffPeakTask | null> {
     const updated = await this.deps.repo.markHistoryDeleted(offPeakTaskId, {
       now: this.now(),
     });
@@ -374,7 +369,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
   async updateTask(
     offPeakTaskId: string,
     params: OffPeakUpdateTaskParams,
-  ): Promise<ZCodeOffPeakTask | null> {
+  ): Promise<XCodeOffPeakTask | null> {
     const existing = await this.deps.repo.get(offPeakTaskId);
     if (!existing) return null;
     if (existing.status !== "queued" && existing.status !== "paused") {
@@ -404,11 +399,11 @@ export class OffPeakTaskService implements IOffPeakTaskService {
     return updated;
   }
 
-  async list(): Promise<ZCodeOffPeakTask[]> {
+  async list(): Promise<XCodeOffPeakTask[]> {
     return this.projectModelSelectionIssues(await this.deps.repo.list());
   }
 
-  async get(offPeakTaskId: string): Promise<ZCodeOffPeakTask | null> {
+  async get(offPeakTaskId: string): Promise<XCodeOffPeakTask | null> {
     const task = await this.deps.repo.get(offPeakTaskId);
     if (!task) return null;
     return (await this.projectModelSelectionIssues([task]))[0] ?? null;
@@ -418,9 +413,9 @@ export class OffPeakTaskService implements IOffPeakTaskService {
    * 只派生当前配置诊断，不写数据库；旧字段仅由 migration 处理。
    */
   private async projectModelSelectionIssues(
-    tasks: readonly ZCodeOffPeakTask[],
-  ): Promise<ZCodeOffPeakTask[]> {
-    const repaired: ZCodeOffPeakTask[] = [];
+    tasks: readonly XCodeOffPeakTask[],
+  ): Promise<XCodeOffPeakTask[]> {
+    const repaired: XCodeOffPeakTask[] = [];
     for (const task of tasks) {
       if (task.modelSelection) {
         // 读取时把当前账号不可用写成 NULL，会永久丢掉原选择并诱发旧字段重绑。
@@ -599,7 +594,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
 
   /** 单票状态映射（两轴）：返回是否翻为可派发。 */
   private async applyTicketStatus(
-    task: ZCodeOffPeakTask,
+    task: XCodeOffPeakTask,
     state: string,
     position: number | undefined,
   ): Promise<boolean> {
@@ -658,7 +653,7 @@ export class OffPeakTaskService implements IOffPeakTaskService {
     }
   }
 
-  private async settleOne(task: ZCodeOffPeakTask): Promise<void> {
+  private async settleOne(task: XCodeOffPeakTask): Promise<void> {
     if (!task.serverTicketId) {
       // 无票（mock 先行/取号从未成功）：无可核销对象，直接标记防止 outbox 永久滞留。
       await this.deps.repo.markSettled(task.offPeakTaskId, this.now());

@@ -17,11 +17,11 @@ import type { ModelConfigObject, ProviderApiType } from "@zcode/provider";
 import {
   TID_MODEL_PROVIDER_ADD_MODEL_BUTTON,
   TID_MODEL_PROVIDER_BASE_URL_INPUT,
-  TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON,
-  TID_MODEL_PROVIDER_ADD_MODEL_BUTTON,
+  TID_MODEL_PROVIDER_BATCH_DELETE_BUTTON,
+  TID_MODEL_PROVIDER_IMPORT_MODELS_BUTTON,
   TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON,
   TID_MODEL_PROVIDER_MODEL_INPUT,
-  TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON,
+  TID_MODEL_PROVIDER_MODEL_SELECT_CHECKBOX,
   TID_MODEL_PROVIDER_NAME_EDIT_BUTTON,
   TID_MODEL_PROVIDER_NAME_INPUT,
   TID_MODEL_PROVIDER_SELECT_ALL_MODEL,
@@ -46,7 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useProviderDetailFeedback } from "@/settings/model-provider-section/ProviderDetailFeedback.js";
@@ -113,7 +113,7 @@ export function ProviderCardHeader({
   actionsVisible?: boolean;
   providerToggle?: ReactNode;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const renameRequestedRef = useRef(false);
   const secondaryActionsVisible = actionsVisible && (nameEditable || Boolean(onDelete));
 
@@ -225,7 +225,7 @@ export function ProviderConnectionSection({
   onBaseUrlCompositionStart?: () => void;
   onBaseUrlCompositionEnd?: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const showApiFormat = shouldShowProviderApiFormat(provider);
   const readOnlyBaseUrl = provider.config.api?.baseUrl ?? "";
   const resolvedApiFormat = provider.config.api?.type ?? DEFAULT_PERSONAL_PROVIDER_API_FORMAT;
@@ -327,7 +327,7 @@ export function ProviderApiKeySection({
   onApiKeyCompositionEnd?: () => void;
   onToggleApiKeyVisibility: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   return (
     <div>
@@ -391,7 +391,7 @@ export function ProviderModelsSection({
   providerName?: string;
   providerEnabled?: boolean;
   providerAccess?: ProviderConfigObject["access"];
-  /** ZCode fork：provider 的 api.headers，读取模型元数据表（Qoder 可读名/倍率）。 */
+  /** XCode fork：provider 的 api.headers，读取模型元数据表（Qoder 可读名/倍率）。 */
   providerApiHeaders?: Record<string, string>;
   models: ProviderSettingsFormModel[];
   onTestModel?: (model: string) => Promise<ModelConnectivityResult>;
@@ -400,7 +400,7 @@ export function ProviderModelsSection({
     model: ProviderSettingsFormModel,
     basedOnRevision: number,
   ) => void | Promise<void>;
-  /** ZCode fork：返回 Promise 以支持批量删除的串行等待。 */
+  /** XCode fork：返回 Promise 以支持批量删除的串行等待。 */
   onDeleteModel: (modelId: string) => void | Promise<void>;
   onModelEnabledChange?: (modelId: string, enabled: boolean) => void | Promise<void>;
   onAddModel: (model: ProviderSettingsFormModel) => void | Promise<void>;
@@ -413,7 +413,7 @@ export function ProviderModelsSection({
   onReorderModelIds?: (modelIds: string[]) => void;
   settingsRevision?: number;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { providerSettingsService } = useServices();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addSaving, setAddSaving] = useState(false);
@@ -451,7 +451,7 @@ export function ProviderModelsSection({
   // 上游模型批量导入对话框开关；导入执行与通知在 Card 层批量回调中收口。
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
-  // ZCode fork：批量删除选中态。默认不勾选（与「从上游批量添加」一致）。
+  // XCode fork：批量删除选中态。默认不勾选（与「从上游批量添加」一致）。
   // Built-in 模型也可删除（Host 删除时自动拍平名单），因此全部行可勾选。
   const [selectedModelIds, setSelectedModelIds] = useState<ReadonlySet<string>>(
     () => new Set(),
@@ -621,7 +621,7 @@ export function ProviderModelsSection({
               variant="secondary"
               size="default"
               className="rounded-lg"
-              data-testid={TID_MODEL_PROVIDER_ADD_MODEL_BUTTON}
+              data-testid={TID_MODEL_PROVIDER_IMPORT_MODELS_BUTTON}
               onClick={() => setImportDialogOpen(true)}
             >
               <DownloadCloud data-icon="inline-start" aria-hidden="true" />
@@ -641,7 +641,7 @@ export function ProviderModelsSection({
           </Button>
         </div>
       </div>
-      {/* ZCode fork：勾选后浮现的操作条。默认无勾选时不占空间。 */}
+      {/* XCode fork：勾选后浮现的操作条。默认无勾选时不占空间。 */}
       {effectiveSelectedModelIds.length > 0 ? (
         <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-input-border bg-surface px-3 py-2">
           <span className="text-ui-sm text-foreground">
@@ -670,7 +670,7 @@ export function ProviderModelsSection({
             variant="destructive"
             size="sm"
             className="rounded-lg"
-            data-testid={TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON}
+            data-testid={TID_MODEL_PROVIDER_BATCH_DELETE_BUTTON}
             disabled={batchDeleting}
             onClick={() => void handleBatchDelete()}
           >
@@ -717,7 +717,7 @@ export function ProviderModelsSection({
                       toggleModelSelected(model.modelId, checked)
                     }
                     selectTestId={testId(
-                      TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON,
+                      TID_MODEL_PROVIDER_MODEL_SELECT_CHECKBOX,
                       String(index),
                     )}
                     model={model}

@@ -11,7 +11,7 @@ import {
   zcodeStoragePreparationFrameSchema,
   type DatabaseStartupState,
 } from "@zcode/shared";
-import { resolveDefaultZCodeAgentCommand } from "@zcode/services/storage-startup";
+import { resolveDefaultXCodeAgentCommand } from "@zcode/services/storage-startup";
 
 type Phase = NonNullable<DatabaseStartupState["databasePhase"]>;
 const workerMessageSchema = z.discriminatedUnion("type", [
@@ -118,7 +118,7 @@ export async function prepareSessionStorage(options: {
   preparedPaths?: Set<string>;
   observePath: (path: string) => Promise<void>;
 }): Promise<void> {
-  const command = resolveDefaultZCodeAgentCommand({
+  const command = resolveDefaultXCodeAgentCommand({
     workspacePath: options.cwd,
     workspaceKey: options.cwd,
     presentationSurface: "desktop",

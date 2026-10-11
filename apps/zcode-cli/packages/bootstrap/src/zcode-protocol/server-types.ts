@@ -15,32 +15,31 @@ import type { WorkspaceHookPolicyProvider } from "@zcode/core";
 import type { AccountProviderConfigSnapshot } from "@zcode/provider";
 import {
   zcodeProtocolErrorCodes,
-  type ZCodeAutomationBotDeliveryTarget,
-  type ZCodeDeliveryKind,
+  type XCodeAutomationBotDeliveryTarget,
+  type XCodeDeliveryKind,
   type ModelSelection,
-  type ZCodeModelContextBudgetStrategy,
-  type ZCodeProtocolMessage,
-  type ZCodeProtocolMethod,
-  type ZCodeProtocolNotification,
-  type ZCodeProtocolRequest,
-  type ZCodeProtocolRequestId,
-  type ZCodeProtocolTrace,
-  type ZCodeSessionMode,
-  type ZCodeSessionPersistence,
-  type ZCodeWorkspaceRef,
+  type XCodeModelContextBudgetStrategy,
+  type XCodeProtocolMessage,
+  type XCodeProtocolMethod,
+  type XCodeProtocolNotification,
+  type XCodeProtocolRequest,
+  type XCodeProtocolRequestId,
+  type XCodeProtocolTrace,
+  type XCodeSessionMode,
+  type XCodeSessionPersistence,
+  type XCodeWorkspaceRef,
 } from "@zcode/shared";
-import type { ZCodeApp, ZCodeAppOptions } from "../app/types.js";
+import type { XCodeApp, XCodeAppOptions } from "../app/types.js";
 import type { V4InteractionRegistry } from "../zcode-protocol-v4/interaction-registry.js";
 import type { ConversationV4Gateway } from "../zcode-protocol-v4/v4-gateway.js";
 import type { SessionResidentPool, SessionResidentPoolOptions } from "./session-resident-pool.js";
-import type { DynamicWorkflowMode } from "@zcode/shared";
 
 export interface ParamsSchema<T> {
   parse(input: unknown): T;
 }
 
-export interface ZCodeProtocolAgentDependencies {
-  createZCodeApp(options?: Omit<ZCodeAppOptions, "providerRegistry">): ZCodeApp | Promise<ZCodeApp>;
+export interface XCodeProtocolAgentDependencies {
+  createXCodeApp(options?: Omit<XCodeAppOptions, "providerRegistry">): XCodeApp | Promise<XCodeApp>;
   /**
    * 每个 session record 的内存 event store 工厂。
    * 默认 turn 窗口保留策略；测试可注入 spy 或 unbounded 实现做对照。
@@ -67,28 +66,57 @@ export interface ZCodeProtocolAgentDependencies {
   refreshProviderRegistry?: (reason: string) => Promise<void>;
 }
 
-export type ZCodeProtocolAgentResolvedDependencies = ZCodeProtocolAgentDependencies & {
+export type XCodeProtocolAgentResolvedDependencies = XCodeProtocolAgentDependencies & {
   createSessionEventStore(sessionId: string): SessionEventStorePort;
   workspaceHookPolicyProvider: WorkspaceHookPolicyProvider;
 };
 
-export interface ZCodeProtocolEventSequenceState {
+export interface XCodeProtocolEventSequenceState {
   lastSeq: number;
   seqBySourceEventKey: Map<string, number>;
 }
 
-export interface ZCodeProtocolToolInputTransmissionState {
+export interface XCodeProtocolToolInputTransmissionState {
   streamedToolCallIdsWithInput: Set<string>;
 }
 
-export interface ZCodeProtocolSessionRecord {
-  app: ZCodeApp;
-  subagentRuntimeConfigEnabled?: boolean;
+/**
+ * XCode fork：第 1 条 system 消息（产品身份行）的自定义替换内容 + godmode 越狱配置
+ * （与 zcodeSessionRuntimePreferencesResultSchema 的 customSystemMessages 字段同形）。
+ * cliPrefix 空串或缺省表示使用内置身份行；prefill 为 priming 对话轮；obfuscation 为输入混淆。
+ */
+export interface SessionJailbreakPrefillMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface SessionJailbreakPrefillSettings {
+  enabled?: boolean;
+  messages?: SessionJailbreakPrefillMessage[];
+}
+
+export type SessionJailbreakObfuscationTier = "light" | "standard" | "heavy";
+
+export interface SessionJailbreakObfuscation {
+  enabled?: boolean;
+  tier?: SessionJailbreakObfuscationTier;
+}
+
+export interface SessionCustomSystemMessages {
+  cliPrefix?: string;
+  prefill?: SessionJailbreakPrefillSettings;
+  obfuscation?: SessionJailbreakObfuscation;
+}
+
+export interface XCodeProtocolSessionRecord {
+  app: XCodeApp;
   memoryEnabled: boolean;
   nativeSearchEnhancementsEnabled: boolean;
-  modelContextBudgetStrategy: ZCodeModelContextBudgetStrategy;
+  modelContextBudgetStrategy: XCodeModelContextBudgetStrategy;
+  /** XCode fork：物化时固化的自定义 system 消息；fork/子会话经 inherit 分支继承。 */
+  customSystemMessages?: SessionCustomSystemMessages;
   createdAt: number;
-  deliveryKind?: ZCodeDeliveryKind;
+  deliveryKind?: XCodeDeliveryKind;
   /**
    * 旧 session/subscribe 没有 unsubscribe RPC；只在真正 subscribe 时置位，不能用
    * 会被 session/read 写入的 deliveryKind 代替。连接结束会销毁整个 CLI 进程。
@@ -96,15 +124,15 @@ export interface ZCodeProtocolSessionRecord {
   legacyStreamSubscribed?: boolean;
   eventStore: SessionEventStorePort;
   parentSessionId?: SessionId;
-  persistence: ZCodeSessionPersistence;
-  protocolEventSequences: Map<string, ZCodeProtocolEventSequenceState>;
-  protocolToolInputTransmissions: Map<string, ZCodeProtocolToolInputTransmissionState>;
+  persistence: XCodeSessionPersistence;
+  protocolEventSequences: Map<string, XCodeProtocolEventSequenceState>;
+  protocolToolInputTransmissions: Map<string, XCodeProtocolToolInputTransmissionState>;
   stateRevision: number;
   taskType?: SessionTaskType;
   traceContext: TraceContext;
   unsubscribe?: () => void;
   updatedAt: number;
-  workspace: ZCodeWorkspaceRef;
+  workspace: XCodeWorkspaceRef;
   activeAbortController?: AbortController;
   /** background runner 释放 ready lock 后，持久化/snapshot/broadcast 尚未完成的引用计数。 */
   residencyFinalizationCount?: number;
@@ -113,23 +141,23 @@ export interface ZCodeProtocolSessionRecord {
   /** 当前正在执行的闲时派发 turn；只在 turn 运行期间存在，禁止递归 OffPeakCreate。 */
   activeOffPeakTaskId?: string;
   /** 当前 Bot 入站 turn 的稳定回推地址；只允许 CronCreate 在本轮读取。 */
-  activeBotDeliveryTarget?: ZCodeAutomationBotDeliveryTarget;
+  activeBotDeliveryTarget?: XCodeAutomationBotDeliveryTarget;
   restoreWarning?: { message: string; type: string };
   /** 冷恢复候选只供初始投影；新的选模事件立即清除，不能替代 Runtime 执行绑定。 */
   restoredModelSelection?: ModelSelection;
 }
 
-export interface ZCodeProtocolClientRequestOptions {
+export interface XCodeProtocolClientRequestOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
-  trace?: ZCodeProtocolTrace;
+  trace?: XCodeProtocolTrace;
   reannounceIntervalMs?: number;
 }
 
-export interface ZCodeProtocolAgentServerContext {
+export interface XCodeProtocolAgentServerContext {
   /** 进程退出期间，迟到的异步物化不能重新登记 session。 */
   assertServing?: () => void;
-  deps: ZCodeProtocolAgentResolvedDependencies;
+  deps: XCodeProtocolAgentResolvedDependencies;
   logger?: Logger;
   appRuntimePreferences: {
     askUserQuestionAutoResolutionEnabled: boolean;
@@ -142,11 +170,6 @@ export interface ZCodeProtocolAgentServerContext {
      * 工作流工具面、`/workflow` 与 dynamic-workflows 技能一律不露出。
      */
     dynamicWorkflowEnabled: boolean;
-    /**
-     * 与 dynamicWorkflowEnabled 同行到达的灰度 mode（launch.md「On demand: activation」）。
-     * 缺席（旧 Host 只发布尔）= alwaysOn；`onDemand` 让 createRecord 写 runtimeConfig.dynamicWorkflowToolsOnDemand。
-     */
-    dynamicWorkflowMode?: DynamicWorkflowMode;
   };
   // 竖切：v4 conversation 通道（订阅/帧/命令），与旧 session/* 方法并存。
   // 构造顺序问题（gateway 闭包持有 context）用可选字段收口，server 构造完立即赋值。
@@ -157,25 +180,15 @@ export interface ZCodeProtocolAgentServerContext {
   // 单 CLI resident session 池。冷恢复入口经 waitForDeactivation 等待旧 app.close 收尾，
   // 协议请求则持有 operation lease，禁止异步 handler 与容量回收交错。
   sessionResidentPool?: SessionResidentPool;
-  sessions: Map<string, ZCodeProtocolSessionRecord>;
-  notify(notification: ZCodeProtocolNotification): void;
+  sessions: Map<string, XCodeProtocolSessionRecord>;
+  notify(notification: XCodeProtocolNotification): void;
   requestClient<T>(
-    method: ZCodeProtocolMethod,
+    method: XCodeProtocolMethod,
     params: unknown,
     resultSchema: ParamsSchema<T>,
-    options?: ZCodeProtocolClientRequestOptions,
+    options?: XCodeProtocolClientRequestOptions,
   ): Promise<T>;
 }
-
-/** server → client 请求失败的协议错误码；server.ts 抛出，适配层按码翻译，不在业务逻辑中散落字面量。 */
-export const PROTOCOL_CLIENT_REQUEST_ERROR_CODES = {
-  /** 没有 ZCode Protocol client 挂载，无法投递请求。 */
-  noClientAttached: -32020,
-  /** 请求在收到应答前被取消。 */
-  cancelled: -32021,
-  /** 请求等待应答超时。 */
-  timedOut: -32022,
-} as const;
 
 export class ProtocolRequestError extends Error {
   constructor(
@@ -188,24 +201,24 @@ export class ProtocolRequestError extends Error {
   }
 }
 
-export function isRequest(message: ZCodeProtocolMessage): message is ZCodeProtocolRequest {
+export function isRequest(message: XCodeProtocolMessage): message is XCodeProtocolRequest {
   return "method" in message && "id" in message;
 }
 
 export function isNotification(
-  message: ZCodeProtocolMessage,
-): message is ZCodeProtocolNotification {
+  message: XCodeProtocolMessage,
+): message is XCodeProtocolNotification {
   return "method" in message && !("id" in message);
 }
 
 export function isResponse(
-  message: ZCodeProtocolMessage,
-): message is { id: ZCodeProtocolRequestId; result: unknown } {
+  message: XCodeProtocolMessage,
+): message is { id: XCodeProtocolRequestId; result: unknown } {
   return "id" in message && "result" in message;
 }
 
-export function isErrorResponse(message: ZCodeProtocolMessage): message is {
-  id: ZCodeProtocolRequestId;
+export function isErrorResponse(message: XCodeProtocolMessage): message is {
+  id: XCodeProtocolRequestId;
   error: { code: number; message: string; data?: unknown };
 } {
   return "id" in message && "error" in message;
@@ -245,7 +258,7 @@ export function parseParams<T>(schema: ParamsSchema<T>, params: unknown): T {
 }
 
 export function assertExpectedRevision(
-  record: ZCodeProtocolSessionRecord,
+  record: XCodeProtocolSessionRecord,
   expectedRevision: number | undefined,
 ): void {
   if (expectedRevision !== undefined && expectedRevision !== record.stateRevision) {
@@ -285,15 +298,15 @@ export function toProtocolError(error: unknown): {
   };
 }
 
-export function createProtocolTraceId(_sessionId: SessionId): TraceContext["traceId"] {
-  // Bugfix: traceId 是 session 之上的观测链路，不应由 sessionId 拼出来。
+function createProtocolTraceId(_sessionId: SessionId): TraceContext["traceId"] {
+  // traceId 是 session 之上的观测链路，不应由 sessionId 拼出来。
   // 这里复用 agent/contracts 的 UUID 算法，保证 app 和 agent 两端 trace 格式一致。
   return createTraceId();
 }
 
 export function createProtocolRootTraceContext(
   sessionId: SessionId,
-  trace?: ZCodeProtocolTrace,
+  trace?: XCodeProtocolTrace,
 ): TraceContext {
   const context = createRootTraceContext({
     sessionId,
@@ -309,7 +322,7 @@ export function createProtocolRootTraceContext(
   return context;
 }
 
-export function protocolTraceFromTraceContext(context: TraceContext): ZCodeProtocolTrace {
+export function protocolTraceFromTraceContext(context: TraceContext): XCodeProtocolTrace {
   return {
     traceId: context.traceId,
     ...(context.spanId ? { spanId: context.spanId } : {}),
@@ -320,15 +333,15 @@ export function protocolTraceFromTraceContext(context: TraceContext): ZCodeProto
 }
 
 export function requireSession(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   sessionId: string,
-  options: { deliveryKind?: ZCodeDeliveryKind; operation?: string } = {},
-): ZCodeProtocolSessionRecord {
+  options: { deliveryKind?: XCodeDeliveryKind; operation?: string } = {},
+): XCodeProtocolSessionRecord {
   const record = context.sessions.get(sessionId);
   if (!record) {
     // 诊断：readSession 只读取活跃 runtime；记录缺失时要区分“冷会话尚未恢复”和“ID 已失效”，
     // 不能只留下相同的错误文本，否则无法判断 UI 是读早了还是 task index 带来了脏引用。
-    context.logger?.warn("ZCode Protocol session runtime missing", {
+    context.logger?.warn("XCode Protocol session runtime missing", {
       activeSessionCount: context.sessions.size,
       event: "zcode_protocol.session.require_missing",
       hasSessionStore: Boolean(context.deps.sessionStore),
@@ -345,7 +358,7 @@ export function requireSession(
   return record;
 }
 
-export function createProtocolLogger(deps: ZCodeProtocolAgentDependencies): Logger | undefined {
+export function createProtocolLogger(deps: XCodeProtocolAgentDependencies): Logger | undefined {
   return deps.loggerFactory?.createLogger("zcode").child({
     module: "bootstrap.zcode_protocol",
   });

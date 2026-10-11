@@ -114,11 +114,7 @@ function addReadLineNumbers(content: string, startLine: number): string {
 
 function shouldSkipPostCompactReadStatePath(filePath: string): boolean {
   const normalized = normalizePostCompactReadStatePath(filePath);
-  return (
-    normalized.includes("/.codex/memories/") ||
-    normalized.includes("/docs/superpowers/plans/") ||
-    normalized.includes("/.git/")
-  );
+  return normalized.includes("/.git/");
 }
 
 function normalizePostCompactReadStatePath(filePath: string): string {

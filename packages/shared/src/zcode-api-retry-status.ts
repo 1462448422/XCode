@@ -1,8 +1,8 @@
-import type { ZCodeApiRetryStatus } from "./zcode-task-types-core.js";
+import type { XCodeApiRetryStatus } from "./zcode-task-types-core.js";
 
-export function normalizeZCodeApiRetryStatus(
+export function normalizeXCodeApiRetryStatus(
   value: unknown,
-): ZCodeApiRetryStatus | null | undefined {
+): XCodeApiRetryStatus | null | undefined {
   if (value === null) {
     return null;
   }
@@ -38,10 +38,10 @@ export function normalizeZCodeApiRetryStatus(
 
 export function zcodeApiRetryFromModelNetworkStatusPayload(
   payload: Record<string, unknown>,
-): ZCodeApiRetryStatus | null | undefined {
+): XCodeApiRetryStatus | null | undefined {
   const type = stringValue(payload.type);
   if (type === "model_retry_scheduled") {
-    return normalizeZCodeApiRetryStatus(payload);
+    return normalizeXCodeApiRetryStatus(payload);
   }
   if (type === "model_request_started") {
     const streamRecoveryRetry = zcodeApiRetryFromStreamRecoveryPayload(payload.streamRecovery);
@@ -63,7 +63,7 @@ export function zcodeApiRetryFromModelNetworkStatusPayload(
   return undefined;
 }
 
-export function isZCodeModelRetryRecoveryProgressPayload(
+export function isXCodeModelRetryRecoveryProgressPayload(
   payload: Record<string, unknown>,
 ): boolean {
   const kind = stringValue(payload.kind);
@@ -85,7 +85,7 @@ export function isZCodeModelRetryRecoveryProgressPayload(
 
 export function zcodeApiRetryFromStreamRecoveryPayload(
   value: unknown,
-): ZCodeApiRetryStatus | undefined {
+): XCodeApiRetryStatus | undefined {
   const record = asRecord(value);
   const attempt = positiveIntegerValue(record.retryNumber);
   if (attempt === undefined) {

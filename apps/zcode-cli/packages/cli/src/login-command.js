@@ -5,7 +5,7 @@ export async function runLoginCommand(ctx, options, deps, noBrowser, args = []) 
     try {
         const providerId = args[0] ?? "zai";
         if (args.length > 1 || (providerId !== "zai" && providerId !== "bigmodel")) {
-            throw new Error("Usage: zcode login [zai|bigmodel] [--no-browser]");
+            throw new Error("Usage: xcode login [zai|bigmodel] [--no-browser]");
         }
         const env = deps.env ?? process.env;
         const workingDirectory = (deps.cwd ?? process.cwd)();
@@ -18,7 +18,7 @@ export async function runLoginCommand(ctx, options, deps, noBrowser, args = []) 
                 cause: dotenvResult.error,
             });
         }
-        const login = deps.loginZCodeCli ?? (await loadBootstrapModule()).loginZCodeCli;
+        const login = deps.loginXCodeCli ?? (await loadBootstrapModule()).loginXCodeCli;
         const result = await login({
             env,
             noBrowser,
@@ -79,7 +79,7 @@ export async function runLogoutCommand(ctx, options, deps) {
                 cause: dotenvResult.error,
             });
         }
-        const logout = deps.logoutZCodeCli ?? (await loadBootstrapModule()).logoutZCodeCli;
+        const logout = deps.logoutXCodeCli ?? (await loadBootstrapModule()).logoutXCodeCli;
         const result = await logout({ env });
         if (options.json) {
             ctx.stdout.write(formatJson({

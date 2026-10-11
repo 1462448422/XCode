@@ -1,7 +1,7 @@
 import type { RemoteTarget } from "@zcode/shared";
 import { isRemoteWorkspaceIdentity } from "@zcode/shared";
 
-export type ComputerUseAvailabilityKind =
+type ComputerUseAvailabilityKind =
   | "local-macos"
   | "local-windows"
   | "local-linux"
@@ -11,12 +11,12 @@ export type ComputerUseAvailabilityKind =
   | "remote-server"
   | "web";
 
-export interface ComputerUseAvailability {
+interface ComputerUseAvailability {
   kind: ComputerUseAvailabilityKind;
   supported: boolean;
 }
 
-export interface ComputerUseAvailabilityInput {
+interface ComputerUseAvailabilityInput {
   isDesktop?: boolean;
   isMacDesktop?: boolean;
   isWindowsDesktop?: boolean;

@@ -5,11 +5,11 @@ import { HookEventName as HookEventNameValue } from "@zcode/contracts";
 import { fileExists, isRecord, resolveInside } from "./helpers.js";
 import type { LoadedPlugin } from "./types.js";
 
-export const STANDARD_HOOKS_PATH = join("hooks", "hooks.json");
+const STANDARD_HOOKS_PATH = join("hooks", "hooks.json");
 
 const SUPPORTED_HOOK_EVENTS = new Set<string>(Object.values(HookEventNameValue));
 
-export interface PluginHookSource {
+interface PluginHookSource {
   rawHooks: unknown;
   sourcePath: string;
   wrapper: boolean;
@@ -130,7 +130,7 @@ export function listPluginHookEventNames(input: {
       if (!SUPPORTED_HOOK_EVENTS.has(eventName)) {
         input.diagnostics.push({
           code: "plugin_hook_unsupported_event",
-          message: `Plugin hook event is not supported by this ZCode runtime: ${eventName}`,
+          message: `Plugin hook event is not supported by this XCode runtime: ${eventName}`,
           path: source.sourcePath,
           pluginId: input.loaded.id,
           severity: "warning",
@@ -159,7 +159,8 @@ function loadPluginHookSource(input: {
   } catch (error) {
     input.diagnostics.push({
       code: "plugin_hook_read_failed",
-      message: error instanceof Error ? error.message : `Failed to read plugin hooks: ${input.path}`,
+      message:
+        error instanceof Error ? error.message : `Failed to read plugin hooks: ${input.path}`,
       path: input.path,
       pluginId: input.loaded.id,
       severity: "error",

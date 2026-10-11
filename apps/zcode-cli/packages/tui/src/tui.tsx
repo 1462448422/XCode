@@ -1,7 +1,7 @@
 import { CliRenderEvents, createCliRenderer, type CliRenderer } from "@mbears/opentui-core";
 import type { UiThemeMode } from "@zcode/contracts";
 import { createRoot } from "@mbears/opentui-react";
-import { getZCodeCopy } from "@zcode/i18n";
+import { getXCodeCopy } from "@zcode/i18n";
 import React from "react";
 import { TuiApp } from "./app.js";
 import { TuiStartupScreen } from "./app-startup.js";
@@ -12,7 +12,7 @@ import type { TuiOptions } from "./types.js";
 
 export const runTui = async (options: TuiOptions): Promise<number> => {
   if (!options.stdin.isTTY || !options.stdout.isTTY) {
-    const copy = getZCodeCopy(options.locale);
+    const copy = getXCodeCopy(options.locale);
     options.stderr.write(`${copy.tui.terminal.requiresInteractive}\n`);
     return 1;
   }
@@ -53,10 +53,7 @@ export const runTui = async (options: TuiOptions): Promise<number> => {
 };
 
 /** Renderer lifecycle shared by the interactive entrypoint and native terminal tests. */
-export async function runTuiWithRenderer(
-  options: TuiOptions,
-  renderer: CliRenderer,
-): Promise<number> {
+async function runTuiWithRenderer(options: TuiOptions, renderer: CliRenderer): Promise<number> {
   let exitCode = 0;
   let startupError: unknown;
   let destroyed = false;

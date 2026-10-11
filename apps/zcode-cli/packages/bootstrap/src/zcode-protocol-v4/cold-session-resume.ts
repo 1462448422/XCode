@@ -10,25 +10,25 @@
 //   message 附带 reasonCode——renderer 订阅错误块直显 lastError，无需 UI 改动即透出。
 
 import type { MessageWithParts } from "@zcode/contracts";
-import type { ZCodeWorkspaceRef } from "@zcode/shared";
+import type { XCodeWorkspaceRef } from "@zcode/shared";
 
 export type ColdSessionResumeOutcome =
   | { status: "resumed"; persistedMessages?: MessageWithParts[] }
   | { status: "notFound" };
 
 /** 协调器需要的宿主能力窄面（与 V4GatewayHost 同形，避免循环 import）。 */
-export interface ColdSessionResumeHost {
+interface ColdSessionResumeHost {
   resumePersistedSession?(
     sessionId: string,
     resumeThoughtLevel?: string,
-    workspace?: ZCodeWorkspaceRef,
+    workspace?: XCodeWorkspaceRef,
   ): Promise<ColdSessionResumeOutcome>;
   onDebug?(message: string): void;
   onError?(scope: string, error: unknown, context?: Record<string, unknown>): void;
 }
 
 /** 订阅不可用会话的结构化错误（reasonCode 见文件头）。 */
-export class V4SubscribeSessionUnavailableError extends Error {
+class V4SubscribeSessionUnavailableError extends Error {
   constructor(
     readonly sessionId: string,
     readonly reasonCode: "fault.subscribe.sessionNotFound" | "fault.subscribe.resumeFailed",
@@ -49,7 +49,7 @@ export class ColdSessionResumeCoordinator {
   ensureResumed(
     sessionId: string,
     resumeThoughtLevel?: string,
-    workspace?: ZCodeWorkspaceRef,
+    workspace?: XCodeWorkspaceRef,
   ): Promise<MessageWithParts[] | undefined> {
     const inFlight = this.flights.get(sessionId);
     if (inFlight) {
@@ -72,7 +72,7 @@ export class ColdSessionResumeCoordinator {
   private async resume(
     sessionId: string,
     resumeThoughtLevel?: string,
-    workspace?: ZCodeWorkspaceRef,
+    workspace?: XCodeWorkspaceRef,
   ): Promise<MessageWithParts[] | undefined> {
     const resume = this.host.resumePersistedSession;
     if (!resume) {

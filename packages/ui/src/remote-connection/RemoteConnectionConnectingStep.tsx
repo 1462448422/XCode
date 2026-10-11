@@ -5,7 +5,7 @@ import { TID_SSH_ERROR, type RemoteTarget } from "@zcode/shared";
 import { cn } from "@/components/lib/utils.js";
 import { Button } from "@/components/ui/button.js";
 import type { RemoteConnectionLogEntry } from "@/hooks/useRemoteConnectionLogs.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { useFeedbackStore } from "@/feedback/feedbackStore.js";
 import {
   isRemoteConnectionLogScrolledToLatest,
@@ -27,7 +27,7 @@ export function RemoteConnectionConnectingStep({
   onBack: () => void;
   onRetry: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const openFeedbackSubmit = useFeedbackStore((state) => state.openSubmit);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldFollowLatestLogRef = useRef(true);
@@ -68,7 +68,7 @@ export function RemoteConnectionConnectingStep({
       type: "bug",
       module: kind === "ssh" ? "SSH连接失败" : kind === "wsl" ? "WSL连接失败" : "Agent任务执行失败",
       severity: "P2-中",
-      includeLogs: true,
+      includeLogs: false,
       description: buildRemoteConnectionFeedbackDescription(errorMessage, logs, (id, values) =>
         intl.formatMessage({ id }, values),
       ),

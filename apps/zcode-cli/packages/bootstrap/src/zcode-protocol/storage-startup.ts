@@ -5,13 +5,13 @@ import {
   databaseStartupErrorDetails,
   zcodeProtocolNotifications,
   zcodeStorageStartupStateSchema,
-  type ZCodeStorageStartupState,
+  type XCodeStorageStartupState,
 } from "@zcode/shared";
 
 export async function openProtocolStartupStorage(options: {
   dbPath: string;
   output: NodeJS.WritableStream;
-  onProgress?: (progress: ZCodeStorageStartupState) => void;
+  onProgress?: (progress: XCodeStorageStartupState) => void;
 }): Promise<SqliteSessionStore> {
   const attemptId = randomUUID();
   const databaseId = createHash("sha256").update(options.dbPath).digest("hex");

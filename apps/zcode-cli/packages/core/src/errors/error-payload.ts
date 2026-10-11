@@ -4,7 +4,7 @@ import type {
   ModelFailureExceptionKind,
 } from "@zcode/contracts";
 
-export interface ExecutionErrorPayloadProjection {
+interface ExecutionErrorPayloadProjection {
   attribution?: ErrorAttribution;
   code?: string;
   detail?: string;
@@ -70,12 +70,8 @@ export function projectExecutionErrorPayload(
     ...(code ? { code } : {}),
     message,
     ...(detail ? { detail } : {}),
-    ...(underlyingFrame?.message
-      ? { underlyingErrorMessage: underlyingFrame.message }
-      : {}),
-    ...(underlyingFrame?.detail
-      ? { underlyingErrorDetail: underlyingFrame.detail }
-      : {}),
+    ...(underlyingFrame?.message ? { underlyingErrorMessage: underlyingFrame.message } : {}),
+    ...(underlyingFrame?.detail ? { underlyingErrorDetail: underlyingFrame.detail } : {}),
   };
 }
 
@@ -94,8 +90,7 @@ function projectErrorAttribution(
   const providerErrorCode =
     selectContextCode(contexts, ["providerCode"]) ??
     frames.map((frame) => frame.code).find((code) => /^\d+$/.test(code ?? ""));
-  const retryable =
-    selectContextBoolean(contexts, "retryable") ?? selectFrameRetryable(frames);
+  const retryable = selectContextBoolean(contexts, "retryable") ?? selectFrameRetryable(frames);
   const source = selectSource(contexts);
 
   const attribution: ErrorAttribution = {

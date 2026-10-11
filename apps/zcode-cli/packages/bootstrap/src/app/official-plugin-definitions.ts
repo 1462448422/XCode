@@ -1,4 +1,4 @@
-import { ZCODE_OFFICIAL_PLUGIN_MARKETPLACE } from "@zcode/contracts";
+import { XCODE_OFFICIAL_PLUGIN_MARKETPLACE } from "@zcode/contracts";
 
 // 内置插件的商店信息 seed（原样写入官方 marketplace.json 的条目 raw，键名与 CDN 目录
 // schema 一致：displayName_i18n / examplePrompts_i18n 等），解析复用 adapter 的
@@ -18,8 +18,8 @@ export interface OfficialPluginListingSeed {
   examplePrompts_i18n?: Record<string, string[]>;
 }
 
-export const OFFICIAL_BROWSER_USE_PLUGIN_NAME = "browser-use";
-export const OFFICIAL_BROWSER_USE_PLUGIN_ID = `${OFFICIAL_BROWSER_USE_PLUGIN_NAME}@${ZCODE_OFFICIAL_PLUGIN_MARKETPLACE}`;
+const OFFICIAL_BROWSER_USE_PLUGIN_NAME = "browser-use";
+export const OFFICIAL_BROWSER_USE_PLUGIN_ID = `${OFFICIAL_BROWSER_USE_PLUGIN_NAME}@${XCODE_OFFICIAL_PLUGIN_MARKETPLACE}`;
 /**
  * node_repl 宿主。它不是面向用户的插件：没有 skill、没有 listing、不进市场，唯一职责是
  * 携带 `dist/mcp/server.js` 这个 Browser Use 与 Computer Use 共用的运行时产物。
@@ -30,13 +30,13 @@ export const OFFICIAL_BROWSER_USE_PLUGIN_ID = `${OFFICIAL_BROWSER_USE_PLUGIN_NAM
  * 各自只贡献自己的领域资产，谁启用都能拿到同一个宿主。
  */
 export const OFFICIAL_NODE_REPL_HOST_PLUGIN_NAME = "node-repl-host";
-export const OFFICIAL_NODE_REPL_HOST_PLUGIN_ID = `${OFFICIAL_NODE_REPL_HOST_PLUGIN_NAME}@${ZCODE_OFFICIAL_PLUGIN_MARKETPLACE}`;
-export const OFFICIAL_CUA_PLUGIN_NAME = "computer-use";
-export const OFFICIAL_CUA_PLUGIN_ID = `${OFFICIAL_CUA_PLUGIN_NAME}@${ZCODE_OFFICIAL_PLUGIN_MARKETPLACE}`;
+export const OFFICIAL_NODE_REPL_HOST_PLUGIN_ID = `${OFFICIAL_NODE_REPL_HOST_PLUGIN_NAME}@${XCODE_OFFICIAL_PLUGIN_MARKETPLACE}`;
+const OFFICIAL_CUA_PLUGIN_NAME = "computer-use";
+export const OFFICIAL_CUA_PLUGIN_ID = `${OFFICIAL_CUA_PLUGIN_NAME}@${XCODE_OFFICIAL_PLUGIN_MARKETPLACE}`;
 
 export interface OfficialPluginDefinition {
   // 内容型 plugin (无 MCP server / 无系统依赖) 可以设为 true,
-  // 这样用户首次 `/skill <name>` 就能用,不必先 `zcode plugins enable`。
+  // 这样用户首次 `/skill <name>` 就能用,不必先 `xcode plugins enable`。
   // 默认 false 保持 ios-simulator / android-emulator 这类重负载 plugin 原来行为。
   defaultEnabled?: boolean;
   listing?: OfficialPluginListingSeed;
@@ -57,7 +57,7 @@ export interface OfficialPluginDefinition {
 const ZAI_AUTHOR = { name: "Z.ai", url: "https://z.ai" } as const;
 const OFFICIAL_PLUGIN_ASSETS_BASE_URL = "https://cdn-zcode.z.ai/zcode/official-plugin/assets";
 
-export const OFFICIAL_NODE_REPL_HOST_REQUIRED_SEED_PATHS = ["dist/mcp/server.js"] as const;
+const OFFICIAL_NODE_REPL_HOST_REQUIRED_SEED_PATHS = ["dist/mcp/server.js"] as const;
 
 export const OFFICIAL_BROWSER_USE_REQUIRED_SEED_PATHS = [
   "docs/api.json",
@@ -71,65 +71,22 @@ export const OFFICIAL_BROWSER_USE_REQUIRED_SEED_PATHS = [
   "skills/web-gui-tester/SKILL.md",
 ] as const;
 
-export const OFFICIAL_CUA_REQUIRED_SEED_PATHS = [
+const OFFICIAL_CUA_REQUIRED_SEED_PATHS = [
   "docs/computer-use.md",
   "scripts/computer-use-client.mjs",
   "skills/computer-use/SKILL.md",
 ] as const;
 
-// 修复原因（2026-08-24）：zcode-guide 原本没有 requiredSeedPaths，seed 丢文件时会静默装出一个
-// 残缺插件而没有任何诊断。0.3.0 起 `/workflow` 与 dynamic-workflows 技能不再随本插件发布
-// （命令编进 CLI，技能进 packages/bundled-skills，见 docs/dynamic-workflow/authoring.md），
-// 这里钉住的是配置指南技能正文。
-export const OFFICIAL_ZCODE_GUIDE_REQUIRED_SEED_PATHS = [
-  "skills/zcode-configuration-guide/SKILL.md",
+// zcode-guide 原本没有 requiredSeedPaths，seed 丢文件时会静默装出一个
+// 没有 /workflow 命令的插件——症状是命令不存在，没有任何诊断。commands/ 与技能正文都钉住。
+const OFFICIAL_XCODE_GUIDE_REQUIRED_SEED_PATHS = [
+  "commands/workflow.md",
+  "skills/dynamic-workflows/SKILL.md",
+  "skills/dynamic-workflows/examples.md",
+  "skills/dynamic-workflows/patterns.md",
 ] as const;
 
 export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = [
-  {
-    defaultEnabled: true,
-    listing: {
-      author: ZAI_AUTHOR,
-      category: "productivity",
-      displayName: "Visualize",
-      displayName_i18n: { "zh-CN": "交互视图" },
-      description_i18n: { "zh-CN": "在对话中创建交互图表、解释和设计预览。" },
-    },
-    name: "visualize",
-    requiredSeedPaths: [
-      "skills/visualize/SKILL.md",
-      "skills/visualize/references/api.md",
-      "skills/visualize/references/styles.md",
-      "skills/visualize/tweak.md",
-      "skills/visualize/LICENSE.md",
-      "skills/visualize/scripts/render.py",
-      "skills/visualize/assets/visualize.css",
-      "skills/visualize/assets/visualize.html",
-      "skills/visualize/assets/calendar.js",
-      "skills/visualize/assets/runtime-manifest.json",
-      "skills/visualize/scripts/vendor.py",
-      "skills/visualize/assets/vendor/manifest.json",
-      "skills/visualize/assets/vendor/floating-ui-core-1.7.3.min.js",
-      "skills/visualize/assets/vendor/floating-ui-core-1.7.3.min.js.LICENSE",
-      "skills/visualize/assets/vendor/floating-ui-dom-1.7.4.min.js",
-      "skills/visualize/assets/vendor/floating-ui-dom-1.7.4.min.js.LICENSE",
-      "skills/visualize/assets/vendor/lucide-1.17.0.js",
-      "skills/visualize/assets/vendor/lucide-1.17.0.js.LICENSE",
-      "skills/visualize/assets/vendor/d3-7.9.0.min.js",
-      "skills/visualize/assets/vendor/d3-7.9.0.min.js.LICENSE",
-      "skills/visualize/widgets/calendar.md",
-      "skills/visualize/examples/calendar.html",
-      "skills/visualize/assets/standalone-host-bridge.js",
-      "skills/visualize/assets/standalone-shell.js",
-    ],
-    rootCandidates: [
-      "packages/visualize-plugin",
-      "../visualize-plugin",
-      "../../visualize-plugin",
-      "../../../visualize-plugin",
-    ],
-    version: "0.1.0",
-  },
   {
     // 无 listing：宿主不进市场、不对用户露出。它必须始终可用，因为 node_repl 的注册门禁
     // 是「Browser Use 或 Computer Use 任一启用」，宿主自己不参与那个判断。
@@ -146,7 +103,7 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       "../../node-repl-host",
       "../../../node-repl-host",
     ],
-    version: "0.6.1",
+    version: "0.6.0",
   },
   {
     listing: {
@@ -180,7 +137,7 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       displayName_i18n: { "zh-CN": "浏览器操作" },
       icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/browser-use/icon.png`,
       description_i18n: {
-        "zh-CN": "操作 ZCode 内置浏览器，检查网页并验证交互。",
+        "zh-CN": "操作 XCode 内置浏览器，检查网页并验证交互。",
       },
     },
     name: OFFICIAL_BROWSER_USE_PLUGIN_NAME,
@@ -222,7 +179,7 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
         `../../${name}-plugin`,
         `../../../${name}-plugin`,
       ],
-      version: "0.1.8",
+      version: "0.1.7",
     }),
   ),
   {
@@ -273,7 +230,7 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       displayName_i18n: { "zh-CN": "恢复旧版会话" },
       icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/restore-legacy-sessions/icon.png`,
       description_i18n: {
-        "zh-CN": "将旧版会话恢复为 ZCode 任务与会话记录。",
+        "zh-CN": "将旧版会话恢复为 XCode 任务与会话记录。",
       },
     },
     name: "restore-legacy-sessions",
@@ -296,7 +253,7 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       // 创建器使用客户端自带图标，不再借用 skill-creator 的远端图片。
       displayName_i18n: { "zh-CN": "插件创建器" },
       description_i18n: {
-        "zh-CN": "开发、校验 ZCode 插件，完成本地 dev 市场安装、试用与更新。",
+        "zh-CN": "开发、校验 XCode 插件，完成本地 dev 市场安装、试用与更新。",
       },
     },
     rootCandidates: [
@@ -324,7 +281,7 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       displayName: "Skill Creator",
       displayName_i18n: { "zh-CN": "技能创建器" },
       icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/skill-creator/icon.png`,
-      description_i18n: { "zh-CN": "创建、编辑和验证可复用的 ZCode 技能。" },
+      description_i18n: { "zh-CN": "创建、编辑和验证可复用的 XCode 技能。" },
     },
     name: "skill-creator",
     rootCandidates: [
@@ -337,34 +294,34 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
   },
   {
     // 纯内容型插件（只有 commands + skills，无 MCP / 无系统依赖），默认启用，
-    // 让用户/agent 开箱即用地拿到 ZCode 配置指南、自诊断技能与 dynamic workflow 编写指南。
+    // 让用户/agent 开箱即用地拿到 XCode 配置指南、自诊断技能与 dynamic workflow 编写指南。
     defaultEnabled: true,
     listing: {
       author: ZAI_AUTHOR,
       category: "utilities",
-      displayName: "ZCode Guide",
-      displayName_i18n: { "zh-CN": "ZCode 使用指南" },
+      displayName: "XCode Guide",
+      displayName_i18n: { "zh-CN": "XCode 使用指南" },
       icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/zcode-guide/icon.png`,
       description_i18n: {
-        "zh-CN": "提供 ZCode 配置指南与插件、技能、MCP、命令和钩子诊断。",
+        "zh-CN": "提供 XCode 配置指南与插件、技能、MCP、命令和钩子诊断。",
       },
       examplePrompts: [
-        "How do I configure MCP servers in ZCode?",
-        "Diagnose my current ZCode setup",
+        "How do I configure MCP servers in XCode?",
+        "Diagnose my current XCode setup",
       ],
       examplePrompts_i18n: {
-        "zh-CN": ["ZCode 里怎么配置 MCP 服务器？", "帮我诊断当前的 ZCode 配置"],
+        "zh-CN": ["XCode 里怎么配置 MCP 服务器？", "帮我诊断当前的 XCode 配置"],
       },
     },
     name: "zcode-guide",
-    requiredSeedPaths: OFFICIAL_ZCODE_GUIDE_REQUIRED_SEED_PATHS,
+    requiredSeedPaths: OFFICIAL_XCODE_GUIDE_REQUIRED_SEED_PATHS,
     rootCandidates: [
       "packages/zcode-guide-plugin",
       "../zcode-guide-plugin",
       "../../zcode-guide-plugin",
       "../../../zcode-guide-plugin",
     ],
-    version: "0.3.0",
+    version: "0.2.0",
   },
   {
     // 产品决策：电脑控制回退为默认关闭，需用户在设置页显式开启。
@@ -374,7 +331,7 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
     // 判定式是 enabledPlugins[id] ?? defaultEnabled：曾在设置页手动开过的用户已落盘
     // 显式 true，不受本次默认值变更影响。改回默认开启时，需同步
     // packages/shared/src/plugin-marketplaces.ts 的名单（bootstrap 单测机械对照两者）、
-    // isZCodeCuaInternalFeatureEnabled（打包层默认 true）与输入框入口 hidden 默认值的联动语义。
+    // isXCodeCuaInternalFeatureEnabled（打包层默认 true）与输入框入口 hidden 默认值的联动语义。
     name: "computer-use",
     hostMcpServerNames: ["node_repl"],
     // 用户露出名统一为「Computer Use / 电脑控制」。包名与 producer 仓库仍保持 zcode-cua，
@@ -398,29 +355,27 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       "../../../zcode-cua-plugin",
     ],
     requiredSeedPaths: OFFICIAL_CUA_REQUIRED_SEED_PATHS,
-    // Bug 根因：迁移 node_repl 时把旧 MCP launcher 与 SDK 仍需的 Sharp runtime 一并裁掉了。
-    // Dev/desktop 会把最小 Sharp 闭包 stage 到这里；官方 cache 必须继续携带 node_modules，
-    // 否则 seed 原子替换后首次截图才会报 Cannot find module 'sharp'。
-    runtimeTopLevelPaths: ["node_modules"],
+    // 当前 CUA 为不可用占位包，无需复制 native runtime；避免把本地旧依赖继续带入缓存。
+    runtimeTopLevelPaths: [],
     // 这里的 version 追踪上游 zcode-cua runtime 版本，使插件 UI 展示、缓存路径、
     // marketplace 条目都对齐；具体版本由原子 producer bump 工作流维护。
-    version: "0.6.4",
+    version: "0.6.3",
   },
 ];
 
 // 在 official plugin 定义里标了 defaultEnabled: true 的, 拼成 `<name>@<marketplace>` 形式,
 // 透传给 adapter 让它在用户没显式配置时默认开启 (内容型 plugin 才适用)。
-// 注意: 任何解析 plugin 的入口 (CLI 子命令 resolveZCodePlugins、应用启动 resolveStartupPlugins)
+// 注意: 任何解析 plugin 的入口 (CLI 子命令 resolveXCodePlugins、应用启动 resolveStartupPlugins)
 // 都必须把这个集合传给 discoverNodePluginsSync, 否则 defaultEnabled 不生效。
 export const DEFAULT_ENABLED_OFFICIAL_PLUGIN_IDS: ReadonlySet<string> = new Set(
   OFFICIAL_PLUGIN_DEFINITIONS.filter((definition) => definition.defaultEnabled).map(
-    (definition) => `${definition.name}@${ZCODE_OFFICIAL_PLUGIN_MARKETPLACE}`,
+    (definition) => `${definition.name}@${XCODE_OFFICIAL_PLUGIN_MARKETPLACE}`,
   ),
 );
 
 export function resolveOfficialPluginHostMcpServerNames(pluginId: string): string[] {
   const definition = OFFICIAL_PLUGIN_DEFINITIONS.find(
-    (candidate) => `${candidate.name}@${ZCODE_OFFICIAL_PLUGIN_MARKETPLACE}` === pluginId,
+    (candidate) => `${candidate.name}@${XCODE_OFFICIAL_PLUGIN_MARKETPLACE}` === pluginId,
   );
   return definition?.hostMcpServerNames ? [...definition.hostMcpServerNames] : [];
 }

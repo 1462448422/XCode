@@ -1,18 +1,14 @@
 import type { BrowserWindow, NativeImage } from "electron";
-import {
-  DEFAULT_ZCODE_ENDPOINT_ORIGIN,
-  buildZCodeEndpointUrls,
-  type Locale,
-} from "@zcode/shared";
+import { DEFAULT_XCODE_ENDPOINT_ORIGIN, buildXCodeEndpointUrls, type Locale } from "@zcode/shared";
 
-export interface ArchitectureMismatch {
+interface ArchitectureMismatch {
   /** 当前运行的二进制架构，例如 x64。 */
   binaryArch: string;
   /** 推荐安装的原生架构，目前翻译运行只会回退到 arm64。 */
   nativeArch: string;
 }
 
-export interface DetectArchitectureMismatchOptions {
+interface DetectArchitectureMismatchOptions {
   platform?: NodeJS.Platform;
   binaryArch?: string;
   /**
@@ -30,7 +26,7 @@ export interface DetectArchitectureMismatchOptions {
  * Node 在 Apple Silicon 上跑 x64 包时，os.arch() 同样会返回 "x64"（被 Rosetta 透明翻译），
  * 单纯比对两者无法发现差异。translation 标志是唯一可靠的信号。
  */
-export function detectArchitectureMismatch(
+function detectArchitectureMismatch(
   options: DetectArchitectureMismatchOptions = {},
 ): ArchitectureMismatch | null {
   const platform = options.platform ?? process.platform;
@@ -48,12 +44,12 @@ export function detectArchitectureMismatch(
   return { binaryArch, nativeArch: "arm64" };
 }
 
-export function resolveArchitectureDownloadUrl(
+function resolveArchitectureDownloadUrl(
   locale: Locale,
-  endpointOrigin = DEFAULT_ZCODE_ENDPOINT_ORIGIN,
+  endpointOrigin = DEFAULT_XCODE_ENDPOINT_ORIGIN,
 ): string {
   // 与 changelog 等外链保持一致，按应用语言分流到官网下载页。
-  const origin = buildZCodeEndpointUrls(endpointOrigin).origin;
+  const origin = buildXCodeEndpointUrls(endpointOrigin).origin;
   return locale === "zh-CN" ? `${origin}/cn` : `${origin}/en`;
 }
 
@@ -65,7 +61,7 @@ interface ArchitectureMismatchDialogText {
   dismissButton: string;
 }
 
-export function formatArchitectureMismatchDialogText(
+function formatArchitectureMismatchDialogText(
   mismatch: ArchitectureMismatch,
   locale: Locale,
 ): ArchitectureMismatchDialogText {
@@ -95,7 +91,7 @@ export function formatArchitectureMismatchDialogText(
   };
 }
 
-export interface ArchitectureGuardLogger {
+interface ArchitectureGuardLogger {
   info: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
 }

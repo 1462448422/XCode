@@ -11,7 +11,7 @@ import {
   officialCuaRasterUnavailableBlock,
 } from "./official-cua-media.js";
 
-export interface CompactMediaPlaceholderProjection {
+interface CompactMediaPlaceholderProjection {
   messages: ModelInputMessage[];
   replacedMediaCount: number;
 }

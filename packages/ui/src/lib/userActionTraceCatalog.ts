@@ -99,14 +99,14 @@ export type SettingsUserActionFeatureId = keyof typeof SETTINGS_USER_ACTION_FEAT
 export type UserActionFeatureId = CoreUserActionFeatureId | SettingsUserActionFeatureId;
 
 type CatalogDefinition = Readonly<Record<string, readonly string[]>>;
-export type UserActionOperationKind =
+type UserActionOperationKind =
   | "navigation"
   | "preference"
   | "command"
   | "management"
   | "destructive";
 
-export interface UserActionCatalogEntry {
+interface UserActionCatalogEntry {
   featureId: UserActionFeatureId;
   action: string;
   group: Extract<RendererActionTraceGroup, "core" | "settings">;

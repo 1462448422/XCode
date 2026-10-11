@@ -145,7 +145,7 @@ export function useFileMentionController(options: {
   return { handleKey, state };
 }
 
-export function promptEditorCursorOffset(
+function promptEditorCursorOffset(
   editor: Pick<PromptInputEditor, "cursorOffset"> | null,
   fallbackOffset: number,
 ): number {
@@ -159,7 +159,7 @@ export function promptEditorCursorOffset(
   }
 }
 
-export function resolveActiveFileMention(
+function resolveActiveFileMention(
   text: string,
   cursorOffset = text.length,
 ): ActiveFileMention | undefined {

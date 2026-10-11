@@ -1,11 +1,5 @@
 /* oxlint-disable eslint(max-lines) */
 import { ArrowLeft, Rocket, type LucideIcon } from "lucide-react";
-import { useStore } from "zustand";
-import {
-  marketingNavigation,
-  finishMarketingNavigation,
-  marketingSettingsSections,
-} from "@/lib/marketingNavigation.js";
 import {
   useCallback,
   useEffect,
@@ -16,13 +10,12 @@ import {
 } from "react";
 import type {
   AppSettings,
-  DesktopCloseToTrayCapability,
   IntegratedTerminalShellOption,
   IntegratedTerminalShellSelection,
   Locale,
   UsageEntitlementSnapshot,
   UserInfo,
-  ZCodeInteractionBehavior,
+  XCodeInteractionBehavior,
 } from "@zcode/shared";
 import {
   BUILTIN_MODEL_PROVIDER_IDS,
@@ -35,7 +28,7 @@ import {
 import { Button } from "@/components/ui/button.js";
 import { toast } from "@/components/ui/toast.js";
 import { DesktopWindowFrame } from "@/DesktopWindowFrame.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { getPathLeaf } from "@/lib/path.js";
 import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
@@ -62,6 +55,7 @@ import {
 } from "@/lib/accountProviderAccess.js";
 import { buildUsageEntitlementCacheKey } from "@/lib/usageEntitlementCache.js";
 import { ModelProviderSection } from "@/settings/ModelProviderSection.js";
+import { AccountSettingsSection } from "@/settings/AccountSettingsSection.js";
 import { useCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import { useEnterpriseCodingPlanProducts } from "@/settings/model-provider-section/useEnterpriseCodingPlanProducts.js";
 import { UsageStatsSection, type UsageStatsSectionTab } from "@/settings/UsageStatsSection.js";
@@ -71,6 +65,7 @@ import {
 } from "@/settings/usage-stats/CodingPlanUsagePanel.js";
 import { buildPersonalCodingPlanUsageSource } from "@/lib/codingPlanUsageSources.js";
 import { SubagentsSection } from "@/settings/SubagentsSection.js";
+import { ModelJailbreakSection } from "@/settings/ModelJailbreakSection.js";
 import { AutomationsSection } from "@/settings/AutomationsSection.js";
 import { SegmentPill } from "@/settings/PluginStoreListView.js";
 import { PluginsSection } from "@/settings/PluginsSection.js";
@@ -87,7 +82,7 @@ import {
   SettingsHeaderBreadcrumb,
   type SettingsBreadcrumbItem,
 } from "@/settings/SettingsHeaderBreadcrumb.js";
-import { useZCodeStore } from "@/store/StoreProvider.js";
+import { useXCodeStore } from "@/store/StoreProvider.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";
 import { isWorkspaceTab } from "@/store/tabStore.js";
 import type { Theme } from "@/useTheme.js";
@@ -150,7 +145,7 @@ function SettingsUsageProviderTabs({
   codingPlanSources: CodingPlanUsageSource[];
   onTabChange: (tab: UsageStatsSectionTab) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const tabItems = [
     {
       id: "app" as const,
@@ -278,7 +273,6 @@ export function SettingsPage({
   isDesktop,
   isWindowsDesktop,
   isMacDesktop,
-  isWebRemoteControl = false,
   windowsWindowControlsRightPaddingPx: _windowsWindowControlsRightPaddingPx,
   captionWorkspacePath,
   onBack,
@@ -286,13 +280,13 @@ export function SettingsPage({
   onOpenWorkspace,
   allowOpenWorkspace = true,
   onLogin,
+  onOpenLogin,
   onLogout,
   user,
 }: {
   isDesktop?: boolean;
   isWindowsDesktop?: boolean;
   isMacDesktop?: boolean;
-  isWebRemoteControl?: boolean;
   windowsWindowControlsRightPaddingPx?: number;
   captionWorkspacePath?: string | null;
   onBack?: () => void;
@@ -300,10 +294,11 @@ export function SettingsPage({
   onOpenWorkspace?: () => void;
   allowOpenWorkspace?: boolean;
   onLogin?: () => void;
+  onOpenLogin?: () => void;
   onLogout?: () => void;
   user?: UserInfo | null;
 }) {
-  const { intl, localePreference, setLocalePreference } = useZCodeIntl();
+  const { intl, localePreference, setLocalePreference } = useXCodeIntl();
   const { settingsSectionGroups, settingsSections } = useMemo(
     () =>
       createSettingsPageConfig({
@@ -328,49 +323,6 @@ export function SettingsPage({
     return visibleInitialSection;
   });
   const [pluginTab, setPluginTab] = useState(() => consumePendingSettingsPluginTab());
-  // Linux 关闭驻留托盘能力查询（spec：docs/desktop/linux-close-to-tray.md）：打开设置页时
-  // 经 platform IPC 触发 main 侧探测（带 stale 缓存），用户装完 AppIndicator 扩展重开
-  // 设置页即可解除置灰；Web/远控无桥不查询。
-  const [linuxCloseToTrayCapability, setLinuxCloseToTrayCapability] =
-    useState<DesktopCloseToTrayCapability | null>(null);
-  useEffect(() => {
-    if (!isLinuxDesktop) {
-      return;
-    }
-    let cancelled = false;
-    platform
-      .getCloseToTrayCapability?.()
-      .then((capability) => {
-        if (!cancelled) {
-          setLinuxCloseToTrayCapability(capability);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [isLinuxDesktop, platform]);
-  const linuxCloseToTray = isLinuxDesktop
-    ? {
-        // 探测中按不可用锁定，防止查询完成前误开导致关窗失联
-        disabled: linuxCloseToTrayCapability === null || !linuxCloseToTrayCapability.supported,
-        unavailable: linuxCloseToTrayCapability?.supported === false,
-        gnomeLikeHint:
-          linuxCloseToTrayCapability?.supported === false &&
-          linuxCloseToTrayCapability.gnomeLikeWithoutTray,
-      }
-    : undefined;
-  const marketingRequest = useStore(marketingNavigation, (state) => state.request);
-  useEffect(() => {
-    if (marketingRequest?.target.page !== "settings") return;
-    const target = marketingRequest.target;
-    const section = target.section ? marketingSettingsSections[target.section] : activeSection;
-    if (!settingsSections.some((item) => item.id === section)) {
-      finishMarketingNavigation(marketingRequest.id, new Error("marketing_navigation_unavailable"));
-    } else if (activeSection === section && !target.provider_id) {
-      finishMarketingNavigation(marketingRequest.id);
-    }
-  }, [activeSection, marketingRequest, settingsSections]);
   const [pluginNavigationOrigin, setPluginNavigationOrigin] = useState(() =>
     consumePendingSettingsPluginOrigin(),
   );
@@ -387,18 +339,18 @@ export function SettingsPage({
   const [settingsBreadcrumbItems, setSettingsBreadcrumbItems] = useState<
     readonly SettingsBreadcrumbItem[]
   >([]);
-  const interfaceMode = useZCodeStore((state) => state.interfaceMode);
-  const setInterfaceMode = useZCodeStore((state) => state.setInterfaceMode);
-  const theme = useZCodeStore((state) => state.theme);
-  const setTheme = useZCodeStore((state) => state.setTheme);
-  const codePreviewSettings = useZCodeStore((state) => state.codePreviewSettings);
-  const setCodePreviewSettings = useZCodeStore((state) => state.setCodePreviewSettings);
-  const uiFontSizePx = useZCodeStore((state) => state.uiFontSizePx);
-  const setUiFontSizePx = useZCodeStore((state) => state.setUiFontSizePx);
-  const notificationEnabled = useZCodeStore((state) => state.notificationEnabled);
-  const setNotificationEnabled = useZCodeStore((state) => state.setNotificationEnabled);
-  const notificationSoundEnabled = useZCodeStore((state) => state.notificationSoundEnabled);
-  const setNotificationSoundEnabled = useZCodeStore((state) => state.setNotificationSoundEnabled);
+  const interfaceMode = useXCodeStore((state) => state.interfaceMode);
+  const setInterfaceMode = useXCodeStore((state) => state.setInterfaceMode);
+  const theme = useXCodeStore((state) => state.theme);
+  const setTheme = useXCodeStore((state) => state.setTheme);
+  const codePreviewSettings = useXCodeStore((state) => state.codePreviewSettings);
+  const setCodePreviewSettings = useXCodeStore((state) => state.setCodePreviewSettings);
+  const uiFontSizePx = useXCodeStore((state) => state.uiFontSizePx);
+  const setUiFontSizePx = useXCodeStore((state) => state.setUiFontSizePx);
+  const notificationEnabled = useXCodeStore((state) => state.notificationEnabled);
+  const setNotificationEnabled = useXCodeStore((state) => state.setNotificationEnabled);
+  const notificationSoundEnabled = useXCodeStore((state) => state.notificationSoundEnabled);
+  const setNotificationSoundEnabled = useXCodeStore((state) => state.setNotificationSoundEnabled);
   const usageProviderSettingsRead = useProviderSettingsView();
   const usageProviderSettingsView =
     usageProviderSettingsRead.state.status === "ready"
@@ -641,7 +593,7 @@ export function SettingsPage({
         : "app",
     );
   }, [selectedUsageCodingPlanSource, usageActiveTab, usageCodingPlanSources]);
-  const setNewUserOnboardingOpen = useZCodeStore((state) => state.setNewUserOnboardingOpen);
+  const setNewUserOnboardingOpen = useXCodeStore((state) => state.setNewUserOnboardingOpen);
   const requestOnboardingDialog = () => setNewUserOnboardingOpen(true);
   const setActiveSettingsSection = useCallback(
     (section: SettingsSectionId, fallbackSection: SettingsSectionId = activeSection) => {
@@ -750,7 +702,7 @@ export function SettingsPage({
     useState(false);
   const [taskAutoArchiveEnabled, setTaskAutoArchiveEnabled] = useState(false);
   const [taskAutoArchiveOlderThanDays, setTaskAutoArchiveOlderThanDays] = useState(7);
-  const [closeToTrayOnWindows, setCloseToTrayOnWindows] = useState(Boolean(isWindowsDesktop));
+  const [closeToTrayOnWindows, setCloseToTrayOnWindows] = useState(true);
   const [
     desktopChromiumHardwareAccelerationEnabled,
     setDesktopChromiumHardwareAccelerationEnabled,
@@ -762,8 +714,8 @@ export function SettingsPage({
   const [toolGroupingExploreEnabled, setToolGroupingExploreEnabled] = useState(true);
   const [toolGroupingTerminalEnabled, setToolGroupingTerminalEnabled] = useState(true);
   const [toolGroupingChangesEnabled, setToolGroupingChangesEnabled] = useState(false);
-  const [zcodeInteractionBehavior, setZCodeInteractionBehavior] =
-    useState<ZCodeInteractionBehavior>("queue");
+  const [zcodeInteractionBehavior, setXCodeInteractionBehavior] =
+    useState<XCodeInteractionBehavior>("queue");
   const [defaultHomeDir, setDefaultHomeDir] = useState("");
   const [hostPlatform, setHostPlatform] = useState("");
 
@@ -835,7 +787,7 @@ export function SettingsPage({
         );
         setTaskAutoArchiveEnabled(settings.taskAutoArchiveEnabled ?? false);
         setTaskAutoArchiveOlderThanDays(settings.taskAutoArchiveOlderThanDays ?? 7);
-        setCloseToTrayOnWindows(settings.closeToTrayOnWindows ?? Boolean(isWindowsDesktop));
+        setCloseToTrayOnWindows(settings.closeToTrayOnWindows ?? true);
         setDesktopChromiumHardwareAccelerationEnabled(
           settings.desktopChromiumHardwareAccelerationEnabled ?? true,
         );
@@ -846,7 +798,7 @@ export function SettingsPage({
         setToolGroupingExploreEnabled(settings.toolGroupingExploreEnabled ?? true);
         setToolGroupingTerminalEnabled(settings.toolGroupingTerminalEnabled ?? true);
         setToolGroupingChangesEnabled(settings.toolGroupingChangesEnabled ?? false);
-        setZCodeInteractionBehavior(settings.zcodeInteractionBehavior ?? "queue");
+        setXCodeInteractionBehavior(settings.zcodeInteractionBehavior ?? "queue");
       })
       .catch(() => {});
     // 这里配置的是本地全局设置。远端 workspace 激活时 useServices()
@@ -868,7 +820,7 @@ export function SettingsPage({
           });
       })
       .catch(() => {});
-  }, [localHostServices.systemService, services.settingService, isWindowsDesktop]);
+  }, [localHostServices.systemService, services.settingService]);
 
   useEffect(() => {
     if (!sharedSettings) {
@@ -879,7 +831,7 @@ export function SettingsPage({
     setToolGroupingExploreEnabled(sharedSettings.toolGroupingExploreEnabled ?? true);
     setToolGroupingTerminalEnabled(sharedSettings.toolGroupingTerminalEnabled ?? true);
     setToolGroupingChangesEnabled(sharedSettings.toolGroupingChangesEnabled ?? false);
-    setZCodeInteractionBehavior(sharedSettings.zcodeInteractionBehavior ?? "queue");
+    setXCodeInteractionBehavior(sharedSettings.zcodeInteractionBehavior ?? "queue");
     setReceivePreviewUpdates(sharedSettings.receivePreviewUpdates ?? false);
     setAutoDownloadAndInstallUpdates(sharedSettings.autoDownloadAndInstallUpdates ?? false);
   }, [sharedSettings]);
@@ -1303,8 +1255,8 @@ export function SettingsPage({
     },
     [updateSharedSettings],
   );
-  const handleZCodeInteractionBehaviorChange = useCallback(
-    async (behavior: ZCodeInteractionBehavior) => {
+  const handleXCodeInteractionBehaviorChange = useCallback(
+    async (behavior: XCodeInteractionBehavior) => {
       await runSettingsActionAsync({
         featureId: "settings.conversation",
         action: "change_interaction_behavior",
@@ -1312,7 +1264,7 @@ export function SettingsPage({
         operation: () => updateSharedSettings({ zcodeInteractionBehavior: behavior }),
         completed: { resultSource: "shared_settings", valueAfter: behavior },
       });
-      setZCodeInteractionBehavior(behavior);
+      setXCodeInteractionBehavior(behavior);
     },
     [updateSharedSettings],
   );
@@ -1430,14 +1382,16 @@ export function SettingsPage({
 
           {usesInlineWindowControls ? (
             <div className="absolute right-1 top-1 z-30 mt-px mr-px flex h-12 items-center gap-0.5 px-2 pointer-events-auto [app-region:no-drag]">
-              {/* Bug 原因：Windows/Linux 设置页仍保留旧 caption 下箭头，与主界面和 macOS 的帮助入口不一致。
+              {/* Windows/Linux 设置页仍保留旧 caption 下箭头，与主界面和 macOS 的帮助入口不一致。
                   统一复用问号帮助按钮，并让它在普通 flex 流中紧邻自绘窗控。
                   Settings 的独立标题层还需计入 4px 外层留白和 1px 边框，才能与 Workspace 控制组对齐。 */}
               <WorkspaceHelpMenuButton isDesktop={Boolean(isDesktop)} />
               <DesktopWindowControls />
             </div>
           ) : null}
-          <aside className="min-w-0">
+          {/* 皮肤挂点：背景图模式下外壳让位给底图，导航列需要自己的遮罩，
+              与右侧 data-settings-panel-frame 的 bg-background 保持同一密度。 */}
+          <aside data-settings-nav-frame="true" className="min-w-0">
             <div className="flex h-full flex-col">
               <div className="h-12 [app-region:drag]"></div>
               <div className="px-2 pb-3 pt-3">
@@ -1710,8 +1664,6 @@ export function SettingsPage({
                             setInterfaceMode={setInterfaceMode}
                             isDesktop={isDesktop}
                             isWindowsDesktop={isWindowsDesktop}
-                            isLinuxDesktop={isLinuxDesktop}
-                            linuxCloseToTray={linuxCloseToTray}
                             platform={platform}
                             notificationEnabled={notificationEnabled}
                             notificationSoundEnabled={notificationSoundEnabled}
@@ -1818,7 +1770,7 @@ export function SettingsPage({
                             onToolGroupingChangesEnabledChange={
                               handleToolGroupingChangesEnabledChange
                             }
-                            onZCodeInteractionBehaviorChange={handleZCodeInteractionBehaviorChange}
+                            onXCodeInteractionBehaviorChange={handleXCodeInteractionBehaviorChange}
                             onAskUserQuestionAutoResolutionEnabledChange={
                               handleAskUserQuestionAutoResolutionEnabledChange
                             }
@@ -1875,6 +1827,14 @@ export function SettingsPage({
                               }
                             />
                           </ServiceProvider>
+                        ) : activeSection === "accounts" ? (
+                          <ServiceProvider services={localHostServices}>
+                            <AccountSettingsSection
+                              onLogin={onLogin}
+                              onOpenLogin={onOpenLogin}
+                              onLogout={onLogout}
+                            />
+                          </ServiceProvider>
                         ) : activeSection === "memory" ? (
                           <ServiceProvider services={localHostServices}>
                             {/* Memory catalog 始终使用本地 Host，避免远程 workspace 误读本机数据。 */}
@@ -1892,7 +1852,6 @@ export function SettingsPage({
                             isDesktop={Boolean(isDesktop)}
                             isMacDesktop={Boolean(isMacDesktop)}
                             isWindowsDesktop={Boolean(isWindowsDesktop)}
-                            isWebRemoteControl={isWebRemoteControl}
                             initialTab={pluginTab}
                             initialScopeKey={pluginScopeKey}
                             workspacePath={activeWorkspacePath}
@@ -1909,7 +1868,6 @@ export function SettingsPage({
                           <PluginsSection
                             key={`mcp:${settingsSectionNavigationVersion}`}
                             mode="mcp"
-                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}
@@ -1923,7 +1881,6 @@ export function SettingsPage({
                           <PluginsSection
                             key={`skill:${settingsSectionNavigationVersion}`}
                             mode="skill"
-                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}
@@ -1953,6 +1910,8 @@ export function SettingsPage({
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                           />
+                        ) : activeSection === "modelJailbreak" ? (
+                          <ModelJailbreakSection />
                         ) : activeSection === "automations" ? (
                           <AutomationsSection
                             workspacePath={activeWorkspacePath}
@@ -1961,7 +1920,6 @@ export function SettingsPage({
                         ) : activeSection === "commands" ? (
                           <PluginsSection
                             mode="command"
-                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}

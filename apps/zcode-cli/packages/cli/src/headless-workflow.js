@@ -44,9 +44,9 @@ export const createHeadlessPermissionBroker = () => {
  * v3 app-server 在类型面上宣告一个它永不发出的事件。stream-json 是 CLI 私有输出格式，
  * 不受协议 strict schema 约束。
  */
-export const WORKFLOW_RUN_PROGRESS_STREAM_TYPE = "workflow.run.progress";
+const WORKFLOW_RUN_PROGRESS_STREAM_TYPE = "workflow.run.progress";
 /** 这条会话事件是 dwf 进度吗？stream-json 与 stderr 进度共用这道判别。 */
-export const isDynamicWorkflowRunProgressEvent = (event) => event.type === SessionEventType.DynamicWorkflowRunProgress;
+const isDynamicWorkflowRunProgressEvent = (event) => event.type === SessionEventType.DynamicWorkflowRunProgress;
 const progressPayloadOf = (event) => event.payload;
 /**
  * dwf 进度事件 → 定型 NDJSON 行。
@@ -58,7 +58,7 @@ const progressPayloadOf = (event) => event.payload;
  * 注意 dwf 事件是**出回合**的（`turnId` 恒空），所以信封里不带
  * `turnId`：写一个恒为 undefined 的键只会让读者以为它有时有值。
  */
-export const mapWorkflowRunProgressStreamLine = (event) => ({
+const mapWorkflowRunProgressStreamLine = (event) => ({
     type: WORKFLOW_RUN_PROGRESS_STREAM_TYPE,
     eventId: String(event.id),
     sessionId: String(event.sessionId),
@@ -128,7 +128,7 @@ const DEFAULT_WORKFLOW_PROGRESS_THROTTLE_MS = 400;
  * `--output-format text` 下的 stderr 进度打印器。
  * 只认 dwf 进度事件，其余会话事件直接忽略（返回后无副作用）。
  */
-export const createWorkflowProgressReporter = (input) => {
+const createWorkflowProgressReporter = (input) => {
     const now = input.now ?? Date.now;
     const throttleMs = input.throttleMs ?? DEFAULT_WORKFLOW_PROGRESS_THROTTLE_MS;
     let lastThrottledAt;
@@ -252,7 +252,7 @@ export const waitForHeadlessWorkflowSettle = async (input) => {
  * 这个 app 的 runtime 能提供 busy 事实吗？
  *
  * 动态读取的理由见 `runtime-event-subscriber.ts` 的 `readRuntimeFunction`（同一个
- * `RunDependencies.createZCodeApp` 注入点边界）。
+ * `RunDependencies.createXCodeApp` 注入点边界）。
  *
  * **不静默降级**：拿不到 busy 事实就不进等待——"这个宿主没有这个能力"的诚实答复，
  * 而不是假装等过了。

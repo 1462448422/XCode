@@ -72,7 +72,7 @@ export interface FeedbackSubmissionJobSnapshot extends FeedbackSubmissionJobStat
   job: FeedbackSubmissionJob;
 }
 
-export interface StartFeedbackSubmissionJobOptions {
+interface StartFeedbackSubmissionJobOptions {
   feedbackService: IFeedbackService;
   ticketInput: CreateFeedbackTicketInput;
   screenshots: FeedbackSubmissionAttachmentDraft[];
@@ -554,7 +554,7 @@ export function formatBytes(size: number) {
   return `${(size / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function formatUploadProgress(
+function formatUploadProgress(
   progress: FeedbackUploadProgress,
   copy: FeedbackSubmissionCopy = DEFAULT_SUBMISSION_COPY,
 ): FeedbackSubmissionProgressState {

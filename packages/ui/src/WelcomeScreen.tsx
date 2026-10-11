@@ -18,30 +18,29 @@ import {
 } from "@zcode/shared";
 import { Alert, AlertDescription } from "./components/ui/alert.js";
 import { Button } from "./components/ui/button.js";
-import { ZCodeAboutLogo } from "@/components/ui/ZCodeAboutLogo.js";
+import { XCodeAboutLogo } from "@/components/ui/XCodeAboutLogo.js";
 import { useOAuth } from "./hooks/useOAuth.js";
-import { useZCodeIntl } from "./i18n/IntlProvider.js";
+import { useXCodeIntl } from "./i18n/IntlProvider.js";
 import { LoginApiKeyForm } from "./login/LoginApiKeyForm.js";
 import { renderOAuthProviderIcon } from "./lib/oauthProviderIcon.js";
 import { ThemeHeroVisual } from "./openWorkspacePageThemeHero.js";
-import { useZCodeStore } from "./store/StoreProvider.js";
-import { DesktopOverlayWindowControls } from "@/DesktopOverlayWindowControls.js";
+import { useXCodeStore } from "./store/StoreProvider.js";
 
 interface WelcomeScreenProps {
   onComplete: (reason: LoginCompleteReason) => void | Promise<void>;
+  /** 用户手动点"添加账号"打开；已登录也不自动关闭登录页。 */
+  isManualOpen?: boolean;
 }
 
 export type LoginCompleteReason = "oauth" | "apiKey" | "skip";
 
-export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
+export function WelcomeScreen({ onComplete, isManualOpen }: WelcomeScreenProps) {
   return (
     <main className="relative flex h-full min-h-dvh items-center justify-center overflow-hidden bg-background px-4 py-6 text-foreground sm:px-6">
       <ThemeHeroVisual className="absolute inset-0" />
-      {/* 原生拖拽命中不受 pointer-events/z-index 约束；拖拽层必须避开窗控，且先于 no-drag 区声明。 */}
-      <div className="pointer-events-none absolute left-0 top-0 right-0 z-10 flex h-12 items-center [app-region:drag] platform-windows-desktop:right-[134px] platform-linux-desktop:right-[134px]" />
-      <DesktopOverlayWindowControls />
+      <div className="pointer-events-none absolute left-0 top-0 right-0 z-10 flex h-12 w-full items-center [app-region:drag]" />
       <section className="relative z-10 w-full flex flex-col gap-10 max-w-sm rounded-2xl border border-popover-border bg-background p-8 text-ui-base/relaxed shadow-md sm:p-10">
-        <LoginPanel active onComplete={onComplete} />
+        <LoginPanel active onComplete={onComplete} isManualOpen={isManualOpen} />
       </section>
     </main>
   );
@@ -50,6 +49,8 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
 interface LoginPanelProps {
   active: boolean;
   onComplete: (reason: LoginCompleteReason) => void | Promise<void>;
+  /** 用户手动点"添加账号"打开（manual-login）；此时已登录也不应自动关闭，让用户选 provider 登录新账号。 */
+  isManualOpen?: boolean;
 }
 
 interface ActiveLoginEntryAttempt {
@@ -57,22 +58,22 @@ interface ActiveLoginEntryAttempt {
   providerId: OAuthProviderMeta["id"];
 }
 
-export function shouldCompleteProviderLoginAttempt(params: {
+function shouldCompleteProviderLoginAttempt(params: {
   attempt: ActiveLoginEntryAttempt | null;
   successProvider: OAuthProviderMeta["id"] | null;
 }): boolean {
   return !params.attempt || params.successProvider === params.attempt.providerId;
 }
 
-export function shouldCompleteLoginFromExistingUser(params: {
+function shouldCompleteLoginFromExistingUser(params: {
   hasUser: boolean;
   attempt: ActiveLoginEntryAttempt | null;
 }): boolean {
   return params.hasUser && !params.attempt;
 }
 
-export function LoginPanel({ active, onComplete }: LoginPanelProps) {
-  const { intl } = useZCodeIntl();
+function LoginPanel({ active, onComplete, isManualOpen }: LoginPanelProps) {
+  const { intl } = useXCodeIntl();
   const {
     startLogin,
     cancel,
@@ -84,14 +85,14 @@ export function LoginPanel({ active, onComplete }: LoginPanelProps) {
     pendingProvider,
     refreshProviders,
   } = useOAuth();
-  const user = useZCodeStore((s) => s.user);
-  const oauthError = useZCodeStore((s) => s.oauthError);
-  const setOAuthError = useZCodeStore((s) => s.setOAuthError);
-  const oauthSuccessSeq = useZCodeStore((s) => s.oauthSuccessSeq);
-  const lastOAuthSuccessProvider = useZCodeStore((s) => s.lastOAuthSuccessProvider);
-  const loginEntryRequest = useZCodeStore((s) => s.loginEntryRequest);
-  const clearLoginEntryRequest = useZCodeStore((s) => s.clearLoginEntryRequest);
-  const markLoginEntryAttemptStatus = useZCodeStore((s) => s.markLoginEntryAttemptStatus);
+  const user = useXCodeStore((s) => s.user);
+  const oauthError = useXCodeStore((s) => s.oauthError);
+  const setOAuthError = useXCodeStore((s) => s.setOAuthError);
+  const oauthSuccessSeq = useXCodeStore((s) => s.oauthSuccessSeq);
+  const lastOAuthSuccessProvider = useXCodeStore((s) => s.lastOAuthSuccessProvider);
+  const loginEntryRequest = useXCodeStore((s) => s.loginEntryRequest);
+  const clearLoginEntryRequest = useXCodeStore((s) => s.clearLoginEntryRequest);
+  const markLoginEntryAttemptStatus = useXCodeStore((s) => s.markLoginEntryAttemptStatus);
   const [loginMode, setLoginMode] = useState<"providers" | "apiKey">("providers");
   const wasActiveRef = useRef(active);
   const consumedLoginRequestRef = useRef<number | null>(null);
@@ -196,6 +197,7 @@ export function LoginPanel({ active, onComplete }: LoginPanelProps) {
   useEffect(() => {
     if (
       active &&
+      !isManualOpen &&
       shouldCompleteLoginFromExistingUser({
         hasUser: Boolean(user),
         attempt: activeLoginEntryAttemptRef.current,
@@ -291,7 +293,7 @@ export function LoginPanel({ active, onComplete }: LoginPanelProps) {
       </LoginPanelHeader>
 
       <div className="space-y-6">
-        {/* Bugfix: Root 层写入 oauthError（轮询/回调失败）后 effect 会把 useOAuth reset 回 idle，
+        {/* Root 层写入 oauthError（轮询/回调失败）后 effect 会把 useOAuth reset 回 idle，
             若只判断 status==="idle" 会让失败块和渠道按钮列表同屏、状态纠缠。
             失败期间统一由下方失败块接管（重新登录/取消），渠道列表等错误清掉后再回来。 */}
         {status === "idle" && !oauthError && loginMode === "providers" && (
@@ -406,7 +408,7 @@ export function LoginPanel({ active, onComplete }: LoginPanelProps) {
             >
               <TriangleAlertIcon className="size-4" />
               <AlertDescription className="text-center">
-                {/* Bugfix: 登录失败通常是可重试/可切换提供方的状态，不能用 destructive 红色误导为破坏性错误。
+                {/* 登录失败通常是可重试/可切换提供方的状态，不能用 destructive 红色误导为破坏性错误。
                     这里统一用 warning 语义，并居中文案以匹配登录面板的居中视觉节奏。 */}
                 {oauthError || error}
               </AlertDescription>
@@ -480,10 +482,10 @@ function LoginPanelLogo() {
     // 登录 logo 壳是固定深色底，边框不能跟随浅色主题 token，否则浅色主题下边框过重。
     <div
       className="relative mb-1 flex size-16 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#000000_0%,#151718_100%)] text-[#ffffff] shadow-lg/20 before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:border before:border-[rgba(255,255,255,0.1)]"
-      aria-label="ZCode"
+      aria-label="XCode"
       role="img"
     >
-      <ZCodeAboutLogo className="h-auto w-10" />
+      <XCodeAboutLogo className="h-auto w-10" />
     </div>
   );
 }
@@ -511,7 +513,7 @@ function getLoginOAuthRegionTagMessageId(providerId: string): string | null {
 }
 
 function LoginOAuthRegionTag({ providerId }: { providerId: string }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const messageId = getLoginOAuthRegionTagMessageId(providerId);
 
   if (!messageId) {
@@ -539,15 +541,15 @@ function getProviderPriority(provider: OAuthProviderMeta): number {
   }
 }
 
-export function resolveVisibleLoginProviders(providers: OAuthProviderMeta[]): OAuthProviderMeta[] {
-  // Bugfix: ZAI / BigModel 现在共享 App 登录事实源，未登录时登录入口必须同时展示两个入口。
-  // 旧逻辑曾临时隐藏 BigModel，导致用户无法主动选择 BigModel 作为 active provider。
+function resolveVisibleLoginProviders(providers: OAuthProviderMeta[]): OAuthProviderMeta[] {
+  // ZAI / BigModel 现在共享 App 登录事实源，未登录时登录入口必须同时展示两个入口。
+  // 不能临时隐藏 BigModel，否则用户无法主动选择 BigModel 作为 active provider。
   return [...providers].sort((left, right) => {
     return getProviderPriority(left) - getProviderPriority(right);
   });
 }
 
-export function resolveLoginRetryProvider({
+function resolveLoginRetryProvider({
   pendingProvider,
   lastAttemptProvider,
   providers,

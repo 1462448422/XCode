@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { connectionSelectionMatchesNavigationItem } from "@/settings/model-provider-section/useModelProviderNavigation.js";
 import { resolveModelProviderNavLogo } from "@/settings/model-provider-section/utils.js";
 import { ProviderLogo } from "./ProviderLogo.js";
@@ -83,7 +83,7 @@ export function ProviderFamilyHeader({
             : familySpec.label}
         </h3>
       </div>
-      {/* 修复原因：按团队全称的固有宽度参与外层换行，会让标题右侧空着却整组掉行；以操作区基础宽度参与分配，再让名称在剩余空间内收缩。 */}
+      {/* 按团队全称的固有宽度参与外层换行，会让标题右侧空着却整组掉行；以操作区基础宽度参与分配，再让名称在剩余空间内收缩。*/}
       {trailingAction ? (
         <div className="min-w-0 max-w-full flex-1 basis-64">{trailingAction}</div>
       ) : null}
@@ -105,7 +105,7 @@ export function ProviderFamilyPlanModeSwitch({
   connectionSelections?: ProviderFamilyConnectionSelectionSettings;
   onSelectNavItem?: (item: ModelProviderNavItem) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   if (!selectedNavItem || !onSelectNavItem) {
     return null;
   }
@@ -215,7 +215,7 @@ export function ProviderFamilyPlanModeSwitch({
   );
 }
 
-export function buildProviderFamilyConnectionOptions({
+function buildProviderFamilyConnectionOptions({
   familyId,
   navigationItems,
   codingPlanLabel,

@@ -47,7 +47,7 @@ export type ContextSource =
   | "session_guidance" // 当前可用内置能力指导
   | "output_style" // 输出风格
   | "context_management" // 长上下文管理提示
-  | "desktop_context"; // ZCode Desktop 渲染与交互协议
+  | "desktop_context"; // XCode Desktop 渲染与交互协议
 
 export type ContextInjectionTarget = "system" | "meta_user";
 
@@ -105,7 +105,6 @@ export interface ContextBuilderConfig {
   /** 当前步骤的执行对象，不进入 Context Source 或持久化环境快照。 */
   model?: Model;
   presentationSurface?: PresentationSurface;
-  genUiOutputDirectory?: string;
   currentDate?: string;
   userInstructions?: ResolvedUserInstructions;
   projectContext?: ProjectContext;
@@ -116,6 +115,17 @@ export interface ContextBuilderConfig {
   embeddedSearchEnabled?: boolean;
   skillMetadataBudget?: number;
   customSystemPrompt?: string;
+  /**
+   * XCode fork：设置页"自定义 System 消息"的替换内容（仅第 1 条产品身份消息）。
+   * 整段替换产品身份行；清空配置即恢复内置身份行。
+   * workflowActor 与 customSystemPrompt 场景（子代理）不消费本配置。
+   */
+  systemPromptOverrides?: SystemPromptOverrides;
+  /**
+   * 官方 ZCode 提示词模式：zai 的 start-plan 端点对 system 逐字校验，必须官方提示词。
+   * 开启后 cli_prefix / identity 用官方 ZCode 文案（含安全声明），并忽略系统提示词自定义。
+   */
+  officialSystemPrompt?: boolean;
   /**
    * 动态工作流子代理（workflow child）的身份输入。在场即走 builder 的第三条路径：
    * 基座段（CLI prefix、安全行、Harness、memory）+ 工作流子代理契约 + persona 叠加，
@@ -137,10 +147,6 @@ export interface WorkflowActorContext {
   persona?: string;
 }
 
-export type ContextUserInstructionsRequest = UserInstructionsOptions;
-
-// ── fork godmode 类型（xcode2 合并层）──
-
 /** godmode 预置对话（priming turns）单条角色。 */
 export interface SystemPromptPrefillMessage {
   role: "user" | "assistant";
@@ -158,14 +164,24 @@ export type SystemPromptObfuscationTier = "light" | "standard" | "heavy";
 
 /** godmode 输入混淆设置。 */
 export interface SystemPromptObfuscation {
+  enabled?: boolean;
   tier?: SystemPromptObfuscationTier;
 }
 
 /**
- * XCode fork：第 1 条 system 消息的自定义替换内容 + godmode 越狱配置。
+ * XCode fork：第 1 条 system 消息（产品身份行）的自定义替换内容 + godmode 越狱配置
+ * （设置页「模型越狱」卡片编辑，经 session/requestRuntimePreferences 在会话物化时冻结下发）。
+ * - cliPrefix：整段替换第 1 条 system 消息（产品身份行）。
+ * - prefill：priming 对话轮，注入 system 之后、首个真实 user 之前。
+ * - obfuscation：Parseltongue 输入混淆，改写发给模型的 user 文本。
  */
 export interface SystemPromptOverrides {
+  /** 整段替换第 1 条 system 消息（产品身份行）。 */
   cliPrefix?: string;
+  /** godmode 预置对话（priming turns）。 */
   prefill?: SystemPromptPrefillSettings;
+  /** godmode 输入混淆设置。 */
   obfuscation?: SystemPromptObfuscation;
 }
+
+export type ContextUserInstructionsRequest = UserInstructionsOptions;

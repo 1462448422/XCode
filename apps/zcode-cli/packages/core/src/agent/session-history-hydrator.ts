@@ -1,4 +1,3 @@
-import { parseAgentListingDelta } from "./agent-listing-metadata.js";
 import { runtimeInputMetadata } from "./runtime-input-presentation.js";
 // ============================================================
 // Session History Hydration - rebuild provider-visible context
@@ -72,21 +71,7 @@ export async function hydrateMessageHistoryFromSession(input: {
     partCount = 0;
 
   for (const message of activeMessages) {
-    // 旧话题背景已由可查看文本附件替代；保留存储记录，但恢复时不能重新隐藏注入。
-    if (
-      message.info.role === "user" &&
-      message.info.synthetic &&
-      message.info.source === "bot_topic_context"
-    )
-      continue;
-    const parts = dedupeParts(message.parts).filter(
-      (part) =>
-        !(
-          part.type === "text" &&
-          part.synthetic &&
-          metadataFromSyntheticTextPart(part).source === "bot_topic_context"
-        ),
-    );
+    const parts = dedupeParts(message.parts);
     partCount += parts.length;
 
     if (message.info.role === "user") {
@@ -109,13 +94,7 @@ export async function hydrateMessageHistoryFromSession(input: {
       // user <system-reminder>，后续 mid-conversation system projection 会失去 attachment source。
       const syntheticAttachment = syntheticSystemReminderAttachmentFromParts(parts);
       if (syntheticAttachment) {
-        input.history.addEntries([
-          {
-            kind: "attachment",
-            content: syntheticAttachment.content,
-            metadata: syntheticAttachment.metadata,
-          },
-        ]);
+        input.history.addAttachment(syntheticAttachment.source, syntheticAttachment.content);
         appliedMessageCount++;
         continue;
       }
@@ -299,11 +278,9 @@ async function userEntriesFromParts(
     if (part.type === "text" && !part.ignored) {
       const syntheticAttachment = syntheticSystemReminderAttachmentFromTextPart(part);
       if (syntheticAttachment) {
-        syntheticAttachmentEntries.push({
-          kind: "attachment",
-          content: syntheticAttachment.content,
-          metadata: syntheticAttachment.metadata,
-        });
+        syntheticAttachmentEntries.push(
+          systemReminderAttachmentEntry(syntheticAttachment.source, syntheticAttachment.content),
+        );
         continue;
       }
       promptBlocks.push({ type: "text", text: textPartToProviderText(part) });
@@ -442,7 +419,7 @@ function textPartToProviderText(part: Extract<MessagePart, { type: "text" }>): s
 }
 
 interface SyntheticSystemReminderAttachment {
-  metadata: RuntimeMessageMetadata;
+  source: SystemReminderSource;
   content: string;
 }
 
@@ -467,7 +444,7 @@ function syntheticSystemReminderAttachmentFromTextPart(
   if (!isRestorableSystemReminderAttachmentSource(metadata.source)) return undefined;
 
   return {
-    metadata,
+    source: metadata.source,
     content: part.text,
   };
 }
@@ -550,10 +527,6 @@ function runtimeMessageMetadataFromPartMetadata(
   const presentation = runtimeInputMetadata(runtimeMessage.inputPresentation);
   if (presentation) return presentation;
   const source = runtimeMessage.source;
-  if (source === "agent_listing_delta") {
-    const delta = parseAgentListingDelta(runtimeMessage.agentListingDelta);
-    return { source, ...(delta ? { agentListingDelta: delta } : {}) };
-  }
   if (source === "real_user") {
     return realUserRuntimeMetadata();
   }

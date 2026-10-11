@@ -1,4 +1,4 @@
-import type { ZCodeProvider } from "./zcode-task-types-core.js";
+import type { XCodeProvider } from "./zcode-task-types-core.js";
 import { modelSelectionSchema, type ModelSelection } from "./model-selection.js";
 
 export type AgentScope = "built-in" | "workspace" | "user";
@@ -26,13 +26,7 @@ export function parsePluginSubagentModelSelectionOverrides(
   );
 }
 
-export type AgentPermissionMode =
-  | "acceptEdits"
-  | "auto"
-  | "bypassPermissions"
-  | "default"
-  | "dontAsk"
-  | "plan";
+export type AgentPermissionMode = "auto" | "plan";
 
 export type AgentColor =
   | "red"
@@ -113,7 +107,7 @@ export interface SubAgentConfig {
 /** Agent 创建参数 */
 export interface AgentCreateParams {
   config: SubAgentConfig;
-  provider: ZCodeProvider;
+  provider: XCodeProvider;
   scope?: "user" | "workspace";
   workspacePath?: string;
   workspaceIdentity?: string;
@@ -124,7 +118,7 @@ export interface AgentUpdateParams {
   agentId: string;
   config: SubAgentConfig;
   oldFilePath?: string;
-  provider: ZCodeProvider;
+  provider: XCodeProvider;
   scope?: "user" | "workspace";
   workspacePath?: string;
   workspaceIdentity?: string;

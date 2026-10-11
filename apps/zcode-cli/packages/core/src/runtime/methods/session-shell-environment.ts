@@ -21,7 +21,7 @@ export type SessionShellEnvironmentCandidate =
   | ExecutionShellSelection
   | (() => ExecutionShellSelection);
 
-export interface SessionShellEnvironment {
+interface SessionShellEnvironment {
   selection: ExecutionShellSelection;
   promptShell: string;
 }
@@ -72,7 +72,7 @@ export function initializeSessionShellEnvironmentIfNeeded(
   return true;
 }
 
-export function applySessionShellEnvironment(
+function applySessionShellEnvironment(
   runtime: AgentRuntimeInternal,
   selection: ExecutionShellSelection | undefined,
   options: { refreshPreConversationContext?: boolean } = {},
@@ -91,15 +91,15 @@ function resolveSessionShellCandidate(
   return typeof candidate === "function" ? candidate() : candidate;
 }
 
-export function applySessionShellToEnvInfo<T extends { shell?: string }>(
+function applySessionShellToEnvInfo<T extends { shell?: string }>(
   envInfo: T,
   selection: ExecutionShellSelection | undefined,
 ): T;
-export function applySessionShellToEnvInfo<T extends { shell?: string }>(
+function applySessionShellToEnvInfo<T extends { shell?: string }>(
   envInfo: T | undefined,
   selection: ExecutionShellSelection | undefined,
 ): T | undefined;
-export function applySessionShellToEnvInfo<T extends { shell?: string }>(
+function applySessionShellToEnvInfo<T extends { shell?: string }>(
   envInfo: T | undefined,
   selection: ExecutionShellSelection | undefined,
 ): T | undefined {

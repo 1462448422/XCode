@@ -13,9 +13,9 @@ import type {
   MarketingTouchResponse,
 } from "@zcode/shared";
 import { useOptionalServices } from "@/hooks/useServices.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";
-import { useZCodeStore } from "@/store/StoreProvider.js";
+import { useXCodeStore } from "@/store/StoreProvider.js";
 import { setPendingSettingsSection } from "@/lib/settingsNavigation.js";
 import { logger } from "@/logger.js";
 

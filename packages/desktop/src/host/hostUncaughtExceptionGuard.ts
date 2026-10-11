@@ -1,9 +1,9 @@
-export interface HostUncaughtExceptionGuardOptions {
+interface HostUncaughtExceptionGuardOptions {
   onRecovered: (error: Error, origin: NodeJS.UncaughtExceptionOrigin) => void;
   onFatal: (error: Error, origin: NodeJS.UncaughtExceptionOrigin) => void;
 }
 
-export function isRecoverableHostAllocationError(error: unknown): error is RangeError {
+function isRecoverableHostAllocationError(error: unknown): error is RangeError {
   return error instanceof RangeError && error.message === "Failed to allocate memory";
 }
 

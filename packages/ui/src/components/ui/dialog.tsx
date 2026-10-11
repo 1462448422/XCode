@@ -57,6 +57,7 @@ function DialogContent({
       {showOverlay ? <DialogOverlay className={overlayClassName} /> : null}
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-ds-part="dialog"
         className={cn(
           // Electron 自绘标题栏下，弹窗可能会落进窗口顶部的 drag 区域。
           // 如果不把弹窗内容整体标成 no-drag，右上角关闭按钮这类交互会被窗口拖拽命中吞掉。

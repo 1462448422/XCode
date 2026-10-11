@@ -116,7 +116,6 @@ export type {
   AttachmentStorageMetadata,
   AutomationPort,
   OffPeakPort,
-  TopicResourcePort,
   BackgroundExecutionSnapshot,
   BackgroundTaskCancelResult,
   BackgroundTaskInfo,

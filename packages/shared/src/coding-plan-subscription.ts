@@ -1,6 +1,4 @@
-import type { RequestVerificationProof } from "./request-security-edition/verification-policy.js";
 /* eslint-disable max-lines -- Coding Plan 订阅协议类型需要集中导出给 UI、services 和 RPC 共享，拆散会增加跨包类型入口复杂度。 */
-import type { Locale } from "./protocol.js";
 import type { ProviderFamilyDomain } from "./model-provider-family.js";
 import type { BUILTIN_MODEL_PROVIDER_IDS } from "./model-provider-types.js";
 
@@ -102,19 +100,6 @@ export type CodingPlanStaticTeamProductsConfig = Partial<
   Record<CodingPlanSubscriptionProviderId, CodingPlanStaticTeamProduct[]>
 >;
 
-export interface CodingPlanBillingDiscountLocaleCopy {
-  cardTitle?: string;
-  cardBody?: string;
-  badgeBody?: string;
-  infoTitle?: string;
-  infoBody?: string;
-}
-
-export type CodingPlanBillingDiscountConfig = Partial<
-  Record<Locale, CodingPlanBillingDiscountLocaleCopy>
-> &
-  Record<string, unknown>;
-
 export interface StartPlanPreviewEntitlement {
   grantUnits: number;
   meter: string;
@@ -129,60 +114,21 @@ export interface StartPlanPreviewConfig {
   entitlements: StartPlanPreviewEntitlement[];
 }
 
-export interface ManualClaimPlanEntitlement {
-  entitlementId: string;
-  showName: string;
-  meter: string;
-  unitType: string;
-  capabilities: string[];
-  grantUnits: number;
-  period: string;
-  priority: number;
-  effectiveAt?: number;
+/** Coding Plan 活动/折扣文案（单个 locale 下的全部字段）。 */
+export interface CodingPlanBillingDiscountText {
+  /** 徽标短文案，如「150% 配额」。 */
+  badgeBody: string;
+  cardTitle?: string;
+  cardBody?: string;
+  infoTitle?: string;
+  infoBody?: string;
 }
 
-export interface ManualClaimPlanPreview {
-  planId: string;
-  name: string;
-  description: string;
-  priority: number;
-  entitlements: ManualClaimPlanEntitlement[];
-}
-
-export interface ManualClaimPlanPreviewSnapshot {
-  /** 本次响应的服务端时间（毫秒）；生效时间 effectiveAt 仍为 Unix 秒。 */
-  serverTime?: number;
-  plans: ManualClaimPlanPreview[];
-}
-
-export interface ManualClaimPlanClaimRequest extends RequestVerificationProof {
-  planId: string;
-}
-
-export interface ManualClaimPlanClaimEntitlement {
-  entitlementId: string;
-  showName: string;
-  /** Claim 返回的权益生效时间，Unix 秒；0 表示立即生效。 */
-  effectiveAt?: number;
-}
-
-export interface ManualClaimPlanClaimResult {
-  success: boolean;
-  code: number;
-  message: string;
-  /** 失败响应中的活动结束时间，用于额度耗尽提示；不得当作已领取权益期限。 */
-  failureEndsAt?: number;
-  /** 领取接口返回的服务端时间（毫秒），不与其他响应的时间混用。 */
-  serverTime?: number;
-  plan?: {
-    userPlanId: string;
-    planId: string;
-    status: string;
-    startsAt?: number;
-    endsAt?: number;
-    entitlements?: ManualClaimPlanClaimEntitlement[];
-  };
-}
+/**
+ * 官方 client/configs 下发的 Coding Plan 活动/折扣配置，键为 locale（如 en-US / zh-CN）。
+ * badageBody 存在且活跃（active）时才显示徽标；字段缺失按官方语义隐藏。
+ */
+export type CodingPlanBillingDiscountConfig = Record<string, CodingPlanBillingDiscountText>;
 
 export interface ForceUpdateConfig {
   minimalVersion: string;

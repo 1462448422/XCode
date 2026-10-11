@@ -1,4 +1,3 @@
-import { requestVerificationDiagnostics } from "@zcode/shared";
 import { CoreErrorType, ModelErrorCode, createCoreError, isCoreError } from "../deps.js";
 import type { ModelUsage } from "../deps.js";
 import { isPlainRecord, stringProperty } from "./data.js";
@@ -82,7 +81,7 @@ export function isSuspiciousEmptyModelResult(
 const SUSPICIOUS_EMPTY_MODEL_RESULT_MESSAGE =
   "Model returned no text, no tool calls, and no usage before completing the turn.";
 
-export function createSuspiciousEmptyModelResultError(
+function createSuspiciousEmptyModelResultError(
   finishReason: string | undefined,
   rawFinishReason: string | undefined,
   model?: { modelId: string; providerId: string },
@@ -104,20 +103,17 @@ export function createSuspiciousEmptyModelResultError(
 }
 
 /** 空流终态诊断：供 core/adapters 日志与 UI 错误归因对照。 */
-export function buildSuspiciousEmptyDiagnostics(
-  input: {
-    finishReason: string | undefined;
-    providerMetadata: Record<string, unknown> | undefined;
-    rawFinishReason: string | undefined;
-    outboundHeaderKeys?: string[];
-  } & Record<string, unknown>,
-): Record<string, unknown> {
+export function buildSuspiciousEmptyDiagnostics(input: {
+  finishReason: string | undefined;
+  providerMetadata: Record<string, unknown> | undefined;
+  rawFinishReason: string | undefined;
+  outboundHeaderKeys?: string[];
+}): Record<string, unknown> {
   const businessFailure = findProviderBusinessFailureInMetadata(input.providerMetadata);
   return {
     finishReason: input.finishReason ?? null,
     rawFinishReason: input.rawFinishReason ?? null,
     outboundHeaderKeys: input.outboundHeaderKeys ?? [],
-    ...requestVerificationDiagnostics(input),
     providerMetadataKeys: input.providerMetadata
       ? Object.keys(input.providerMetadata).slice(0, 20)
       : [],
@@ -148,7 +144,7 @@ export function finalizeSuspiciousEmptyModelResult(input: {
   );
 }
 
-export function tryCreateProviderBusinessModelErrorFromMetadata(
+function tryCreateProviderBusinessModelErrorFromMetadata(
   providerMetadata: Record<string, unknown> | undefined,
   model?: { modelId: string; providerId: string },
 ): ReturnType<typeof createCoreError> | undefined {
@@ -261,7 +257,7 @@ export function isModelContextExceededError(error: unknown): boolean {
   return false;
 }
 
-export function isModelContextExceededMarker(value: string | undefined): boolean {
+function isModelContextExceededMarker(value: string | undefined): boolean {
   return value !== undefined && MODEL_CONTEXT_EXCEEDED_MARKERS.has(value.trim().toLowerCase());
 }
 

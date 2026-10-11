@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { PaletteIcon, WandIcon } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 import { useSettings } from "@/hooks/useSettingService.js";
 import { applyCustomSkin } from "@/useTheme.js";

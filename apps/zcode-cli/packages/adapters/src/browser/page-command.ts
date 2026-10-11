@@ -72,7 +72,7 @@ async function pointFor(
   throw new Error("Browser action requires a ref or x/y coordinates");
 }
 
-export async function readManagedPageState(page: Page): Promise<BrowserPageState> {
+async function readManagedPageState(page: Page): Promise<BrowserPageState> {
   const client = await page.context().newCDPSession(page);
   try {
     const history = (await client.send("Page.getNavigationHistory")) as {

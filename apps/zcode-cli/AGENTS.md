@@ -1,25 +1,30 @@
 # Agent 指令
 
-这里是 TypeScript Node.js Coding Agent CLI，支持主流模型和操作系统。通用任务边界、spec、验证和提交条件遵循[根 AGENTS.md](../../AGENTS.md)；本文件补充 CLI 特有规则。Node 版本以仓库 [mise.toml](../../mise.toml) 为准。
+这里是 TypeScript Node.js Coding Agent CLI，支持主流模型和操作系统。通用工作规则遵循[根 AGENTS.md](../../AGENTS.md)；本文件补充 CLI 规则。Node.js 和包管理器版本以仓库根目录的 [mise.toml](../../mise.toml) 与 [package.json](../../package.json) 为准。
 
 ## 工作规范（最重要）
 
-- CLI spec 位于 `apps/zcode-cli/docs/design/v2/`；新功能、行为变化先更新，bugfix 和纯重构按根规则判断。下文未带 `apps/zcode-cli/` 的代码与文档路径相对于本目录。
-- 改动任何 tool（新增、删除、schema、权限、执行、prompt、adapter、事件、UI/V4 投影等）之前，必须先阅读并更新 `docs/design/v2/tool/00-tool-change-chain.md`，按端到端链路检查。
+- 新增或修改行为前，先编写或更新对应 spec，明确产品规则、状态所有者、接口和验收场景，再实现代码。优先复用现有文档；缺少时按需创建文档及目录，不假定存在固定版本的设计目录。
 - 其次是测试 case 很关键，能证明结果是否符合预期
-- 功能文档更新到最终行为，复用已有 spec；bugfix 用回归证据留痕，非显然根因和防回归约束在修复点留中文注释。
+- 留好轨迹，包括功能增加后，留下新的文档，bugfix 之后写下 bug 的原因在注释里
 - agent 友好的项目，留好日志或者接口，让 agent 能完全接手操作
 - 长程任务优先：核心 agent loop 默认面向可持续运行的复杂任务设计，不用 tool call 次数做硬停止。资源与安全边界应由 token/context limit 自动 compact、用户取消、权限拒绝、工具超时、输出截断、provider retry 上限等明确条件承担。
 - 单个源文件默认不能超过 400 行；超过时必须优先按高内聚低耦合拆分模块，不能用大文件继续堆职责。
 - 字符串、数字等常量应提取为命名变量或常量，不要在业务逻辑中直接散落字面量，便于一处修改、统一维护。
-- 修改数据库结构时必须同步 CLI 负责人，仔细设计 migration
+- 修改数据库结构前，应与模块维护者确认方案，明确 migration、兼容性和回滚策略。
 - 键盘操作优先，核心逻辑都可以走键盘操作。鼠标操作是增益能力
 
 ## 工具规范
 
 - 与操作系统交互之前，需要考虑同时支持 windows、mac、linux
 - 保持默认的发布路径为标准 Node.js CLI 打包方式。
-- 项目自有的环境变量统一使用 `ZCODE_` 前缀命名，但不要随便新增环境变量；新增前必须先在 `docs/design/v2` 的 spec 中定义用途、优先级、错误行为和测试覆盖，能用配置文件、CLI 参数或 session 配置表达的能力，优先不要做成环境变量。
+- 项目自有的环境变量统一使用 `XCODE_` 前缀命名，但不要随便新增环境变量；新增前必须先在对应功能的 spec 中定义用途、优先级、错误行为和测试覆盖，能用配置文件、CLI 参数或 session 配置表达的能力，优先不要做成环境变量。
+
+## 开源内容与敏感信息
+
+- 项目许可与归属声明见仓库根目录的 [LICENSE](../../LICENSE)、[NOTICE.md](../../NOTICE.md) 和 [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md)。引入第三方代码、文档、提示词或素材前，应确认来源、许可证和使用权限，按适用许可保留版权、署名及修改说明；不得为开源清理而删除仍适用的归属声明。
+- 文档、示例、测试数据、日志和提交信息不得包含真实凭据、用户隐私、内部服务地址、个人工作目录或未获授权公开的内容；示例使用虚构数据和占位值。
+- 发布前应核对实际交付范围；包含 Git 历史时，也应检查历史内容。当前文件中的删除或替换不代表历史记录已清理。
 
 ## 跨平台兼容原则
 
@@ -65,7 +70,7 @@
 - Coding agent CLI 应把 session、message、tool call、permission、checkpoint、队列和 pending 状态视为一等状态对象，支持恢复、分叉、回滚和并发 session。
 - TUI 只负责输入采集、布局渲染和临时交互态，例如光标、输入框、滚动位置和当前弹窗选择；session、mode、model、tool、todo、permission、checkpoint 等业务状态不得保存在 TUI 层，必须由 server/bootstrap/core/session 存储并通过显式接口或 session event 下发。
 - TUI 中的折叠/展开指示符统一使用 `+`/`-`（折叠为 `+`，展开为 `-`），不要使用 `v` 和 `>`。
-- 与用户交互相关的确认、选择、输入、进度、错误恢复等能力，应面向 TUI 和 ZCode Protocol V4 客户端设计为稳定的交互请求/响应接口或 session event；不同客户端只是呈现和传输适配层，不应把交互流程写死在单一前端中。
+- 与用户交互相关的确认、选择、输入、进度、错误恢复等能力，应面向 TUI 和 XCode Protocol V4 客户端设计为稳定的交互请求/响应接口或 session event；不同客户端只是呈现和传输适配层，不应把交互流程写死在单一前端中。
 - 所有任务执行都必须携带可传播的 `traceId`。`traceId` 默认对应一次顶层 session 的完整任务链，session 内创建的子 session、subagent、重试任务、后台队列任务和异步 I/O 都应归属到同一个 `traceId`。
 - `traceId` 位于 `sessionId` 之上；`sessionId`、`turnId`、`messageId`、`toolCallId`、`spanId`、`parentSpanId` 等应作为 `traceId` 下的结构化子标识，用于还原完整调用链。
 - 所有模块、service、adapter、tool runtime、provider client、I/O adapter 和权限判断逻辑都应接收并继续传递统一的执行上下文，不得在中途丢弃、覆盖或临时生成无关联的 `traceId`。
@@ -97,7 +102,6 @@
 
 ## 验证
 
-以下命令从 z-code 仓库根目录执行；若当前已在 `apps/zcode-cli`，省略 `--dir apps/zcode-cli`。
-
-- CLI 代码变更除根验证矩阵外，运行 `pnpm --dir apps/zcode-cli typecheck`、`pnpm --dir apps/zcode-cli lint`，以及受影响 CLI 包与调用方的测试。用 CLI 自身的 package scripts / Turbo 选择范围，不能用根 `pnpm test:unit:affected` 代替。
-- 无法可靠确定影响范围，或修改 CLI 公共配置、测试基础设施时，运行 `pnpm --dir apps/zcode-cli test`。必要检查通过后不重复运行；纯文档、环境阻塞、提交条件均遵循根规则。
+- 在完成代码变更之前，从仓库根目录运行 `pnpm typecheck` 和 `pnpm lint`；涉及 CLI 代码时，还应运行 `pnpm --dir apps/zcode-cli typecheck` 和 `pnpm --dir apps/zcode-cli lint`。
+- 测试入口以目标包当前的 `package.json` 和实际测试文件为准，不假定存在统一的测试命令；行为变更应执行对应测试，交互变更应覆盖 E2E 场景。
+- 如实记录执行过的命令、结果和未验证范围；缺少测试入口、已有失败或环境限制不得写成通过。

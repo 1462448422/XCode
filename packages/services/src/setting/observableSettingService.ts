@@ -1,11 +1,11 @@
 import type { AppSettings } from "@zcode/shared";
 import type { ISettingService } from "./setting.js";
 
-export interface SettingServiceUpdatedEvent {
+interface SettingServiceUpdatedEvent {
   readonly keys: readonly (keyof AppSettings)[];
 }
 
-export interface ObservableSettingService extends ISettingService {
+interface ObservableSettingService extends ISettingService {
   onDidUpdate(listener: (event: SettingServiceUpdatedEvent) => void): () => void;
 }
 

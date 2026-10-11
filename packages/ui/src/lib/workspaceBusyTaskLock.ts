@@ -1,14 +1,14 @@
-import type { ZCodeProvider, ZCodeTaskRuntimeStatus } from "@zcode/shared";
+import type { XCodeProvider, XCodeTaskRuntimeStatus } from "@zcode/shared";
 
-function isBusyTaskRuntimeStatus(status: ZCodeTaskRuntimeStatus): boolean {
+function isBusyTaskRuntimeStatus(status: XCodeTaskRuntimeStatus): boolean {
   return status === "creating" || status === "restoring" || status === "streaming";
 }
 
 function buildTaskProviderByTaskId(
-  optimisticTaskMetaByTaskId: Record<string, { provider?: ZCodeProvider }>,
-  taskListCache?: Array<{ taskId: string; provider?: ZCodeProvider }> | null,
-): Record<string, ZCodeProvider | undefined> {
-  const providerByTaskId: Record<string, ZCodeProvider | undefined> = {};
+  optimisticTaskMetaByTaskId: Record<string, { provider?: XCodeProvider }>,
+  taskListCache?: Array<{ taskId: string; provider?: XCodeProvider }> | null,
+): Record<string, XCodeProvider | undefined> {
+  const providerByTaskId: Record<string, XCodeProvider | undefined> = {};
 
   for (const task of taskListCache ?? []) {
     if (!task.provider) {
@@ -28,10 +28,10 @@ function buildTaskProviderByTaskId(
 }
 
 export function hasBusyTaskInWorkspaceProvider(
-  selectedProvider: ZCodeProvider,
-  taskRuntimeByTaskId: Record<string, { status: ZCodeTaskRuntimeStatus; provider?: ZCodeProvider }>,
-  optimisticTaskMetaByTaskId: Record<string, { provider?: ZCodeProvider }>,
-  taskListCache?: Array<{ taskId: string; provider?: ZCodeProvider }> | null,
+  selectedProvider: XCodeProvider,
+  taskRuntimeByTaskId: Record<string, { status: XCodeTaskRuntimeStatus; provider?: XCodeProvider }>,
+  optimisticTaskMetaByTaskId: Record<string, { provider?: XCodeProvider }>,
+  taskListCache?: Array<{ taskId: string; provider?: XCodeProvider }> | null,
   activeTaskId?: string | null,
 ): boolean {
   const providerByTaskId = buildTaskProviderByTaskId(optimisticTaskMetaByTaskId, taskListCache);

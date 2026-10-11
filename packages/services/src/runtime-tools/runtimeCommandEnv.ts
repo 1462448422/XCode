@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { delimiter } from "node:path";
-import { buildZCodeToolEnvPassthroughEnv, sanitizeZCodeRuntimeEnvInPlace } from "@zcode/shared";
+import { buildXCodeToolEnvPassthroughEnv, sanitizeXCodeRuntimeEnvInPlace } from "@zcode/shared";
 import { appendPathEntries, buildRuntimeToolEnvPatch } from "./runtimeToolResolver.js";
 import {
   buildShellBootstrapPath,
@@ -109,7 +109,7 @@ function shouldInheritLoginShellEnvKey(key: string): boolean {
   return INHERITED_LOGIN_SHELL_ENV_KEY_PATTERNS.some((pattern) => pattern.test(key));
 }
 
-export function buildLoginShellEnvPatch(
+function buildLoginShellEnvPatch(
   snapshot: Record<string, string | undefined>,
 ): Record<string, string> {
   const patch: Record<string, string> = {};
@@ -121,7 +121,7 @@ export function buildLoginShellEnvPatch(
 
   return {
     ...patch,
-    ...buildZCodeToolEnvPassthroughEnv(snapshot),
+    ...buildXCodeToolEnvPassthroughEnv(snapshot),
   };
 }
 
@@ -164,7 +164,7 @@ export function buildRuntimeProcessEnvPatch(
   const normalizedBaseEnv = normalizeRuntimeProcessEnv(baseEnv, platform);
   const loginShellPath = loginShellSnapshot?.PATH?.trim() || null;
   const loginShellEnvPatch = loginShellSnapshot ? buildLoginShellEnvPatch(loginShellSnapshot) : {};
-  const toolEnvPassthroughPatch = buildZCodeToolEnvPassthroughEnv({
+  const toolEnvPassthroughPatch = buildXCodeToolEnvPassthroughEnv({
     ...normalizedBaseEnv,
     ...loginShellEnvPatch,
   });
@@ -185,7 +185,7 @@ export function buildRuntimeProcessEnvPatch(
     ...toolEnvPassthroughPatch,
     ...runtimeToolEnvPatch,
     // Python on Windows inherits the active code page (often GBK/936) when no explicit
-    // encoding is set. ZCode/Bash tool output is consumed as UTF-8, so force Python
+    // encoding is set. XCode/Bash tool output is consumed as UTF-8, so force Python
     // subprocesses spawned by agents to emit UTF-8.
     ...PYTHON_UTF8_ENV_PATCH,
   };
@@ -261,7 +261,7 @@ export function initializeRuntimeProcessEnv(
   const runtimeProcessEnvPatch =
     preparedRuntimeProcessEnvPatch ?? buildRuntimeProcessEnvPatch(normalizedProcessEnv);
   // host/agent 运行时不能直接继承用户 shell 里的 NODE_ENV、http_proxy 或证书变量。
-  // 网络变量会先封存为 ZCODE_TOOL_ENV_PASSTHROUGH_JSON，只有 Bash/tool 子进程边界才恢复原名。
-  sanitizeZCodeRuntimeEnvInPlace(process.env);
+  // 网络变量会先封存为 XCODE_TOOL_ENV_PASSTHROUGH_JSON，只有 Bash/tool 子进程边界才恢复原名。
+  sanitizeXCodeRuntimeEnvInPlace(process.env);
   Object.assign(process.env, runtimeProcessEnvPatch);
 }

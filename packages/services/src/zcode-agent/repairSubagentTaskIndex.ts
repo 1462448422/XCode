@@ -1,20 +1,20 @@
-import { resolveWorkspaceKey, ZCODE_AGENT_PROVIDER } from "@zcode/shared";
+import { resolveWorkspaceKey, XCODE_AGENT_PROVIDER } from "@zcode/shared";
 import type { TaskIndexRepo } from "#src/session/taskIndexRepo.js";
-import type { IZCodeAgentService, ZCodeAgentWorkspaceTarget } from "#src/zcode-agent/zcodeAgent.js";
+import type { IXCodeAgentService, XCodeAgentWorkspaceTarget } from "#src/zcode-agent/zcodeAgent.js";
 
 const IDENTITY_QUERY_BATCH_SIZE = 64;
 
 /** 旧版本曾把冷恢复 child 写入主列表；只清理权威身份确认的派生索引，不删除 Agent 转录。 */
 export async function repairSubagentTaskIndex(params: {
-  target: ZCodeAgentWorkspaceTarget;
+  target: XCodeAgentWorkspaceTarget;
   visibleSessionIds: ReadonlySet<string>;
-  agentService: Pick<IZCodeAgentService, "listSessions">;
+  agentService: Pick<IXCodeAgentService, "listSessions">;
   taskIndexRepo: Pick<TaskIndexRepo, "listTaskMetas" | "updateTaskState">;
   isCurrent: () => boolean;
   onRemoved: () => void;
 }): Promise<void> {
   const { target, taskIndexRepo, agentService, isCurrent } = params;
-  const rows = await taskIndexRepo.listTaskMetas({ ...target, provider: ZCODE_AGENT_PROVIDER });
+  const rows = await taskIndexRepo.listTaskMetas({ ...target, provider: XCODE_AGENT_PROVIDER });
   const ids = rows
     .filter((row) => !params.visibleSessionIds.has(row.taskId))
     .map((row) => row.taskId);

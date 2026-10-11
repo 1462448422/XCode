@@ -1,16 +1,15 @@
-import { requestVerificationTimeoutMessage } from "@zcode/shared";
 import { randomUUID } from "node:crypto";
 import {
   zcodeProtocolMethods,
   zcodeProtocolNotifications,
   zcodeProviderRuntimeHeadersResponseSchema,
-  type ZCodeWorkspaceRef,
+  type XCodeWorkspaceRef,
 } from "@zcode/shared";
-import type { ZCodeAppOptions } from "../app/types.js";
+import type { XCodeAppOptions } from "../app/types.js";
 import {
   ProtocolRequestError,
   protocolTraceFromTraceContext,
-  type ZCodeProtocolAgentServerContext,
+  type XCodeProtocolAgentServerContext,
 } from "./server-types.js";
 
 // 无应答方时 UI 的 SDK 超时不会启动；端口总时限同时覆盖排队与凭据解析。
@@ -18,9 +17,9 @@ const PROVIDER_RUNTIME_HEADERS_TIMEOUT_MS = 180_000;
 const CLIENT_REQUEST_TIMEOUT_CODE = -32022;
 
 export function createProviderRuntimeHeadersPort(
-  context: ZCodeProtocolAgentServerContext,
-  workspace: ZCodeWorkspaceRef,
-): NonNullable<ZCodeAppOptions["providerRuntimeHeadersPort"]> {
+  context: XCodeProtocolAgentServerContext,
+  workspace: XCodeWorkspaceRef,
+): NonNullable<XCodeAppOptions["providerRuntimeHeadersPort"]> {
   return {
     shouldRefreshBeforeModelRequest() {
       // Account 请求由绑定 Model 决定是否进入鉴权，不能把所有账号收窄到旧 Start ID。
@@ -42,12 +41,6 @@ export function createProviderRuntimeHeadersPort(
             modelSelection: { providerId: input.providerId, modelId: input.modelId },
             providerId: input.providerId,
             ...(input.accountAccess ? { accountAccess: input.accountAccess } : {}),
-            ...(input.expectedAccountScope
-              ? { expectedAccountScope: input.expectedAccountScope }
-              : {}),
-            ...(input.rejectedProjectTokenFingerprint
-              ? { rejectedProjectTokenFingerprint: input.rejectedProjectTokenFingerprint }
-              : {}),
             reason: input.reason,
           },
           zcodeProviderRuntimeHeadersResponseSchema,
@@ -73,7 +66,7 @@ export function createProviderRuntimeHeadersPort(
         if (timedOut) {
           const timeoutError = new ProtocolRequestError(
             CLIENT_REQUEST_TIMEOUT_CODE,
-            requestVerificationTimeoutMessage,
+            "Provider runtime headers request timed out. Please send your message again.",
             error.data,
           );
           timeoutError.cause = error;
@@ -90,9 +83,6 @@ export function createProviderRuntimeHeadersPort(
             "Provider runtime headers were not applied before model request attempt.",
           {
             providerId: input.providerId,
-            ...(input.rejectedProjectTokenFingerprint
-              ? { rejectedProjectTokenFingerprint: input.rejectedProjectTokenFingerprint }
-              : {}),
             reason: input.reason,
             workspaceKey: workspace.workspaceKey,
           },

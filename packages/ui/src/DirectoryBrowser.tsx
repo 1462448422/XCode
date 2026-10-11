@@ -4,30 +4,28 @@ import type { FileEntry } from "@zcode/shared";
 import { FolderIcon, FolderSymlinkIcon } from "lucide-react";
 import { Button } from "./components/ui/button.js";
 import { Input } from "./components/ui/input.js";
-import { useZCodeIntl } from "./i18n/IntlProvider.js";
+import { useXCodeIntl } from "./i18n/IntlProvider.js";
 import { logger } from "./logger.js";
 
-export function createDirectoryBrowserReadParams(
+function createDirectoryBrowserReadParams(
   path: string,
   showHiddenDirectories: boolean,
 ): { path: string; includeHidden?: boolean } {
   return showHiddenDirectories ? { path, includeHidden: true } : { path };
 }
 
-export function filterDirectoryBrowserEntries(entries: FileEntry[]): FileEntry[] {
+function filterDirectoryBrowserEntries(entries: FileEntry[]): FileEntry[] {
   return entries.filter((e) => e.type === "directory");
 }
 
-// 修复原因：远程目录条目已经携带 isSymbolicLink，这里只替换展示图标，不改变进入和选择目录的路径语义。
-export function getDirectoryBrowserEntryIconKind(
+// 远程目录条目已经携带 isSymbolicLink，这里只替换展示图标，不改变进入和选择目录的路径语义。
+function getDirectoryBrowserEntryIconKind(
   entry: Pick<FileEntry, "isSymbolicLink" | "type">,
 ): "folder" | "folder-symlink" {
-  return entry.type === "directory" && entry.isSymbolicLink === true
-    ? "folder-symlink"
-    : "folder";
+  return entry.type === "directory" && entry.isSymbolicLink === true ? "folder-symlink" : "folder";
 }
 
-export function createDirectoryBrowserRequestGuard(): {
+function createDirectoryBrowserRequestGuard(): {
   begin: () => number;
   isCurrent: (requestId: number) => boolean;
 } {
@@ -69,7 +67,7 @@ export function DirectoryBrowser({
   const listRef = useRef<HTMLDivElement>(null);
   const showHiddenDirectoriesRef = useRef(false);
   const requestGuardRef = useRef(createDirectoryBrowserRequestGuard());
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   // 初始化：获取 homedir 作为起始路径
   useEffect(() => {
@@ -114,12 +112,7 @@ export function DirectoryBrowser({
       // 用户快速切换目录或隐藏目录时，较早 readdir 可能后返回；
       // 过期错误不能覆盖最新导航状态，否则 UI 会展示和当前按钮状态不一致的目录/错误。
       logger.error("[DirectoryBrowser] readdir 失败:", err);
-      setError(
-        intl.formatMessage(
-          { id: "directoryBrowser.errorReadDir" },
-          { error: String(err) },
-        ),
-      );
+      setError(intl.formatMessage({ id: "directoryBrowser.errorReadDir" }, { error: String(err) }));
     } finally {
       if (requestGuardRef.current.isCurrent(requestId)) {
         setLoading(false);
@@ -272,7 +265,7 @@ export function DirectoryBrowser({
     >
       <div className="flex h-[min(36rem,calc(100vh-4rem))] w-[min(44rem,calc(100vw-2rem))] flex-col rounded-xl border border-border bg-popover p-4 shadow-xl">
         {browserContent}
-        {/* Bugfix: 非嵌入模式之前只能继续进入子目录，没有确认当前目录的路径。
+        {/* 非嵌入模式之前只能继续进入子目录，没有确认当前目录的路径。
             Web 目录浏览器作为独立选择器使用时因此永远拿不到 onSelect 结果。
             这里把确认动作收口到弹窗 footer，选择当前浏览路径并交回上层。 */}
         <div className="mt-3 flex shrink-0 justify-end gap-2">

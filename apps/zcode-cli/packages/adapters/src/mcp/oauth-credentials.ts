@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import type { OAuthClientInformationMixed, OAuthTokens } from "@modelcontextprotocol/client";
-import type { SharedZCodeCredentialStore } from "../auth/shared-credentials.js";
+import type { SharedXCodeCredentialStore } from "../auth/shared-credentials.js";
 
 export const MCP_OAUTH_CANONICAL_CREDENTIALS_KEY = "authorization_credentials";
-export const MCP_OAUTH_LEGACY_CLIENT_KEY = "client_information";
-export const MCP_OAUTH_LEGACY_TOKENS_KEY = "tokens";
+const MCP_OAUTH_LEGACY_CLIENT_KEY = "client_information";
+const MCP_OAUTH_LEGACY_TOKENS_KEY = "tokens";
 export const MCP_OAUTH_CREDENTIALS_VERSION = 2;
 export const MCP_OAUTH_SUPPORTED_CREDENTIAL_VERSIONS = new Set([1, MCP_OAUTH_CREDENTIALS_VERSION]);
 
@@ -51,7 +51,7 @@ export function mcpOAuthCredentialKey(keyPrefix: string, name: string): string {
   return `${keyPrefix}:${name}`;
 }
 
-export function createCredentialGeneration(): string {
+function createCredentialGeneration(): string {
   return randomBytes(16).toString("hex");
 }
 
@@ -59,10 +59,7 @@ export function createCredentialGeneration(): string {
  * 迁移期 baseline：旧记录没有 `generation`，用 canonical 原始内容的稳定 hash 代替。
  * 内容变化即 generation 变化，足以支撑 follower 的「是否换代」判断。
  */
-export function resolveCredentialGeneration(
-  canonical: McpOAuthCanonicalCredentials,
-  raw: string,
-): string {
+function resolveCredentialGeneration(canonical: McpOAuthCanonicalCredentials, raw: string): string {
   if (typeof canonical.generation === "string" && canonical.generation.length > 0) {
     return canonical.generation;
   }
@@ -93,7 +90,7 @@ export function isCanonicalCredentials(value: unknown): value is McpOAuthCanonic
  * 交错兼容逻辑仍留在 provider 内。
  */
 export async function loadCanonicalCredentials(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
 ): Promise<CanonicalCredentialSnapshot | undefined> {
   const key = mcpOAuthCredentialKey(keyPrefix, MCP_OAUTH_CANONICAL_CREDENTIALS_KEY);
@@ -117,7 +114,7 @@ export async function loadCanonicalCredentials(
   };
 }
 
-export interface PublishCanonicalCredentialsInput {
+interface PublishCanonicalCredentialsInput {
   clientInformation: OAuthClientInformationMixed;
   issuer?: string;
   obtainedAt?: number;
@@ -125,7 +122,7 @@ export interface PublishCanonicalCredentialsInput {
   tokens: OAuthTokens;
 }
 
-export interface PublishedCanonicalCredentials {
+interface PublishedCanonicalCredentials {
   canonical: McpOAuthCanonicalCredentials;
   generation: string;
   legacyClientRaw: string;
@@ -141,7 +138,7 @@ export interface PublishedCanonicalCredentials {
  * 不同事务。兼容窗口内继续维护 legacy 镜像，使未升级的 CLI/Desktop 仍可读取。
  */
 export async function publishCanonicalCredentials(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
   input: PublishCanonicalCredentialsInput,
 ): Promise<PublishedCanonicalCredentials> {
@@ -177,7 +174,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** access token 临期判定的安全余量。 */
-export const MCP_OAUTH_EXPIRY_SKEW_MS = 30_000;
+const MCP_OAUTH_EXPIRY_SKEW_MS = 30_000;
 
 /**
  * 是否需要在把 token 交给请求头之前先刷新。
@@ -194,7 +191,7 @@ export function isCanonicalTokenNearExpiry(
   return now >= snapshot.expiresAt - skewMs;
 }
 
-export type CanonicalInvalidationScope = "tokens" | "all";
+type CanonicalInvalidationScope = "tokens" | "all";
 
 /**
  * 按 canonical 快照做条件失效。
@@ -204,7 +201,7 @@ export type CanonicalInvalidationScope = "tokens" | "all";
  * `invalid_client`，client 与 token 必须整对丢弃。
  */
 export async function invalidateCanonicalCredentials(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
   expectedRaw: string,
   scope: CanonicalInvalidationScope,
@@ -237,7 +234,7 @@ export interface CredentialPairSnapshot {
  * 读取 canonical 与 legacy 镜像并按兼容规则派生出一份可用 pair。
  */
 export async function loadCredentialPair(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
 ): Promise<CredentialPairSnapshot | undefined> {
   const canonicalKey = mcpOAuthCredentialKey(keyPrefix, MCP_OAUTH_CANONICAL_CREDENTIALS_KEY);

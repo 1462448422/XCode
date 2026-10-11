@@ -3,7 +3,7 @@ import { SearchIcon } from "lucide-react";
 import { extractPlanStepsFromToolInput, extractPlanStepsFromToolOutput } from "@zcode/shared";
 import { ToolCallBlock } from "@/ToolCallBlocks.js";
 import { ToolSnapshotFieldNotice } from "@/ToolCallBlocks/ToolSnapshotFieldNotice.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { getExecuteSecondaryText } from "@/ToolCallBlocks/renderers/execute.js";
 import { buildReadSummary, ReadFileChip } from "@/ToolCallBlocks/renderers/read.js";
 import { getSearchPrimaryText } from "@/ToolCallBlocks/renderers/search.js";
@@ -13,7 +13,7 @@ import { ToolLayout } from "../ToolLayout.js";
 import type { ToolCallBlockRenderContext } from "../shared.js";
 import { useCallback, type ReactNode } from "react";
 import type { TaskChatToolCallTreeNode } from "@/lib/toolCallTree.js";
-import type { ZCodePlanStep } from "@zcode/shared";
+import type { XCodePlanStep } from "@zcode/shared";
 
 const EXPLORE_TOOL_ICON = <SearchIcon className="size-4 shrink-0 text-foreground-subtle" />;
 
@@ -21,7 +21,7 @@ type IntlLike = {
   formatMessage: (descriptor: { id: string }, values?: Record<string, string>) => string;
 };
 
-export type ExploreChildSummary = {
+type ExploreChildSummary = {
   animationKey: string;
   primaryText: ReactNode;
   secondaryText?: ReactNode;
@@ -229,7 +229,7 @@ function renderChildActionKindPrefix(actionKindLabel: string | null, content: Re
 
 function readTodoPlanFromToolCall(
   childToolCall: ToolCallBlockRenderContext["toolCallNode"]["toolCall"],
-): ZCodePlanStep[] | null {
+): XCodePlanStep[] | null {
   return (
     extractPlanStepsFromToolOutput({
       title: childToolCall.title,
@@ -394,7 +394,7 @@ export function getLatestExploreChildSummaryFromChildren(
 }
 
 export function ExploreToolCallBlock(context: ToolCallBlockRenderContext) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { toolCallNode, isRunning, statusLabel, errorText } = context;
   const { toolCall, childToolCalls } = toolCallNode;
   const counts = childToolCalls.reduce<Record<ExploreBucket, number>>(

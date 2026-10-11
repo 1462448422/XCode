@@ -1,6 +1,5 @@
 import type {
   BackgroundResultOriginMeta,
-  HighspeedMessageMetadata,
   ModelStreamingPayload,
   SessionEvent,
   SyntheticUserMessageSource,
@@ -10,10 +9,9 @@ import type {
   WorkflowLaunchMeta,
 } from "@zcode/contracts";
 import { SessionEventType } from "@zcode/contracts";
-import type { AttachmentRef } from "@zcode/shared/zcode-protocol-v4";
 
-export type CanonicalConversationVisibility = "visible" | "modelOnly" | "stateOnly";
-export type CanonicalConversationOrigin =
+type CanonicalConversationVisibility = "visible" | "modelOnly" | "stateOnly";
+type CanonicalConversationOrigin =
   | "realUser"
   | "backgroundResult"
   | "goalContinuation"
@@ -23,7 +21,7 @@ export type CanonicalConversationOrigin =
   | "assistant"
   | "system";
 
-export interface CanonicalConversationPlacement {
+interface CanonicalConversationPlacement {
   lane: "trigger" | "assistantWork" | "stateOnly";
   relation: "withinProductTurn" | "none";
 }
@@ -48,9 +46,6 @@ interface CanonicalConversationFactBase {
 }
 
 export interface CanonicalUserIntentFact extends CanonicalConversationFactBase {
-  inputOrigin?: "desktop" | "mobile";
-  conversationQuotes?: import("@zcode/contracts").TurnInputIntentMetadata["conversationQuotes"];
-  botGroupSource?: import("@zcode/shared").BotGroupInputSource;
   semanticKind: "userIntent";
   visibility: "visible" | "modelOnly";
   origin:
@@ -82,7 +77,6 @@ export interface CanonicalUserIntentFact extends CanonicalConversationFactBase {
   sourceCommandId?: string;
   foregroundExecutionId?: string;
   clientId?: string;
-  highspeed?: HighspeedMessageMetadata;
   attachments?: readonly CanonicalTurnAttachment[];
   queueItemId?: string;
   admissionSeq?: number;
@@ -94,16 +88,20 @@ export interface CanonicalUserIntentFact extends CanonicalConversationFactBase {
   modelSelection?: TurnInputIntentMetadata["modelSelection"];
   mode?: TurnInputIntentMetadata["mode"];
   planEnabled?: boolean;
+  obfuscation?: TurnInputIntentMetadata["obfuscation"];
   provenance?: {
     sourceCommandId: string;
     queueItemId?: string;
     clientId?: string;
   };
-  source?: TurnInputIntentMetadata["source"];
 }
 
-export interface CanonicalTurnAttachment extends Omit<AttachmentRef, "ref"> {
+export interface CanonicalTurnAttachment {
   ref?: string;
+  fileName: string;
+  mime: string;
+  bytes: number;
+  previewRef?: string;
 }
 
 export interface CanonicalModelStream {
@@ -135,7 +133,7 @@ export type CanonicalConversationFact =
   | CanonicalAssistantSegmentFact
   | CanonicalPassthroughFact;
 
-export interface NormalizeConversationEventContext {
+interface NormalizeConversationEventContext {
   productTurnId?: string;
   openAssistantSegments?: Partial<Record<"text" | "reasoning", CanonicalOpenSegmentIdentity>>;
 }
@@ -266,7 +264,6 @@ function normalizeTurnStarted(
       ? { foregroundExecutionId: payload.foregroundExecutionId }
       : {}),
     ...(payload.intent?.clientId ? { clientId: payload.intent.clientId } : {}),
-    ...(payload.intent?.highspeed ? { highspeed: payload.intent.highspeed } : {}),
     ...(payload.intent?.queueItemId ? { queueItemId: payload.intent.queueItemId } : {}),
     ...(payload.intent?.admissionSeq !== undefined
       ? { admissionSeq: payload.intent.admissionSeq }
@@ -289,13 +286,8 @@ function normalizeTurnStarted(
     ...(payload.intent?.planEnabled !== undefined
       ? { planEnabled: payload.intent.planEnabled }
       : {}),
-    ...(payload.intent?.inputOrigin ? { inputOrigin: payload.intent.inputOrigin } : {}),
-    ...(payload.intent?.conversationQuotes
-      ? { conversationQuotes: payload.intent.conversationQuotes }
-      : {}),
-    ...(payload.intent?.botGroupSource ? { botGroupSource: payload.intent.botGroupSource } : {}),
+    ...(payload.intent?.obfuscation ? { obfuscation: payload.intent.obfuscation } : {}),
     ...(payload.intent?.provenance ? { provenance: payload.intent.provenance } : {}),
-    ...(payload.intent?.source ? { source: payload.intent.source } : {}),
     ...normalizeAttachments(payload),
   };
 }

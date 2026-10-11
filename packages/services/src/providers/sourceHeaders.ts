@@ -2,17 +2,17 @@ import { readFileSync } from "node:fs";
 import { version as readOsVersion } from "node:os";
 import { join } from "node:path";
 import {
-  buildZCodeSourceHeadersFromContext,
-  normalizeZCodeSourceHeaderValue,
-  ZCODE_ENV,
-  ZCODE_SOURCE_HEADERS,
-  ZCODE_VERSION,
+  buildXCodeSourceHeadersFromContext,
+  normalizeXCodeSourceHeaderValue,
+  XCODE_ENV,
+  XCODE_SOURCE_HEADERS,
+  XCODE_VERSION,
 } from "@zcode/shared";
 import { getAppConfigDir } from "../paths.js";
 
-export { ZCODE_SOURCE_HEADERS };
+export { XCODE_SOURCE_HEADERS };
 
-interface ZCodeSourceHeaderOptions {
+interface XCodeSourceHeaderOptions {
   appVersion?: string;
   arch?: string;
   clientLanguage?: string;
@@ -20,12 +20,14 @@ interface ZCodeSourceHeaderOptions {
   osVersion?: string;
   platform?: NodeJS.Platform;
   releaseChannel?: string;
+  /** 当前激活账号引用（provider:identity）；设置时读取该账号的独立 X-Device-Mid。 */
+  accountRef?: string;
 }
 
-let cachedDeviceMid: { stateFile: string; value: string } | null = null;
+let cachedDeviceMid: { stateFile: string; accountRef?: string; value: string } | null = null;
 
 function normalizePrintableHeaderValue(value: string | undefined): string | undefined {
-  return normalizeZCodeSourceHeaderValue(value);
+  return normalizeXCodeSourceHeaderValue(value);
 }
 
 function resolveClientLanguage(): string {
@@ -38,45 +40,55 @@ function resolveClientTimezone(): string {
   );
 }
 
-function readExistingDeviceMid(): string | undefined {
+function readExistingDeviceMid(accountRef?: string): string | undefined {
   const stateFile = join(getAppConfigDir(), "telemetry-state.json");
-  if (cachedDeviceMid?.stateFile === stateFile) {
+  if (
+    cachedDeviceMid?.stateFile === stateFile &&
+    cachedDeviceMid.accountRef === accountRef
+  ) {
     return cachedDeviceMid.value;
   }
 
   try {
     const raw = readFileSync(stateFile, "utf-8");
-    const parsed = JSON.parse(raw) as { deviceMid?: unknown };
-    const deviceMid = normalizePrintableHeaderValue(
-      typeof parsed.deviceMid === "string" ? parsed.deviceMid : undefined,
-    );
-    if (!deviceMid) {
+    const parsed = JSON.parse(raw) as {
+      deviceMid?: unknown;
+      accounts?: Record<string, { deviceMid?: unknown }>;
+    };
+    let deviceMid: string | undefined;
+    if (accountRef && typeof parsed.accounts?.[accountRef]?.deviceMid === "string") {
+      deviceMid = parsed.accounts[accountRef].deviceMid as string;
+    } else if (typeof parsed.deviceMid === "string") {
+      deviceMid = parsed.deviceMid;
+    }
+    const normalized = normalizePrintableHeaderValue(deviceMid);
+    if (!normalized) {
       return undefined;
     }
 
-    cachedDeviceMid = { stateFile, value: deviceMid };
-    return deviceMid;
+    cachedDeviceMid = { stateFile, accountRef, value: normalized };
+    return normalized;
   } catch {
     // deviceMid 的生命周期由 desktop/telemetry 负责；这里仅复用已存在值，不生成新身份。
     return undefined;
   }
 }
 
-export function buildZCodeSourceHeaders(
-  options: ZCodeSourceHeaderOptions = {},
+export function buildXCodeSourceHeaders(
+  options: XCodeSourceHeaderOptions = {},
 ): Record<string, string> {
   const platform = options.platform ?? process.platform;
   const arch = options.arch ?? process.arch;
-  const appVersion = normalizePrintableHeaderValue(options.appVersion ?? ZCODE_VERSION);
-  const releaseChannel = normalizePrintableHeaderValue(options.releaseChannel ?? ZCODE_ENV);
+  const appVersion = normalizePrintableHeaderValue(options.appVersion ?? XCODE_VERSION);
+  const releaseChannel = normalizePrintableHeaderValue(options.releaseChannel ?? XCODE_ENV);
   const clientLanguage =
     normalizePrintableHeaderValue(options.clientLanguage) ?? resolveClientLanguage();
   const clientTimezone =
     normalizePrintableHeaderValue(options.clientTimezone) ?? resolveClientTimezone();
   const osVersion = normalizePrintableHeaderValue(options.osVersion ?? readOsVersion());
-  const deviceMid = readExistingDeviceMid();
+  const deviceMid = readExistingDeviceMid(options.accountRef);
 
-  return buildZCodeSourceHeadersFromContext({
+  return buildXCodeSourceHeadersFromContext({
     appVersion,
     arch,
     clientLanguage,

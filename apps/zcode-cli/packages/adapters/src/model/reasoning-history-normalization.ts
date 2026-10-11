@@ -39,7 +39,7 @@ export function normalizeReasoningHistory(
   return repairEmptyAssistantContent(withoutWhitespaceOnlyAssistants);
 }
 
-export function removeRejectedReasoning(messages: ModelInputMessage[]): ModelInputMessage[] {
+function removeRejectedReasoning(messages: ModelInputMessage[]): ModelInputMessage[] {
   const filtered = filterReasoningBlocks(messages, isSignedOrRedactedReasoning);
   if (filtered === messages) return messages;
 
@@ -73,7 +73,7 @@ export function repairReasoningHistoryAfterSignatureRejection(
   return repaired === projectedMessages ? undefined : repaired;
 }
 
-export function isThinkingSignatureRejection(error: unknown): boolean {
+function isThinkingSignatureRejection(error: unknown): boolean {
   const unwrapped = unwrapRetryError(error);
   if (getStatusCode(unwrapped) !== 400) return false;
 

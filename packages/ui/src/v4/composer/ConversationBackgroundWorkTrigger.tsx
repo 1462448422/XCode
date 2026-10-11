@@ -4,16 +4,16 @@ import { TID_V4_COMPOSER_BACKGROUND_WORK_TRIGGER } from "@zcode/shared";
 import type { BackgroundWorkSummary } from "@zcode/shared/zcode-protocol-v4";
 import { Button } from "@/components/ui/button.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
-export interface ComposerBackgroundWorkCounts {
+interface ComposerBackgroundWorkCounts {
   bashCount: number;
   workflowCount: number;
   subagentCount: number;
   totalCount: number;
 }
 
-export function getComposerBackgroundWorkCounts(
+function getComposerBackgroundWorkCounts(
   backgroundWorks: readonly BackgroundWorkSummary[],
   runningSubagentCount = 0,
 ): ComposerBackgroundWorkCounts {
@@ -38,7 +38,7 @@ export function getComposerBackgroundWorkCounts(
   };
 }
 
-export interface ConversationBackgroundWorkTriggerProps {
+interface ConversationBackgroundWorkTriggerProps {
   backgroundWorks: readonly BackgroundWorkSummary[];
   runningSubagentCount?: number;
   onOpen?: () => void;
@@ -56,10 +56,9 @@ function ConversationBackgroundWorkTriggerImpl({
   onOpen,
   openTarget = "panel",
 }: ConversationBackgroundWorkTriggerProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const counts = useMemo(
-    () =>
-      getComposerBackgroundWorkCounts(backgroundWorks, runningSubagentCount),
+    () => getComposerBackgroundWorkCounts(backgroundWorks, runningSubagentCount),
     [backgroundWorks, runningSubagentCount],
   );
 
@@ -146,6 +145,4 @@ function ConversationBackgroundWorkTriggerImpl({
   );
 }
 
-export const ConversationBackgroundWorkTrigger = memo(
-  ConversationBackgroundWorkTriggerImpl,
-);
+export const ConversationBackgroundWorkTrigger = memo(ConversationBackgroundWorkTriggerImpl);

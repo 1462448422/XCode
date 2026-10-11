@@ -16,14 +16,14 @@ interface WebElementContextRemovePayload {
   workspaceIdentity?: string;
 }
 
-export interface UseWebElementContextsOptions {
+interface UseWebElementContextsOptions {
   workspacePath: string;
   workspaceIdentity?: string;
   listenAddToChatEvents?: boolean;
   scopeId?: string | null;
 }
 
-export interface UseWebElementContextsResult {
+interface UseWebElementContextsResult {
   contexts: readonly WebElementContextComposerAttachment[];
   hasContexts: boolean;
   removeContext: (id: string) => void;

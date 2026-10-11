@@ -1,34 +1,34 @@
-import type { WorkspacePurpose, ZCodeTaskMeta } from "@zcode/shared";
+import type { WorkspacePurpose, XCodeTaskMeta } from "@zcode/shared";
 
-export type ZCodeTaskListKind = "pinned" | "archived" | "timeline" | "active";
-export type ZCodeTaskListSortBy = "created" | "updated";
+export type XCodeTaskListKind = "pinned" | "archived" | "timeline" | "active";
+export type XCodeTaskListSortBy = "created" | "updated";
 
-export interface ZCodeTaskListWorkspaceScope {
+export interface XCodeTaskListWorkspaceScope {
   workspacePath: string;
   workspaceIdentity?: string;
   workspacePurpose?: WorkspacePurpose;
 }
 
-export interface ZCodeTaskListQuery {
-  kind: ZCodeTaskListKind;
-  workspaceScopes: ZCodeTaskListWorkspaceScope[];
-  sortBy: ZCodeTaskListSortBy;
+export interface XCodeTaskListQuery {
+  kind: XCodeTaskListKind;
+  workspaceScopes: XCodeTaskListWorkspaceScope[];
+  sortBy: XCodeTaskListSortBy;
   search?: string;
   limit?: number;
 }
 
-export type ZCodeTaskListItem = ZCodeTaskMeta & {
+export type XCodeTaskListItem = XCodeTaskMeta & {
   searchSnippet?: string;
   searchSnippets?: string[];
 };
 
-export interface ZCodeTaskListResult {
-  items: ZCodeTaskListItem[];
+export interface XCodeTaskListResult {
+  items: XCodeTaskListItem[];
   total: number;
   hasMore: boolean;
 }
 
-export type ZCodeTaskGroupColor =
+export type XCodeTaskGroupColor =
   | "gray"
   | "red"
   | "orange"
@@ -37,43 +37,43 @@ export type ZCodeTaskGroupColor =
   | "blue"
   | "purple";
 
-export interface ZCodeTaskGroup {
+export interface XCodeTaskGroup {
   id: string;
   title: string;
-  color: ZCodeTaskGroupColor;
+  color: XCodeTaskGroupColor;
   createdAt: number;
   updatedAt: number;
 }
 
-export interface ZCodeGroupedTaskRef {
+export interface XCodeGroupedTaskRef {
   workspacePath: string;
   workspaceIdentity?: string;
   taskId: string;
 }
 
-export type ZCodeGroupedTaskViewTopLevelNodeRef =
+export type XCodeGroupedTaskViewTopLevelNodeRef =
   | { type: "group"; groupId: string }
-  | { type: "task"; task: ZCodeGroupedTaskRef };
+  | { type: "task"; task: XCodeGroupedTaskRef };
 
-export type ZCodeGroupedTaskViewNode =
+export type XCodeGroupedTaskViewNode =
   | {
       type: "group";
-      group: ZCodeTaskGroup;
-      tasks: ZCodeTaskListItem[];
+      group: XCodeTaskGroup;
+      tasks: XCodeTaskListItem[];
       sortOrder?: number;
     }
   | {
       type: "task";
-      task: ZCodeTaskListItem;
+      task: XCodeTaskListItem;
       sortOrder?: number;
     };
 
-export interface ZCodeGroupedTaskView {
-  nodes: ZCodeGroupedTaskViewNode[];
+export interface XCodeGroupedTaskView {
+  nodes: XCodeGroupedTaskViewNode[];
 }
 
-export interface ZCodeGroupedTaskViewQuery {
-  workspaceScopes: ZCodeTaskListWorkspaceScope[];
+export interface XCodeGroupedTaskViewQuery {
+  workspaceScopes: XCodeTaskListWorkspaceScope[];
   includeAllWorkspaces?: boolean;
 }
 
@@ -83,7 +83,7 @@ export interface ZCodeGroupedTaskViewQuery {
 // 由客户端与 sessions-index 会话做 join。
 
 /** 组成员引用（不含任务 meta；task 内容由 sessions-index 提供）。 */
-export interface ZCodeGroupedTaskViewStructureMember {
+export interface XCodeGroupedTaskViewStructureMember {
   groupId: string;
   /** 服务端口径 workspaceKey（resolveWorkspaceKey：identity ?? path），join 匹配键。 */
   workspaceKey: string;
@@ -96,28 +96,28 @@ export interface ZCodeGroupedTaskViewStructureMember {
 }
 
 /** 顶层节点排序（task_group_view_node_orders，node_key 已解析为结构化引用）。 */
-export type ZCodeGroupedTaskViewStructureTopOrder =
+export type XCodeGroupedTaskViewStructureTopOrder =
   | { type: "group"; groupId: string; sortOrder: number }
   | { type: "task"; workspaceKey: string; taskId: string; sortOrder: number };
 
-export interface ZCodeGroupedTaskViewStructure {
+export interface XCodeGroupedTaskViewStructure {
   /** 已按 workspaceScopes 可见性过滤的 group（bootstrap workspace group 只在其 workspace 可见）。 */
-  groups: ZCodeTaskGroup[];
+  groups: XCodeTaskGroup[];
   /** 全量组成员（含不可见 group 的成员——顶层排除规则需要全量判断）。 */
-  members: ZCodeGroupedTaskViewStructureMember[];
-  topLevelOrders: ZCodeGroupedTaskViewStructureTopOrder[];
+  members: XCodeGroupedTaskViewStructureMember[];
+  topLevelOrders: XCodeGroupedTaskViewStructureTopOrder[];
 }
 
-export interface ZCodeGroupedTaskViewOrderInput {
-  workspaceScopes: ZCodeTaskListWorkspaceScope[];
-  topLevelNodes: ZCodeGroupedTaskViewTopLevelNodeRef[];
+export interface XCodeGroupedTaskViewOrderInput {
+  workspaceScopes: XCodeTaskListWorkspaceScope[];
+  topLevelNodes: XCodeGroupedTaskViewTopLevelNodeRef[];
   groups: Array<{
     groupId: string;
-    taskRefs: ZCodeGroupedTaskRef[];
+    taskRefs: XCodeGroupedTaskRef[];
   }>;
 }
 
-export interface ZCodeWorkspaceEventSubscriptionParams {
+export interface XCodeWorkspaceEventSubscriptionParams {
   workspacePath: string;
   workspaceIdentity?: string;
 }

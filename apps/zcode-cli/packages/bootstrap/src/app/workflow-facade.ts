@@ -39,12 +39,12 @@ import {
   type WorkflowDefinition,
 } from "@zcode/contracts";
 import { collectDisabledPaths } from "../skill-command-overrides.js";
-import type { PrepareUserExecutionBoundary, ZCodeAppOptions } from "./types.js";
+import type { PrepareUserExecutionBoundary, XCodeAppOptions } from "./types.js";
 import { createWorkflowMethods, type WorkflowFacade } from "./workflow-methods.js";
 
 interface CreateWorkflowFacadeDeps {
   agentTelemetry: AgentExecutionTelemetryPort;
-  appOptions: ZCodeAppOptions;
+  appOptions: XCodeAppOptions;
   appVersion: string;
   artifactStore?: ToolArtifactStorePort;
   cliStorageRoot: string;
@@ -230,7 +230,7 @@ export function createWorkflowFacade(deps: CreateWorkflowFacadeDeps): WorkflowFa
       : `/workflow ${definition.kind} ${task}`;
 
   const switchWorkflowToYolo = (): void => {
-    if (deps.runtime.getMode() !== "yolo" && deps.runtime.getMode() !== "guarded") {
+    if (deps.runtime.getMode() !== "yolo") {
       deps.runtime.updateConfig({ mode: "yolo" });
     }
   };
@@ -285,7 +285,6 @@ function createWorkflowChildRuntime(
     {
       ...deps.runtimeConfig,
       agentName: options.workflowKind === "expert" ? "zcode-expert" : "zcode-workflow",
-      // workflow child 不在 Guarded 合同内；只隔离父任务模式，不继承审批。
       mode: "yolo",
       modelSelection: deps.runtime.getSessionModelSelection(),
       parentSessionId: deps.sessionId,

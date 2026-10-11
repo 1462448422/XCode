@@ -12,12 +12,8 @@ import {
 } from "@zcode/shared";
 import type { ISkillSyncService } from "@zcode/services";
 import { Button } from "@/components/ui/button.js";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-} from "@/components/ui/dialog.js";
-import { useZCodeIntl, type IntlInstance } from "@/i18n/IntlProvider.js";
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog.js";
+import { useXCodeIntl, type IntlInstance } from "@/i18n/IntlProvider.js";
 import {
   RemoteSkillSyncSelectionList,
   type RemoteSkillSyncRow,
@@ -49,7 +45,7 @@ interface RemoteSkillSyncDialogProps {
   onSynced: () => Promise<void> | void;
 }
 
-export function buildRemoteSkillSyncRows(
+function buildRemoteSkillSyncRows(
   candidates: readonly SkillSyncCandidate[],
   statuses: readonly SkillSyncRemoteStatus[],
 ): RemoteSkillSyncRow[] {
@@ -60,15 +56,11 @@ export function buildRemoteSkillSyncRows(
   }));
 }
 
-export function resolveDefaultRemoteSkillSyncSelection(
-  rows: readonly RemoteSkillSyncRow[],
-): Set<string> {
-  return new Set(
-    rows.filter((row) => !row.exists).map((row) => row.candidate.id),
-  );
+function resolveDefaultRemoteSkillSyncSelection(rows: readonly RemoteSkillSyncRow[]): Set<string> {
+  return new Set(rows.filter((row) => !row.exists).map((row) => row.candidate.id));
 }
 
-export function filterRemoteSkillSyncRows(
+function filterRemoteSkillSyncRows(
   rows: readonly RemoteSkillSyncRow[],
   showExistingRemoteSkills: boolean,
 ): RemoteSkillSyncRow[] {
@@ -88,7 +80,7 @@ export function formatRemoteSkillSyncTarget(
   return workspacePath ? `${target} · ${workspacePath}` : target;
 }
 
-export function formatRemoteSkillSyncError(
+function formatRemoteSkillSyncError(
   error: unknown,
   intl: Pick<IntlInstance, "formatMessage">,
 ): string {
@@ -144,7 +136,7 @@ function formatSkillSyncBytes(bytes: number): string {
   return `${Number.isInteger(mebibytes) ? mebibytes : mebibytes.toFixed(1)} MiB`;
 }
 
-export function getRemoteSkillSyncBulkSelectionState({
+function getRemoteSkillSyncBulkSelectionState({
   selectedCount,
   totalSelectable,
 }: {
@@ -157,14 +149,14 @@ export function getRemoteSkillSyncBulkSelectionState({
   return { checked, disabled, indeterminate };
 }
 
-export function RemoteSkillSyncExistingFilterCheckbox({
+function RemoteSkillSyncExistingFilterCheckbox({
   checked,
   onCheckedChange,
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   return (
     <label className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-md px-1 text-ui-base text-foreground-subtle hover:text-foreground">
@@ -179,7 +171,7 @@ export function RemoteSkillSyncExistingFilterCheckbox({
   );
 }
 
-export function RemoteSkillSyncTargetRow({
+function RemoteSkillSyncTargetRow({
   targetLabel,
   showExistingRemoteSkills,
   showExistingFilter,
@@ -190,15 +182,12 @@ export function RemoteSkillSyncTargetRow({
   showExistingFilter: boolean;
   onShowExistingRemoteSkillsChange: (checked: boolean) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   return (
     <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <p className="min-w-0 break-words font-mono text-ui-base text-foreground-subtle">
-        {intl.formatMessage(
-          { id: "settings.skills.remoteSync.target" },
-          { target: targetLabel },
-        )}
+        {intl.formatMessage({ id: "settings.skills.remoteSync.target" }, { target: targetLabel })}
       </p>
       {showExistingFilter ? (
         <div className="shrink-0">
@@ -212,7 +201,7 @@ export function RemoteSkillSyncTargetRow({
   );
 }
 
-export function RemoteSkillSyncBulkSelectionCheckbox({
+function RemoteSkillSyncBulkSelectionCheckbox({
   selectedCount,
   totalSelectable,
   onSelectAll,
@@ -223,7 +212,7 @@ export function RemoteSkillSyncBulkSelectionCheckbox({
   onSelectAll: () => void;
   onClearAll: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const inputRef = useRef<HTMLInputElement>(null);
   const selectionState = getRemoteSkillSyncBulkSelectionState({
     selectedCount,
@@ -248,7 +237,9 @@ export function RemoteSkillSyncBulkSelectionCheckbox({
         className="size-4"
         checked={selectionState.checked}
         disabled={selectionState.disabled}
-        aria-checked={selectionState.indeterminate ? "mixed" : selectionState.checked ? "true" : "false"}
+        aria-checked={
+          selectionState.indeterminate ? "mixed" : selectionState.checked ? "true" : "false"
+        }
         onChange={(event) => {
           if (event.currentTarget.checked) {
             onSelectAll();
@@ -263,7 +254,7 @@ export function RemoteSkillSyncBulkSelectionCheckbox({
 }
 
 export function RemoteSkillSyncDialog(props: RemoteSkillSyncDialogProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const {
     open,
     onOpenChange,
@@ -311,10 +302,7 @@ export function RemoteSkillSyncDialog(props: RemoteSkillSyncDialogProps) {
         if (cancelled) {
           return;
         }
-        const nextRows = buildRemoteSkillSyncRows(
-          localResult.candidates,
-          remoteResult.statuses,
-        );
+        const nextRows = buildRemoteSkillSyncRows(localResult.candidates, remoteResult.statuses);
         setRows(nextRows);
         setSelectedIds(resolveDefaultRemoteSkillSyncSelection(nextRows));
         setStep("selection");
@@ -433,7 +421,7 @@ export function RemoteSkillSyncDialog(props: RemoteSkillSyncDialogProps) {
           />
         </DialogHeader>
 
-        {/* 修复原因：筛选会改变可见 rows 数量，DialogContent 固定高度后由列表区内部滚动；
+        {/* 筛选会改变可见 rows 数量，DialogContent 固定高度后由列表区内部滚动；
             否则空态按内容收缩会造成弹窗跳动，长列表也会把底部操作栏挤出窗口。 */}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {error ? (
@@ -458,9 +446,7 @@ export function RemoteSkillSyncDialog(props: RemoteSkillSyncDialogProps) {
               rows={visibleRows}
               selectedIds={selectedIds}
               emptyMessageId={
-                rows.length > 0
-                  ? "settings.skills.remoteSync.filteredEmpty"
-                  : undefined
+                rows.length > 0 ? "settings.skills.remoteSync.filteredEmpty" : undefined
               }
               onToggle={toggleSkill}
             />
@@ -471,9 +457,7 @@ export function RemoteSkillSyncDialog(props: RemoteSkillSyncDialogProps) {
               {intl.formatMessage({ id: "settings.skills.remoteSync.syncing" })}
             </div>
           ) : null}
-          {step === "complete" ? (
-            <RemoteSkillSyncResultList result={importResult} />
-          ) : null}
+          {step === "complete" ? <RemoteSkillSyncResultList result={importResult} /> : null}
         </div>
 
         <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">

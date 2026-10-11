@@ -1,21 +1,8 @@
 import type { CommandStorageLevel } from "@zcode/shared";
 import { getPluginWorkspaceKey } from "@/settings/PluginScopeMenu.js";
-import type { WindowTabState, WorkspaceTabState } from "@/store/tabStore.js";
-import { isWorkspaceTab } from "@/store/tabStore.js";
+import type { WorkspaceTabState } from "@/store/tabStore.js";
 
-export type CommandScopeRecovery = "keep" | "fallback-user" | "close-editor";
-
-export function getCommandWorkspaceTabs(tabs: readonly WindowTabState[]): WorkspaceTabState[] {
-  const seen = new Set<string>();
-  return tabs.filter(isWorkspaceTab).filter((tab) => {
-    const key = getPluginWorkspaceKey(tab);
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-}
+type CommandScopeRecovery = "keep" | "fallback-user" | "close-editor";
 
 export function resolveCommandScopeRecovery(params: {
   editing: boolean;

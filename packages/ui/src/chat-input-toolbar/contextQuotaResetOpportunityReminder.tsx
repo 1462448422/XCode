@@ -1,33 +1,33 @@
 import { AlarmClock, GiftIcon, XIcon } from "lucide-react";
-import type { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import type { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { formatCodingPlanQuotaResetCountdown } from "@/components/coding-plan-quota-reset/CodingPlanQuotaResetDialog.js";
 import { Button } from "@/components/ui/button.js";
 
 export const CONTEXT_QUOTA_RESET_URGENT_SECONDS = 180;
 
-export type ContextQuotaResetOpportunityReminderPhase = "initial" | "urgent";
+type ContextQuotaResetOpportunityReminderPhase = "initial" | "urgent";
 
-export interface ContextQuotaResetOpportunityDismissal {
+interface ContextQuotaResetOpportunityDismissal {
   opportunityKey: string | null;
   initial: boolean;
   urgent: boolean;
 }
 
-export interface ContextQuotaResetOpportunity {
+interface ContextQuotaResetOpportunity {
   count: number;
   expiresAt: number | null;
   sourceKey: string | null;
   visible: boolean;
 }
 
-export interface ContextQuotaResetOpportunityReminder {
+interface ContextQuotaResetOpportunityReminder {
   count: number;
   opportunityKey: string;
   phase: ContextQuotaResetOpportunityReminderPhase;
   remainingSeconds: number;
 }
 
-export function createContextQuotaResetOpportunityDismissalStore() {
+function createContextQuotaResetOpportunityDismissalStore() {
   let snapshot: ContextQuotaResetOpportunityDismissal = {
     opportunityKey: null,
     initial: false,
@@ -62,7 +62,7 @@ export function createContextQuotaResetOpportunityDismissalStore() {
 export const contextQuotaResetOpportunityDismissalStore =
   createContextQuotaResetOpportunityDismissalStore();
 
-export type ContextQuotaResetOpportunityTriggerTone = "available" | "urgent";
+type ContextQuotaResetOpportunityTriggerTone = "available" | "urgent";
 
 export function resolveContextQuotaResetOpportunityTriggerTone({
   now,
@@ -130,7 +130,7 @@ export function ContextQuotaResetOpportunityReminderContent({
   remainingSeconds,
 }: {
   count: number;
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   onDismiss: () => void;
   phase: ContextQuotaResetOpportunityReminderPhase;
   remainingSeconds: number;
@@ -181,7 +181,7 @@ function ContextQuotaResetOpportunityDismissButton({
   intl,
   onDismiss,
 }: {
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   onDismiss: () => void;
 }) {
   return (

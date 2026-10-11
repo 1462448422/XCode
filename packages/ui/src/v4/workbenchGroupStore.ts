@@ -3,7 +3,7 @@
 // 这里是 renderer-local 壳子状态：只管 session 到 pane/group 的归属与本地持久化，
 // 不下沉到协议、agent、main process 或 web-remote replayable 状态。
 import { create } from "zustand";
-import type { ZCodeTaskClientMode } from "@zcode/shared";
+import type { XCodeTaskClientMode } from "@zcode/shared";
 import {
   INITIAL_PANE_LAYOUT,
   MAX_WORKBENCH_PANES,
@@ -25,7 +25,7 @@ import {
   type PaneWorkspaceScope,
 } from "@/v4/paneLayoutTree.js";
 
-export const WORKBENCH_GROUP_STORAGE_KEY = "zcode-v4-session-workbench-groups:v1";
+const WORKBENCH_GROUP_STORAGE_KEY = "zcode-v4-session-workbench-groups:v1";
 
 export interface WorkbenchSessionBinding {
   readonly workspaceScope: PaneWorkspaceScope;
@@ -45,14 +45,14 @@ export interface WorkbenchGroup {
   readonly updatedAt: number;
 }
 
-export interface WorkbenchGroupSnapshot {
+interface WorkbenchGroupSnapshot {
   readonly activeGroupId: string | null;
   readonly groups: Readonly<Record<string, WorkbenchGroup>>;
   readonly sessionIndex: Readonly<Record<string, string>>;
 }
 
-export interface WorkbenchGroupStore extends WorkbenchGroupSnapshot {
-  configureClientMode: (clientMode: ZCodeTaskClientMode) => void;
+interface WorkbenchGroupStore extends WorkbenchGroupSnapshot {
+  configureClientMode: (clientMode: XCodeTaskClientMode) => void;
   openSessionFromSidebar: (binding: WorkbenchSessionBinding) => void;
   splitSessionIntoGroup: (
     anchorPaneId: string,
@@ -75,13 +75,13 @@ export interface WorkbenchGroupStore extends WorkbenchGroupSnapshot {
   resetWorkbenchGroups: () => void;
 }
 
-export const INITIAL_WORKBENCH_GROUP_STATE: WorkbenchGroupSnapshot = {
+const INITIAL_WORKBENCH_GROUP_STATE: WorkbenchGroupSnapshot = {
   activeGroupId: null,
   groups: {},
   sessionIndex: {},
 };
 
-let workbenchGroupClientMode: ZCodeTaskClientMode = "desktop-continuous";
+let workbenchGroupClientMode: XCodeTaskClientMode = "desktop-continuous";
 let desktopGroupsHydrated = false;
 
 function workbenchGroupsEnabled(): boolean {
@@ -115,9 +115,7 @@ function workbenchBinding(binding: PaneBinding): WorkbenchSessionBinding | null 
         workspaceScope: binding.workspaceScope,
         sessionId: binding.sessionId,
         ...(binding.readOnly ? { readOnly: true } : {}),
-        ...(binding.restoredUnvalidated
-          ? { restoredUnvalidated: true }
-          : {}),
+        ...(binding.restoredUnvalidated ? { restoredUnvalidated: true } : {}),
       }
     : null;
 }
@@ -173,7 +171,7 @@ function allocateGroupId(groups: Readonly<Record<string, WorkbenchGroup>>): stri
   return `group-${max + 1}`;
 }
 
-export function createWorkbenchGroupFromSessions(
+function createWorkbenchGroupFromSessions(
   primary: WorkbenchSessionBinding,
   added: WorkbenchSessionBinding,
   side: PaneSplitSide,
@@ -230,7 +228,7 @@ function createWorkbenchGroupFromPaneLayout(
   };
 }
 
-export function focusWorkbenchGroupPane(
+function focusWorkbenchGroupPane(
   group: WorkbenchGroup,
   paneId: string,
   updatedAt = Date.now(),
@@ -239,7 +237,7 @@ export function focusWorkbenchGroupPane(
   return focused === group ? group : { ...group, focusedPaneId: focused.focusedPaneId, updatedAt };
 }
 
-export function splitWorkbenchGroupPane(
+function splitWorkbenchGroupPane(
   group: WorkbenchGroup,
   anchorPaneId: string,
   side: PaneSplitSide,
@@ -300,16 +298,12 @@ export function closeWorkbenchGroupPane(
   return countPanes(candidate) < 2 ? null : candidate;
 }
 
-export function confirmRestoredWorkbenchGroupPane(
-  group: WorkbenchGroup,
-  paneId: string,
-): WorkbenchGroup {
+function confirmRestoredWorkbenchGroupPane(group: WorkbenchGroup, paneId: string): WorkbenchGroup {
   if (paneId === V4_PRIMARY_PANE_ID) {
     if (!group.primaryBinding.restoredUnvalidated) {
       return group;
     }
-    const { restoredUnvalidated: _restored, ...primaryBinding } =
-      group.primaryBinding;
+    const { restoredUnvalidated: _restored, ...primaryBinding } = group.primaryBinding;
     return { ...group, primaryBinding };
   }
   const binding = group.panes[paneId];
@@ -631,7 +625,7 @@ function sanitizePersistedWorkbenchGroups(value: unknown): WorkbenchGroupSnapsho
   return { activeGroupId, groups, sessionIndex };
 }
 
-export function persistWorkbenchGroups(snapshot: WorkbenchGroupSnapshot): void {
+function persistWorkbenchGroups(snapshot: WorkbenchGroupSnapshot): void {
   if (!workbenchGroupsEnabled()) {
     return;
   }
@@ -642,10 +636,7 @@ export function persistWorkbenchGroups(snapshot: WorkbenchGroupSnapshot): void {
   try {
     const groups = Object.fromEntries(
       Object.entries(snapshot.groups).map(([groupId, group]) => {
-        const {
-          restoredUnvalidated: _primaryRestored,
-          ...primaryBinding
-        } = group.primaryBinding;
+        const { restoredUnvalidated: _primaryRestored, ...primaryBinding } = group.primaryBinding;
         const panes = Object.fromEntries(
           Object.entries(group.panes).map(([paneId, binding]) => {
             const { restoredUnvalidated: _restored, ...persisted } = binding;
@@ -670,7 +661,7 @@ export function persistWorkbenchGroups(snapshot: WorkbenchGroupSnapshot): void {
   }
 }
 
-export function readPersistedWorkbenchGroups(): WorkbenchGroupSnapshot | null {
+function readPersistedWorkbenchGroups(): WorkbenchGroupSnapshot | null {
   if (!workbenchGroupsEnabled()) {
     return null;
   }

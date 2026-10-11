@@ -2,7 +2,7 @@ import { XIcon } from "lucide-react";
 import type { MarketingTouchDelivery } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import { MarketingHeroTicket } from "@/marketing/MarketingHeroTicket.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
 /**
  * Marketing Touch 横幅卡片（对齐官方 Wnn）。

@@ -41,7 +41,7 @@ export function getOfficialPluginCacheRetryAttempts(error: unknown): number {
   return typeof attempts === "number" && Number.isFinite(attempts) ? attempts : 1;
 }
 
-export function retryOfficialPluginCacheFs<T>(
+function retryOfficialPluginCacheFs<T>(
   operation: () => T,
   options?: {
     budget?: OfficialPluginCacheRetryBudget;

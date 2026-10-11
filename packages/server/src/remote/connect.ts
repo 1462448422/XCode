@@ -1,16 +1,15 @@
-import { SocketProtocol, ChannelClient, ChannelServer, type IServerChannel } from "@zcode/rpc";
+import { SocketProtocol, ChannelClient } from "@zcode/rpc";
 import type { IServiceAccessor } from "@zcode/services";
 import { RemoteServiceAccess } from "@zcode/client";
 import {
   SERVICE_AUTHORITY_MODE_ENV,
-  TOPIC_RESOURCE_RELAY_CHANNEL,
-  ZCODE_APP_VERSION_ENV,
-  ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
-  ZCODE_DYNAMIC_WORKFLOW_MODE_ENV,
+  XCODE_APP_VERSION_ENV,
+  XCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
+  XCODE_DYNAMIC_WORKFLOW_MODE_ENV,
   formatLogPrefix,
-  ZCODE_REMOTE_HTTP_PROXY_ENV_KEY,
-  ZCODE_REMOTE_NO_PROXY_ENV_KEY,
-  ZCODE_REMOTE_RUNTIME_NETWORK_AUTHORITY_ENV_KEY,
+  XCODE_REMOTE_HTTP_PROXY_ENV_KEY,
+  XCODE_REMOTE_NO_PROXY_ENV_KEY,
+  XCODE_REMOTE_RUNTIME_NETWORK_AUTHORITY_ENV_KEY,
 } from "@zcode/shared";
 import type { IRemoteBackend } from "./backend.js";
 import { wrapStdioStream } from "./stdio-socket.js";
@@ -24,8 +23,6 @@ import { formatWslProxyForLog } from "./wslProxy.js";
 const BACKEND_DISCONNECT_EXIT_CODE = -1;
 
 export interface ConnectOptions extends DeployOptions {
-  /** 仅 Desktop Host 注入，复用当前 stdio 的私有反向资源频道。 */
-  topicResourceChannel?: IServerChannel;
   /** Client identifier for handshake */
   clientId?: string;
   /** Handshake timeout in ms (default: 10000) */
@@ -57,25 +54,17 @@ export interface RemoteConnection {
 }
 
 const REMOTE_RUNTIME_ENV_KEYS = [
-  "ZCODE_ENV",
-  "ZCODE_BASE_URL",
-  "ZCODE_ENDPOINT_ORIGIN",
-  "ZCODE_TEST_BASE_URL",
-  "ZCODE_PRODUCTION_BASE_URL",
+  "XCODE_ENV",
+  "XCODE_BASE_URL",
+  "XCODE_ENDPOINT_ORIGIN",
   "ZAI_OAUTH_ORIGIN",
-  "ZAI_TEST_OAUTH_ORIGIN",
-  "ZAI_PRODUCTION_OAUTH_ORIGIN",
   "ZAI_BUSINESS_BASE_URL",
-  "ZAI_TEST_BUSINESS_BASE_URL",
-  "ZAI_PRODUCTION_BUSINESS_BASE_URL",
   "ZAI_OAUTH_CLIENT_ID",
-  "ZAI_TEST_OAUTH_CLIENT_ID",
-  "ZAI_PRODUCTION_OAUTH_CLIENT_ID",
-  // Desktop Main 已完成的单功能灰度结果；远端 server 只消费，不重新分桶。
-  ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
+  // 由 Desktop Main 计算并下发；远端 server 只消费，不重新计算。
+  XCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
   // 同上：本地覆盖由 Desktop Main 按构建档位写定（buildHostProcessEnv），
   // 透传后 SSH/WSL/Docker 远端 Host 与本地 Host 得到同一档位。
-  ZCODE_DYNAMIC_WORKFLOW_MODE_ENV,
+  XCODE_DYNAMIC_WORKFLOW_MODE_ENV,
 ] as const;
 
 export type RemoteRuntimeEnvKey = (typeof REMOTE_RUNTIME_ENV_KEYS)[number];
@@ -228,11 +217,6 @@ async function connectRemoteUnchecked(
   const socket = wrapStdioStream(stream);
   const protocol = new SocketProtocol(socket);
   const client = new ChannelClient(protocol);
-  const reverseServer = options?.topicResourceChannel
-    ? new ChannelServer(protocol, "desktop-resource")
-    : undefined;
-  if (reverseServer && options?.topicResourceChannel)
-    reverseServer.registerChannel(TOPIC_RESOURCE_RELAY_CHANNEL, options.topicResourceChannel);
   const services = new RemoteServiceAccess(client);
   let hasReportedRemoteClose = false;
   let hasStreamClosed = false;
@@ -274,7 +258,6 @@ async function connectRemoteUnchecked(
     }
     disposalStarted = true;
     backendDisconnectDisposable?.dispose();
-    reverseServer?.dispose();
     client.dispose();
     protocol.dispose();
     // stdin.end 必须在任何 await 之前同步触发，让远端 stdio server 立即收到 EOF。
@@ -379,7 +362,7 @@ function buildRemoteServerCommand(
 ): string {
   const envParts = [
     `${SERVICE_AUTHORITY_MODE_ENV}="desktop-attached-remote"`,
-    'ZCODE_SERVER_RUNTIME_ROOT="$HOME/.zcode/server"',
+    'XCODE_SERVER_RUNTIME_ROOT="$HOME/.xcode/server"',
   ];
   for (const [key, value] of Object.entries(
     pickRemoteRuntimeEnv(options?.remoteRuntimeEnv ?? {}),
@@ -390,20 +373,20 @@ function buildRemoteServerCommand(
   if (appVersion) {
     // 远端 server 是通过 SSH/WSL/Docker 单独启动的，不会继承桌面 host env。
     // 这里显式把 app 版本作为远端进程 env 注入，远端 agent 才能在模型请求 header 中带上版本。
-    envParts.push(`${ZCODE_APP_VERSION_ENV}=${quotePosixShellArg(appVersion)}`);
+    envParts.push(`${XCODE_APP_VERSION_ENV}=${quotePosixShellArg(appVersion)}`);
   }
   if (remoteRuntimeNetwork?.authoritative) {
-    envParts.push(`${ZCODE_REMOTE_RUNTIME_NETWORK_AUTHORITY_ENV_KEY}='1'`);
+    envParts.push(`${XCODE_REMOTE_RUNTIME_NETWORK_AUTHORITY_ENV_KEY}='1'`);
     if (remoteRuntimeNetwork.httpProxy !== undefined) {
       envParts.push(
-        `${ZCODE_REMOTE_HTTP_PROXY_ENV_KEY}=${quotePosixShellArg(remoteRuntimeNetwork.httpProxy)}`,
+        `${XCODE_REMOTE_HTTP_PROXY_ENV_KEY}=${quotePosixShellArg(remoteRuntimeNetwork.httpProxy)}`,
       );
     }
     if (remoteRuntimeNetwork.noProxy !== undefined) {
       envParts.push(
-        `${ZCODE_REMOTE_NO_PROXY_ENV_KEY}=${quotePosixShellArg(remoteRuntimeNetwork.noProxy)}`,
+        `${XCODE_REMOTE_NO_PROXY_ENV_KEY}=${quotePosixShellArg(remoteRuntimeNetwork.noProxy)}`,
       );
     }
   }
-  return `${envParts.join(" ")} ~/.zcode/server/node ~/.zcode/server/zcode-server.cjs`;
+  return `${envParts.join(" ")} ~/.xcode/server/node ~/.xcode/server/zcode-server.cjs`;
 }

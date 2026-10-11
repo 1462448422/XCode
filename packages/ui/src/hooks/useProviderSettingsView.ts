@@ -8,12 +8,12 @@ import {
   type ProviderSettingsState,
 } from "@/lib/providerSettingsSnapshot.js";
 
-export interface ProviderSettingsRead {
+interface ProviderSettingsRead {
   state: ProviderSettingsState;
   reload(): void;
 }
 
-export interface ProviderSettingsServiceRead extends ProviderSettingsRead {
+interface ProviderSettingsServiceRead extends ProviderSettingsRead {
   /** 提交 mutation 返回的权威 View；不依赖异步 onDidChange 事件才能收敛 UI。 */
   commit(view: ProviderSettingsView): void;
 }

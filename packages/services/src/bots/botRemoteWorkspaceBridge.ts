@@ -6,10 +6,10 @@ import {
   hostBotRemoteWorkspaceReconnectResultMessageSchema,
   type RemoteTarget,
 } from "@zcode/shared";
-import { type IZCodeTaskService as IZCodeTaskServiceShape } from "../session/zcodeTaskService.js";
+import { type IXCodeTaskService as IXCodeTaskServiceShape } from "../session/zcodeTaskService.js";
 import type { ICredentialService } from "../credential/credential.js";
 import type { ISettingService } from "../setting/setting.js";
-import { type ZCodeAgentAppRuntimePreferences } from "../zcode-agent/zcodeAgent.js";
+import { type XCodeAgentAppRuntimePreferences } from "../zcode-agent/zcodeAgent.js";
 import {
   createRemoteRuntimeServicesFromPort,
   type RemoteBotWorkspaceRuntimeServices,
@@ -30,7 +30,6 @@ export function createBotRemoteWorkspaceService(params: {
   parentPort?: ParentPortLike | null;
   settingService: ISettingService;
   credentialService: ICredentialService;
-  createRuntimeServicesFromPort?: (port: unknown) => RemoteBotWorkspaceRuntimeServices;
 }) {
   const parentPort = params.parentPort;
   if (!parentPort) {
@@ -51,7 +50,7 @@ export function createBotRemoteWorkspaceService(params: {
     (result: { ok: boolean; connected?: boolean; error?: string }) => void
   >();
   const runtimeServicesByWorkspaceKey = new Map<string, RemoteBotWorkspaceRuntimeServices>();
-  let latestAppRuntimePreferences: ZCodeAgentAppRuntimePreferences | undefined;
+  let latestAppRuntimePreferences: XCodeAgentAppRuntimePreferences | undefined;
   let appRuntimePreferencesRevision = 0;
   const onMessage = (event: ParentPortMessageEvent) => {
     const result = hostBotRemoteWorkspaceReconnectResultMessageSchema.safeParse(event.data);
@@ -239,16 +238,16 @@ export function createBotRemoteWorkspaceService(params: {
       }
       return { ok: false, message: result.error ?? "unknown" };
     },
-    async getZCodeTaskService(target: {
+    async getXCodeTaskService(target: {
       workspacePath: string;
       workspaceIdentity: string;
-    }): Promise<IZCodeTaskServiceShape | null> {
+    }): Promise<IXCodeTaskServiceShape | null> {
       return (await getRuntimeServices(target))?.zcodeTaskService ?? null;
     },
     async getModelSelectionService(target: { workspacePath: string; workspaceIdentity: string }) {
       return (await getRuntimeServices(target))?.modelSelectionService ?? null;
     },
-    async syncAppRuntimePreferences(preferences: ZCodeAgentAppRuntimePreferences): Promise<void> {
+    async syncAppRuntimePreferences(preferences: XCodeAgentAppRuntimePreferences): Promise<void> {
       latestAppRuntimePreferences = preferences;
       appRuntimePreferencesRevision += 1;
       // 修复原因：远端 Bot runtime 不属于任何 renderer 窗口，Root 的 Agent 同步无法触达它。
@@ -308,17 +307,15 @@ export function createBotRemoteWorkspaceService(params: {
     }
     // Bugfix: Bot 任务以前只知道远端 identity，却继续调用本地 task service。
     // 这里把 main 转发来的远端 RPC 端口包装成一组 runtime services；
-    // task wrapper 命令走 IZCodeTaskService，session 主状态走 ZCode session facade。
-    const services =
-      params.createRuntimeServicesFromPort?.(result.port) ??
-      createRemoteRuntimeServicesFromPort(result.port);
+    // task wrapper 命令走 IXCodeTaskService，session 主状态走 XCode session facade。
+    const services = createRemoteRuntimeServicesFromPort(result.port);
     // 远端 Bot 与 UI workspace 共用同一个远端 Environment。这里只确认远端
     // Model Selection Facade 已就绪，Desktop 不再向远端注入完整 Provider Registry。
     await services.modelSelectionService.getView();
     while (true) {
       const revision = appRuntimePreferencesRevision;
       const cachedPreferences = latestAppRuntimePreferences;
-      const preferences: ZCodeAgentAppRuntimePreferences = cachedPreferences
+      const preferences: XCodeAgentAppRuntimePreferences = cachedPreferences
         ? cachedPreferences
         : await params.settingService.get().then((settings) => ({
             askUserQuestionAutoResolutionEnabled:

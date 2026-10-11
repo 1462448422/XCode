@@ -1,33 +1,25 @@
 import { ClockIcon } from "lucide-react";
 import { TID_CRON_CREATE_CARD, TID_CRON_CREATE_OPEN } from "@zcode/shared";
-import type { ZCodeAutomationScheduleRule } from "@zcode/shared";
+import type { XCodeAutomationScheduleRule } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import { cn } from "@/components/lib/utils.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { describeAutomationCardSchedule } from "@/settings/automationCardSchedule.js";
 import type { ToolCallBlockRenderContext } from "@/ToolCallBlocks/shared.js";
-import { FallbackToolCallBlock } from "@/ToolCallBlocks/renderers/fallback.js";
 
 export interface CronCreateAutomationSummary {
   automationId?: string;
   title?: string;
   cronExpr?: string;
   /** 权威重复规则；卡片优先用它展示 cron 无法表达的真实间隔（如每50小时、每40天）。 */
-  scheduleRule?: ZCodeAutomationScheduleRule;
+  scheduleRule?: XCodeAutomationScheduleRule;
   recurring?: boolean;
   maxRuns?: number;
 }
 
-const SCHEDULE_RULE_UNITS = new Set([
-  "minute",
-  "hourly",
-  "daily",
-  "weekly",
-  "monthly",
-  "yearly",
-]);
+const SCHEDULE_RULE_UNITS = new Set(["minute", "hourly", "daily", "weekly", "monthly", "yearly"]);
 
-function isScheduleRule(value: unknown): value is ZCodeAutomationScheduleRule {
+function isScheduleRule(value: unknown): value is XCodeAutomationScheduleRule {
   // 宽松结构校验：输出可能来自协议或历史工具结果，字段宽松地放行后由 describe 层兜底。
   if (!isPlainRecord(value)) return false;
   if (typeof value.unit !== "string" || !SCHEDULE_RULE_UNITS.has(value.unit)) return false;
@@ -38,21 +30,11 @@ function isScheduleRule(value: unknown): value is ZCodeAutomationScheduleRule {
 }
 
 function normalizeToolName(value: unknown): string {
-  return typeof value === "string"
-    ? value.toLowerCase().replace(/[^a-z0-9]/gu, "")
-    : "";
+  return typeof value === "string" ? value.toLowerCase().replace(/[^a-z0-9]/gu, "") : "";
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-export function isCronCreateToolCall(
-  toolCall: ToolCallBlockRenderContext["toolCallNode"]["toolCall"],
-): boolean {
-  return [toolCall.toolName, toolCall.kind, toolCall.title].some(
-    (value) => normalizeToolName(value) === "croncreate",
-  );
 }
 
 export function isCronAutomationCardToolCall(
@@ -81,9 +63,7 @@ function normalizeOutputCandidate(value: unknown): unknown {
   return typeof value === "string" ? parseJsonString(value) : value;
 }
 
-export function readCronCreateAutomationOutputSummary(
-  value: unknown,
-): CronCreateAutomationSummary | null {
+function readCronCreateAutomationOutputSummary(value: unknown): CronCreateAutomationSummary | null {
   const normalizedValue = normalizeOutputCandidate(value);
   if (!isPlainRecord(normalizedValue)) {
     return null;
@@ -114,10 +94,9 @@ export function readCronCreateAutomationOutputSummary(
 
   // 读取权威 scheduleRule 与循环/次数信息，供卡片展示 cron 无法表达的真实间隔。
   const scheduleRule = isScheduleRule(automation.scheduleRule)
-    ? (automation.scheduleRule as ZCodeAutomationScheduleRule)
+    ? (automation.scheduleRule as XCodeAutomationScheduleRule)
     : undefined;
-  const recurring =
-    typeof automation.recurring === "boolean" ? automation.recurring : undefined;
+  const recurring = typeof automation.recurring === "boolean" ? automation.recurring : undefined;
   const maxRuns =
     typeof automation.maxRuns === "number" && Number.isFinite(automation.maxRuns)
       ? automation.maxRuns
@@ -165,7 +144,7 @@ export function CronCreateAutomationCard({
   automation: CronCreateAutomationSummary;
   onOpenAutomationsMain?: (automationId?: string) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const title =
     automation.title ?? intl.formatMessage({ id: "automations.chatCreated.defaultTitle" });
   const schedule = automation.cronExpr
@@ -213,21 +192,5 @@ export function CronCreateAutomationCard({
         </Button>
       </div>
     </div>
-  );
-}
-
-export function CronCreateToolCallBlock(context: ToolCallBlockRenderContext) {
-  const { toolCall } = context.toolCallNode;
-  const automation = readCronCreateAutomationSummary(toolCall);
-
-  if (toolCall.status === "failed" || !automation) {
-    return <FallbackToolCallBlock {...context} />;
-  }
-
-  return (
-    <CronCreateAutomationCard
-      automation={automation}
-      onOpenAutomationsMain={context.onOpenAutomationsMain}
-    />
   );
 }

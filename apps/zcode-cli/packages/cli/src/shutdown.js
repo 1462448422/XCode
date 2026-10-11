@@ -45,7 +45,7 @@ export function registerCliShutdownHandlers(options) {
     return unregister;
 }
 export async function flushE2ECoverage() {
-    if (process.env.ZCODE_E2E_COVERAGE !== "1" || !process.env.NODE_V8_COVERAGE?.trim()) {
+    if (process.env.XCODE_E2E_COVERAGE !== "1" || !process.env.NODE_V8_COVERAGE?.trim()) {
         return;
     }
     try {

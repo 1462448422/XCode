@@ -32,7 +32,7 @@ function isToolCallRow(row: AssistantWorkRow): row is ToolCallRow {
   return row.kind === "toolCall";
 }
 
-export function isOfficialCuaToolCallRow(row: AssistantWorkRow): boolean {
+function isOfficialCuaToolCallRow(row: AssistantWorkRow): boolean {
   return (
     isToolCallRow(row) &&
     OFFICIAL_CUA_TOOL_PREFIXES.some((prefix) => row.toolName.startsWith(prefix))

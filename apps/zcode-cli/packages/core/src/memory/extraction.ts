@@ -5,7 +5,7 @@ import type { MemoryManifestEntry } from "./recall/types.js";
 
 const MINIMUM_USER_WORDS = 3;
 
-export type MemoryExtractionExecutionStatus = "success" | "no-op" | "error" | "aborted";
+type MemoryExtractionExecutionStatus = "success" | "no-op" | "error" | "aborted";
 
 export interface MemoryExtractionSnapshot {
   boundaryMessageId: MessageId;
@@ -15,7 +15,7 @@ export interface MemoryExtractionSnapshot {
   workspaceRoot: string;
 }
 
-export type MemoryExtractionDecision =
+type MemoryExtractionDecision =
   | { decision: "run"; messageCount: number }
   | {
       decision: "skip";
@@ -23,7 +23,7 @@ export type MemoryExtractionDecision =
       reason: "direct-memory-write" | "no-user-prose";
     };
 
-export interface MemoryExtractionExecutionInput {
+interface MemoryExtractionExecutionInput {
   abortSignal: AbortSignal;
   messageCount: number;
   snapshot: MemoryExtractionSnapshot;
@@ -65,7 +65,7 @@ export function buildMemoryExtractionPrompt(input: {
   ].join("\n");
 }
 
-export function evaluateMemoryExtraction(
+function evaluateMemoryExtraction(
   snapshot: MemoryExtractionSnapshot,
   cursor: MessageId | undefined,
 ): MemoryExtractionDecision {
@@ -169,7 +169,7 @@ export function createMemoryExtractionScheduler<
     },
     shutdown() {
       if (shuttingDown) return;
-      // ZCode 关闭单个 session 后进程仍继续运行；旧 scheduler 只让调用方
+      // XCode 关闭单个 session 后进程仍继续运行；旧 scheduler 只让调用方
       // 放弃等待，running/pending Extraction 仍可能继续请求模型和写 Memory。
       shuttingDown = true;
       latestPending = undefined;

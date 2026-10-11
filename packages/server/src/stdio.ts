@@ -1,15 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { Emitter, VSBuffer, SocketProtocol, ChannelServer, type ISocket } from "@zcode/rpc";
 import {
-  Emitter,
-  VSBuffer,
-  SocketProtocol,
-  ChannelServer,
-  ChannelClient,
-  type ISocket,
-} from "@zcode/rpc";
-import {
-  IZCodeAgentService,
-  createZCodeAgentConnectionScope,
+  IXCodeAgentService,
+  createXCodeAgentConnectionScope,
   type ServiceCollection,
 } from "@zcode/services";
 
@@ -60,18 +53,13 @@ export function wrapStdio(): ISocket {
   };
 }
 
-export function createStdioServer(
-  services: ServiceCollection,
-  onReverseClientReady?: (client: ChannelClient) => void,
-) {
+export function createStdioServer(services: ServiceCollection) {
   const socket = wrapStdio();
   const protocol = new SocketProtocol(socket);
   const channelServer = new ChannelServer(protocol, "stdio");
-  const reverseClient = onReverseClientReady ? new ChannelClient(protocol) : undefined;
-  if (reverseClient) onReverseClientReady?.(reverseClient);
-  const agentService = services.getOptional(IZCodeAgentService);
+  const agentService = services.getOptional(IXCodeAgentService);
   const connectionScope = agentService
-    ? createZCodeAgentConnectionScope(agentService, {
+    ? createXCodeAgentConnectionScope(agentService, {
         connectionId: `server-stdio-${randomUUID()}`,
         clientMode: "desktop-continuous",
         role: "trusted-host-relay",
@@ -80,7 +68,7 @@ export function createStdioServer(
   services.exposeOnChannelServer(
     channelServer,
     connectionScope
-      ? new Map([[IZCodeAgentService.channelName, connectionScope.service]])
+      ? new Map([[IXCodeAgentService.channelName, connectionScope.service]])
       : new Map(),
   );
   let stopPromise: Promise<void> | undefined;
@@ -92,7 +80,6 @@ export function createStdioServer(
     // 先同步摘掉 protocol listener，保证从这一刻起不再接收新的 service RPC；
     // connection scope 的异步退订完成后再关闭底层 stdio。
     channelServer.dispose();
-    reverseClient?.dispose();
     stopPromise = (async () => {
       try {
         await connectionScope?.dispose();

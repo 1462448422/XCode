@@ -21,7 +21,17 @@ import type {
   SettingsSyncSourceRootSummary,
   SettingsSyncTaskImportResult,
 } from "@zcode/shared";
-import { copyFile, cp, link, lstat, mkdir, readFile, readdir, symlink, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  cp,
+  link,
+  lstat,
+  mkdir,
+  readFile,
+  readdir,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
@@ -401,7 +411,7 @@ const SUPPORTED_MCP_AGENT_SOURCES: ExternalAgentMcpPathSource[] = [
   },
 ];
 
-const ZCODE_PLUGIN_MANIFEST_PATH = [".zcode-plugin", "plugin.json"] as const;
+const XCODE_PLUGIN_MANIFEST_PATH = [".zcode-plugin", "plugin.json"] as const;
 const CLAUDE_PLUGIN_MANIFEST_PATH = [".claude-plugin", "plugin.json"] as const;
 const CODEX_PLUGIN_MANIFEST_PATH = [".codex-plugin", "plugin.json"] as const;
 const INLINE_PLUGIN_MARKETPLACE = "inline";
@@ -411,44 +421,44 @@ function resolveUserHomeDir(): string {
   return envHome && envHome.length > 0 ? envHome : homedir();
 }
 
-function getWorkspaceZcodeSkillRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "skills");
+function getWorkspaceXcodeSkillRoot(workspacePath: string): string {
+  return join(workspacePath, ".xcode", "skills");
 }
 
-function getUserZcodeSkillRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "skills");
+function getUserXcodeSkillRoot(): string {
+  return join(resolveUserHomeDir(), ".xcode", "skills");
 }
 
-function getWorkspaceZcodeCommandRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "commands");
+function getWorkspaceXcodeCommandRoot(workspacePath: string): string {
+  return join(workspacePath, ".xcode", "commands");
 }
 
-function getUserZcodeCommandRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "commands");
+function getUserXcodeCommandRoot(): string {
+  return join(resolveUserHomeDir(), ".xcode", "commands");
 }
 
-function getWorkspaceZcodePluginRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "plugins");
+function getWorkspaceXcodePluginRoot(workspacePath: string): string {
+  return join(workspacePath, ".xcode", "plugins");
 }
 
-function getUserZcodePluginRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "plugins");
+function getUserXcodePluginRoot(): string {
+  return join(resolveUserHomeDir(), ".xcode", "plugins");
 }
 
-function getUserZcodeCliConfigPath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "cli", "config.json");
+function getUserXcodeCliConfigPath(): string {
+  return join(resolveUserHomeDir(), ".xcode", "cli", "config.json");
 }
 
-function getWorkspaceZcodeConfigPath(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "config.json");
+function getWorkspaceXcodeConfigPath(workspacePath: string): string {
+  return join(workspacePath, ".xcode", "config.json");
 }
 
 function getClaudeUserAgentsFileSourcePath(): string {
   return join(resolveUserHomeDir(), ".claude", "CLAUDE.md");
 }
 
-function getUserZcodeAgentsFilePath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "AGENTS.md");
+function getUserXcodeAgentsFilePath(): string {
+  return join(resolveUserHomeDir(), ".xcode", "AGENTS.md");
 }
 
 function resolveTargetRootForScope(
@@ -456,9 +466,9 @@ function resolveTargetRootForScope(
   workspacePath: string | undefined,
 ): string | null {
   if (targetScope === "global") {
-    return getUserZcodeSkillRoot();
+    return getUserXcodeSkillRoot();
   }
-  return workspacePath ? getWorkspaceZcodeSkillRoot(workspacePath) : null;
+  return workspacePath ? getWorkspaceXcodeSkillRoot(workspacePath) : null;
 }
 
 function resolveCandidateTargetRoot(
@@ -466,8 +476,10 @@ function resolveCandidateTargetRoot(
   workspacePath: string | undefined,
 ): string | null {
   return sourceScope === "workspace"
-    ? workspacePath ? getWorkspaceZcodeSkillRoot(workspacePath) : null
-    : getUserZcodeSkillRoot();
+    ? workspacePath
+      ? getWorkspaceXcodeSkillRoot(workspacePath)
+      : null
+    : getUserXcodeSkillRoot();
 }
 
 function resolveCommandTargetRootForScope(
@@ -475,9 +487,9 @@ function resolveCommandTargetRootForScope(
   workspacePath: string | undefined,
 ): string | null {
   if (targetScope === "global") {
-    return getUserZcodeCommandRoot();
+    return getUserXcodeCommandRoot();
   }
-  return workspacePath ? getWorkspaceZcodeCommandRoot(workspacePath) : null;
+  return workspacePath ? getWorkspaceXcodeCommandRoot(workspacePath) : null;
 }
 
 function resolveCommandCandidateTargetRoot(
@@ -485,8 +497,10 @@ function resolveCommandCandidateTargetRoot(
   workspacePath: string | undefined,
 ): string | null {
   return sourceScope === "workspace"
-    ? workspacePath ? getWorkspaceZcodeCommandRoot(workspacePath) : null
-    : getUserZcodeCommandRoot();
+    ? workspacePath
+      ? getWorkspaceXcodeCommandRoot(workspacePath)
+      : null
+    : getUserXcodeCommandRoot();
 }
 
 function resolvePluginTargetRootForScope(
@@ -494,9 +508,9 @@ function resolvePluginTargetRootForScope(
   workspacePath: string | undefined,
 ): string | null {
   if (targetScope === "global") {
-    return getUserZcodePluginRoot();
+    return getUserXcodePluginRoot();
   }
-  return workspacePath ? getWorkspaceZcodePluginRoot(workspacePath) : null;
+  return workspacePath ? getWorkspaceXcodePluginRoot(workspacePath) : null;
 }
 
 function resolvePluginCandidateTargetRoot(
@@ -504,8 +518,10 @@ function resolvePluginCandidateTargetRoot(
   workspacePath: string | undefined,
 ): string | null {
   return sourceScope === "workspace"
-    ? workspacePath ? getWorkspaceZcodePluginRoot(workspacePath) : null
-    : getUserZcodePluginRoot();
+    ? workspacePath
+      ? getWorkspaceXcodePluginRoot(workspacePath)
+      : null
+    : getUserXcodePluginRoot();
 }
 
 function resolvePluginConfigPathForScope(
@@ -513,9 +529,9 @@ function resolvePluginConfigPathForScope(
   workspacePath: string | undefined,
 ): string | null {
   if (targetScope === "global") {
-    return getUserZcodeCliConfigPath();
+    return getUserXcodeCliConfigPath();
   }
-  return workspacePath ? getWorkspaceZcodeConfigPath(workspacePath) : null;
+  return workspacePath ? getWorkspaceXcodeConfigPath(workspacePath) : null;
 }
 
 function resolveMcpConfigPathForScope(
@@ -523,9 +539,9 @@ function resolveMcpConfigPathForScope(
   workspacePath: string | undefined,
 ): string | null {
   if (targetScope === "global") {
-    return getUserZcodeCliConfigPath();
+    return getUserXcodeCliConfigPath();
   }
-  return workspacePath ? getWorkspaceZcodeConfigPath(workspacePath) : null;
+  return workspacePath ? getWorkspaceXcodeConfigPath(workspacePath) : null;
 }
 
 async function importSkillDirectory(
@@ -544,13 +560,13 @@ async function importSkillDirectory(
   });
 }
 
-export function getSkillDirectorySymlinkType(
+function getSkillDirectorySymlinkType(
   platform: NodeJS.Platform | string = process.platform,
 ): "dir" | "junction" {
   return platform === "win32" ? "junction" : "dir";
 }
 
-export function getCommandFileSymlinkType(): "file" {
+function getCommandFileSymlinkType(): "file" {
   return "file";
 }
 
@@ -762,7 +778,7 @@ async function collectCommandMarkdownPaths(rootPath: string): Promise<string[]> 
 }
 
 async function findPluginManifestPath(pluginPath: string): Promise<string | null> {
-  const zcodeManifestPath = join(pluginPath, ...ZCODE_PLUGIN_MANIFEST_PATH);
+  const zcodeManifestPath = join(pluginPath, ...XCODE_PLUGIN_MANIFEST_PATH);
   if (await pathExists(zcodeManifestPath)) {
     return zcodeManifestPath;
   }
@@ -811,7 +827,7 @@ function normalizeSkillNameKey(name: string): string {
 function stripYamlScalarQuotes(value: string): string {
   const trimmed = value.trim();
   if (
-    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
     (trimmed.startsWith("'") && trimmed.endsWith("'"))
   ) {
     return trimmed.slice(1, -1).trim();
@@ -843,12 +859,14 @@ function readSkillMetadataFromMarkdown(
   try {
     const parsed = parseYaml(frontmatterText);
     if (isRecord(parsed)) {
-      const name = typeof parsed.name === "string" && parsed.name.trim()
-        ? parsed.name.trim()
-        : readLooseSkillName(frontmatterText, fallbackName);
-      const parsedVersion = typeof parsed.version === "string" || typeof parsed.version === "number"
-        ? String(parsed.version).trim()
-        : "";
+      const name =
+        typeof parsed.name === "string" && parsed.name.trim()
+          ? parsed.name.trim()
+          : readLooseSkillName(frontmatterText, fallbackName);
+      const parsedVersion =
+        typeof parsed.version === "string" || typeof parsed.version === "number"
+          ? String(parsed.version).trim()
+          : "";
       const version = parsedVersion || readLooseSkillVersion(frontmatterText);
       return {
         name,
@@ -905,10 +923,7 @@ function getCommandNameFromPath(rootPath: string, filePath: string): string {
     .join("/")}`;
 }
 
-async function readCommandMetadata(params: {
-  filePath: string;
-  rootPath: string;
-}): Promise<{
+async function readCommandMetadata(params: { filePath: string; rootPath: string }): Promise<{
   argumentHint?: string;
   description?: string;
   name: string;
@@ -945,9 +960,10 @@ async function readPluginMetadata(pluginPath: string): Promise<{
     if (name.length === 0) {
       return null;
     }
-    const version = typeof parsed.version === "string" && parsed.version.trim().length > 0
-      ? parsed.version.trim()
-      : undefined;
+    const version =
+      typeof parsed.version === "string" && parsed.version.trim().length > 0
+        ? parsed.version.trim()
+        : undefined;
     return {
       id: `${name}@${INLINE_PLUGIN_MARKETPLACE}`,
       name,
@@ -1005,7 +1021,7 @@ function stripExternalMcpTimeoutFields(config: McpServerConfig): McpServerConfig
   return rest as McpServerConfig;
 }
 
-function readZcodeMcpServers(parsed: Record<string, unknown>): Record<string, McpServerConfig> {
+function readXcodeMcpServers(parsed: Record<string, unknown>): Record<string, McpServerConfig> {
   if (!isRecord(parsed.mcp)) {
     return {};
   }
@@ -1066,9 +1082,7 @@ async function readMcpServersFromSourceFile(
     if (!isRecord(parsed)) {
       return {};
     }
-    return format === "mcpJson"
-      ? readOpenCodeMcpServers(parsed)
-      : readWrappedMcpServers(parsed);
+    return format === "mcpJson" ? readOpenCodeMcpServers(parsed) : readWrappedMcpServers(parsed);
   } catch {
     return {};
   }
@@ -1081,21 +1095,23 @@ async function collectExistingMcpServerNameKeys(
   const nameKeys = new Set<string>();
   const targetConfigPath = resolveMcpConfigPathForScope(targetScope, workspacePath);
   if (targetConfigPath) {
-    for (const name of Object.keys(readZcodeMcpServers(await readJsonFileOrEmpty(targetConfigPath)))) {
+    for (const name of Object.keys(
+      readXcodeMcpServers(await readJsonFileOrEmpty(targetConfigPath)),
+    )) {
       nameKeys.add(normalizeMcpServerNameKey(name));
     }
   }
   return nameKeys;
 }
 
-async function addMcpServerToZcodeConfig(
+async function addMcpServerToXcodeConfig(
   filePath: string,
   name: string,
   config: McpServerConfig,
 ): Promise<void> {
   const parsed = await readJsonFileOrEmpty(filePath);
   const currentMcp = isRecord(parsed.mcp) ? parsed.mcp : {};
-  const servers = readZcodeMcpServers(parsed);
+  const servers = readXcodeMcpServers(parsed);
   await writeJsonFile(filePath, {
     ...parsed,
     mcp: {
@@ -1153,10 +1169,9 @@ async function isSkillImportCandidateImportable(
   candidate: SkillImportCandidate,
   existingNameKeysByTargetRoot: Map<string, Set<string>>,
 ): Promise<boolean> {
-  return (await getSkillImportCandidateSkipReason(
-    candidate,
-    existingNameKeysByTargetRoot,
-  )) === undefined;
+  return (
+    (await getSkillImportCandidateSkipReason(candidate, existingNameKeysByTargetRoot)) === undefined
+  );
 }
 
 async function getSkillImportCandidateSkipReason(
@@ -1193,10 +1208,10 @@ async function isCommandImportCandidateImportable(
   candidate: CommandImportCandidate,
   existingNameKeysByTargetRoot: Map<string, Set<string>>,
 ): Promise<boolean> {
-  return (await getCommandImportCandidateSkipReason(
-    candidate,
-    existingNameKeysByTargetRoot,
-  )) === undefined;
+  return (
+    (await getCommandImportCandidateSkipReason(candidate, existingNameKeysByTargetRoot)) ===
+    undefined
+  );
 }
 
 async function getPluginImportCandidateSkipReason(
@@ -1226,12 +1241,14 @@ async function isPluginImportCandidateImportable(
   workspacePath: string | undefined,
   targetScope: SettingsSyncSourceScope = candidate.sourceRootScope,
 ): Promise<boolean> {
-  return (await getPluginImportCandidateSkipReason(
-    candidate,
-    existingPluginIdsByConfigPath,
-    workspacePath,
-    targetScope,
-  )) === undefined;
+  return (
+    (await getPluginImportCandidateSkipReason(
+      candidate,
+      existingPluginIdsByConfigPath,
+      workspacePath,
+      targetScope,
+    )) === undefined
+  );
 }
 
 async function getMcpImportCandidateSkipReason(
@@ -1254,12 +1271,14 @@ async function isMcpImportCandidateImportable(
   workspacePath: string | undefined,
   targetScope: SettingsSyncSourceScope = candidate.sourceRootScope,
 ): Promise<boolean> {
-  return (await getMcpImportCandidateSkipReason(
-    candidate,
-    existingNameKeysByTargetScope,
-    workspacePath,
-    targetScope,
-  )) === undefined;
+  return (
+    (await getMcpImportCandidateSkipReason(
+      candidate,
+      existingNameKeysByTargetScope,
+      workspacePath,
+      targetScope,
+    )) === undefined
+  );
 }
 
 async function buildSourceRootSummaries(
@@ -1587,9 +1606,7 @@ async function collectPluginImportCandidates(
   return candidates;
 }
 
-async function collectMcpImportCandidates(
-  workspacePath?: string,
-): Promise<McpImportCandidate[]> {
+async function collectMcpImportCandidates(workspacePath?: string): Promise<McpImportCandidate[]> {
   const candidates: McpImportCandidate[] = [];
   const seenSourceNames = new Set<string>();
   for (const root of getExternalMcpRoots(workspacePath)) {
@@ -1618,16 +1635,15 @@ async function collectMcpImportCandidates(
   return candidates;
 }
 
-async function buildSkillsDiscovery(
-  workspacePath?: string,
-): Promise<SettingsSyncDiscoveryResult> {
+async function buildSkillsDiscovery(workspacePath?: string): Promise<SettingsSyncDiscoveryResult> {
   const candidates = await collectSkillImportCandidates(workspacePath);
   const agents: SettingsSyncDiscoveryResult["agents"] = [];
   for (const { agent } of SUPPORTED_SKILL_AGENT_SOURCES) {
     const agentCandidates = candidates.filter((candidate) => candidate.agent === agent);
     const discoveredCount = agentCandidates.length;
-    const sourcePaths = [...new Set(agentCandidates.map((candidate) => candidate.sourceRootPath))]
-      .sort((left, right) => left.localeCompare(right));
+    const sourcePaths = [
+      ...new Set(agentCandidates.map((candidate) => candidate.sourceRootPath)),
+    ].sort((left, right) => left.localeCompare(right));
     const sourceRoots = await buildSourceRootSummaries(agentCandidates);
     let importableCount = 0;
     const existingNameKeysByTargetRoot = new Map<string, Set<string>>();
@@ -1665,8 +1681,9 @@ async function buildCommandsDiscovery(
   for (const { agent } of SUPPORTED_COMMAND_AGENT_SOURCES) {
     const agentCandidates = candidates.filter((candidate) => candidate.agent === agent);
     const discoveredCount = agentCandidates.length;
-    const sourcePaths = [...new Set(agentCandidates.map((candidate) => candidate.sourceRootPath))]
-      .sort((left, right) => left.localeCompare(right));
+    const sourcePaths = [
+      ...new Set(agentCandidates.map((candidate) => candidate.sourceRootPath)),
+    ].sort((left, right) => left.localeCompare(right));
     const sourceRoots = await buildCommandSourceRootSummaries(agentCandidates);
     let importableCount = 0;
     const existingNameKeysByTargetRoot = new Map<string, Set<string>>();
@@ -1696,25 +1713,26 @@ async function buildCommandsDiscovery(
   };
 }
 
-async function buildPluginsDiscovery(
-  workspacePath?: string,
-): Promise<SettingsSyncDiscoveryResult> {
+async function buildPluginsDiscovery(workspacePath?: string): Promise<SettingsSyncDiscoveryResult> {
   const candidates = await collectPluginImportCandidates(workspacePath);
   const agents: SettingsSyncDiscoveryResult["agents"] = [];
   for (const { agent } of SUPPORTED_PLUGIN_AGENT_SOURCES) {
     const agentCandidates = candidates.filter((candidate) => candidate.agent === agent);
     const discoveredCount = agentCandidates.length;
-    const sourcePaths = [...new Set(agentCandidates.map((candidate) => candidate.sourceRootPath))]
-      .sort((left, right) => left.localeCompare(right));
+    const sourcePaths = [
+      ...new Set(agentCandidates.map((candidate) => candidate.sourceRootPath)),
+    ].sort((left, right) => left.localeCompare(right));
     const sourceRoots = await buildPluginSourceRootSummaries(agentCandidates, workspacePath);
     let importableCount = 0;
     const existingPluginIdsByConfigPath = new Map<string, Set<string>>();
     for (const candidate of agentCandidates) {
-      if (await isPluginImportCandidateImportable(
-        candidate,
-        existingPluginIdsByConfigPath,
-        workspacePath,
-      )) {
+      if (
+        await isPluginImportCandidateImportable(
+          candidate,
+          existingPluginIdsByConfigPath,
+          workspacePath,
+        )
+      ) {
         importableCount += 1;
       }
     }
@@ -1739,25 +1757,26 @@ async function buildPluginsDiscovery(
   };
 }
 
-async function buildMcpDiscovery(
-  workspacePath?: string,
-): Promise<SettingsSyncDiscoveryResult> {
+async function buildMcpDiscovery(workspacePath?: string): Promise<SettingsSyncDiscoveryResult> {
   const candidates = await collectMcpImportCandidates(workspacePath);
   const agents: SettingsSyncDiscoveryResult["agents"] = [];
   for (const { agent } of SUPPORTED_MCP_AGENT_SOURCES) {
     const agentCandidates = candidates.filter((candidate) => candidate.agent === agent);
     const discoveredCount = agentCandidates.length;
-    const sourcePaths = [...new Set(agentCandidates.map((candidate) => candidate.sourceRootPath))]
-      .sort((left, right) => left.localeCompare(right));
+    const sourcePaths = [
+      ...new Set(agentCandidates.map((candidate) => candidate.sourceRootPath)),
+    ].sort((left, right) => left.localeCompare(right));
     const sourceRoots = await buildMcpSourceRootSummaries(agentCandidates, workspacePath);
     let importableCount = 0;
     const existingNameKeysByTargetScope = new Map<SettingsSyncSourceScope, Set<string>>();
     for (const candidate of agentCandidates) {
-      if (await isMcpImportCandidateImportable(
-        candidate,
-        existingNameKeysByTargetScope,
-        workspacePath,
-      )) {
+      if (
+        await isMcpImportCandidateImportable(
+          candidate,
+          existingNameKeysByTargetScope,
+          workspacePath,
+        )
+      ) {
         importableCount += 1;
       }
     }
@@ -2121,7 +2140,7 @@ async function importMcpServersForAgent(
       continue;
     }
     try {
-      await addMcpServerToZcodeConfig(selectedConfigPath, candidate.name, candidate.config);
+      await addMcpServerToXcodeConfig(selectedConfigPath, candidate.name, candidate.config);
       importedCount += 1;
       const existingNameKeys = existingNameKeysByTargetScope.get(selectedTargetScope);
       if (existingNameKeys) {
@@ -2186,7 +2205,7 @@ function shouldScanMcpServers(request: {
 async function getClaudeAgentsFileMigrationStatus(): Promise<SettingsSyncClaudeAgentsFileMigrationStatus> {
   const sourcePath = getClaudeUserAgentsFileSourcePath();
   const sourceExists = await pathExists(sourcePath);
-  const targetPath = getUserZcodeAgentsFilePath();
+  const targetPath = getUserXcodeAgentsFilePath();
   const targetExists = await pathExists(targetPath);
 
   return {
@@ -2199,11 +2218,11 @@ async function getClaudeAgentsFileMigrationStatus(): Promise<SettingsSyncClaudeA
   };
 }
 
-async function copyClaudeAgentsFileToZcodeAgentsFile(params: {
+async function copyClaudeAgentsFileToXcodeAgentsFile(params: {
   overwrite?: boolean;
 }): Promise<SettingsSyncClaudeAgentsFileCopyResult> {
   const sourcePath = getClaudeUserAgentsFileSourcePath();
-  const targetPath = getUserZcodeAgentsFilePath();
+  const targetPath = getUserXcodeAgentsFilePath();
   const sourceExists = await pathExists(sourcePath);
   const targetExists = await pathExists(targetPath);
 
@@ -2248,14 +2267,18 @@ export function createSettingsSyncService(
   }
 
   return {
-    async getClaudeAgentsFileMigrationStatus(request): Promise<SettingsSyncClaudeAgentsFileMigrationStatus> {
+    async getClaudeAgentsFileMigrationStatus(
+      request,
+    ): Promise<SettingsSyncClaudeAgentsFileMigrationStatus> {
       void request.workspaceIdentity;
       void request.workspacePath;
       return getClaudeAgentsFileMigrationStatus();
     },
 
-    async copyClaudeAgentsFileToZcodeAgentsFile(request = {}): Promise<SettingsSyncClaudeAgentsFileCopyResult> {
-      const result = await copyClaudeAgentsFileToZcodeAgentsFile({
+    async copyClaudeAgentsFileToXcodeAgentsFile(
+      request = {},
+    ): Promise<SettingsSyncClaudeAgentsFileCopyResult> {
+      const result = await copyClaudeAgentsFileToXcodeAgentsFile({
         overwrite: request.overwrite,
       });
       log.info("[settings-sync] Claude AGENTS.md migration completed", {
@@ -2294,46 +2317,54 @@ export function createSettingsSyncService(
       const taskResults: SettingsSyncTaskImportResult[] = [];
       for (const selection of request.selections) {
         if (selection.category === "skills") {
-          taskResults.push(await importSkillsForAgent(
-            request.workspacePath,
-            selection.agent,
-            selection.sourceScope,
-            selection.targetScope,
-            selection.importMode,
-            selection.skillPaths,
-          ));
+          taskResults.push(
+            await importSkillsForAgent(
+              request.workspacePath,
+              selection.agent,
+              selection.sourceScope,
+              selection.targetScope,
+              selection.importMode,
+              selection.skillPaths,
+            ),
+          );
           continue;
         }
         if (selection.category === "commands") {
-          taskResults.push(await importCommandsForAgent(
-            request.workspacePath,
-            selection.agent,
-            selection.sourceScope,
-            selection.targetScope,
-            selection.importMode,
-            selection.commandPaths,
-          ));
+          taskResults.push(
+            await importCommandsForAgent(
+              request.workspacePath,
+              selection.agent,
+              selection.sourceScope,
+              selection.targetScope,
+              selection.importMode,
+              selection.commandPaths,
+            ),
+          );
           continue;
         }
         if (selection.category === "plugins") {
-          taskResults.push(await importPluginsForAgent(
-            request.workspacePath,
-            selection.agent,
-            selection.sourceScope,
-            selection.targetScope,
-            selection.importMode,
-            selection.pluginPaths,
-          ));
+          taskResults.push(
+            await importPluginsForAgent(
+              request.workspacePath,
+              selection.agent,
+              selection.sourceScope,
+              selection.targetScope,
+              selection.importMode,
+              selection.pluginPaths,
+            ),
+          );
           continue;
         }
         if (selection.category === "mcpServers") {
-          taskResults.push(await importMcpServersForAgent(
-            request.workspacePath,
-            selection.agent,
-            selection.sourceScope,
-            selection.targetScope,
-            selection.mcpServerPaths,
-          ));
+          taskResults.push(
+            await importMcpServersForAgent(
+              request.workspacePath,
+              selection.agent,
+              selection.sourceScope,
+              selection.targetScope,
+              selection.mcpServerPaths,
+            ),
+          );
           continue;
         }
         taskResults.push({

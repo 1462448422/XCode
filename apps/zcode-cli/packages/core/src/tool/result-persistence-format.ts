@@ -4,7 +4,7 @@ const PERSISTED_OUTPUT_CLOSE_TAG = "</persisted-output>";
 // preview budget controls the provider-visible <persisted-output> snippet.
 const PERSISTED_OUTPUT_PREVIEW_CHARS = 2_000;
 
-export interface PersistedOutputEnvelopeInput {
+interface PersistedOutputEnvelopeInput {
   content: string;
   formatBytes: (bytes: number) => string;
   originalBytes: number;

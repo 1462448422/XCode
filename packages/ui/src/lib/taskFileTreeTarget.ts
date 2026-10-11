@@ -1,17 +1,17 @@
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { XCodeTaskMeta } from "@zcode/shared";
 import { getPathLeaf } from "@/lib/path.js";
 import { buildTaskWorkspaceKey } from "@/lib/taskQueryCache.js";
 import type { WorkspaceTabState } from "@/store/tabStore.js";
 
-export interface TaskFileTreeTarget {
+interface TaskFileTreeTarget {
   workspacePath: string;
   workspaceName: string;
   workspaceIdentity?: string;
   workspaceRemoteSessionId?: string;
 }
 
-export function resolveTaskFileTreeTarget(
-  task: ZCodeTaskMeta,
+function resolveTaskFileTreeTarget(
+  task: XCodeTaskMeta,
   tab: WorkspaceTabState | undefined,
 ): TaskFileTreeTarget | null {
   // 旧本地 task 没有 workspaceIdentity，key 会回退到 workspacePath；如果同路径
@@ -50,7 +50,7 @@ export function resolveTaskFileTreeTarget(
 }
 
 export function resolveTaskFileTreeTargetFromTabs(
-  task: ZCodeTaskMeta,
+  task: XCodeTaskMeta,
   tabs: readonly WorkspaceTabState[],
 ): TaskFileTreeTarget | null {
   // 同一路径的本地与旧远程 tab 可能生成相同 key，不能先压成单值 Map；

@@ -57,8 +57,6 @@ export {
 // File service — IFileService is both a type (interface) and value (descriptor)
 export { IFileService } from "./file/file.js";
 export { IMediaPreviewService } from "./media-preview/mediaPreview.js";
-export { ICloudContentService } from "#src/cloud-content/cloudContent.js";
-export { IMarketingTouchService } from "#src/marketing-touch/marketingTouch.js";
 export type { MediaPreviewPreparation } from "./media-preview/mediaPreview.js";
 
 // Git service — IGitService is both a type (interface) and value (descriptor)
@@ -96,36 +94,36 @@ export type {
   BroadcastMessage,
 } from "./broadcast/broadcast.js";
 
-// ZCode task wrapper service — task 列表/置顶/归档等 app 侧包装状态入口。
-export { IZCodeTaskService } from "./session/zcodeTaskService.js";
+// XCode task wrapper service — task 列表/置顶/归档等 app 侧包装状态入口。
+export { IXCodeTaskService } from "./session/zcodeTaskService.js";
 export type {
-  ZCodeArchivedTaskDeletionResult,
-  ZCodeModelTrajectory,
-  ZCodeModelTrajectoryCallSource,
-  ZCodeModelTrajectoryCallSourceKind,
-  ZCodeModelTrajectoryContentPart,
-  ZCodeModelTrajectoryMessage,
-  ZCodeModelTrajectoryRecord,
-  ZCodeModelTrajectoryUsage,
-  ZCodeTaskListKind,
-  ZCodeTaskListQuery,
-  ZCodeTaskListResult,
-  ZCodeTaskListSortBy,
-  ZCodeTaskListWorkspaceScope,
-  ZCodeTaskReadyOutcome,
-  ZCodeGroupedTaskRef,
-  ZCodeGroupedTaskView,
-  ZCodeGroupedTaskViewNode,
-  ZCodeGroupedTaskViewOrderInput,
-  ZCodeGroupedTaskViewQuery,
-  ZCodeGroupedTaskViewStructure,
-  ZCodeGroupedTaskViewStructureMember,
-  ZCodeGroupedTaskViewStructureTopOrder,
-  ZCodeGroupedTaskViewTopLevelNodeRef,
-  ZCodeTaskGroup,
-  ZCodeTaskGroupColor,
+  XCodeArchivedTaskDeletionResult,
+  XCodeModelTrajectory,
+  XCodeModelTrajectoryCallSource,
+  XCodeModelTrajectoryCallSourceKind,
+  XCodeModelTrajectoryContentPart,
+  XCodeModelTrajectoryMessage,
+  XCodeModelTrajectoryRecord,
+  XCodeModelTrajectoryUsage,
+  XCodeTaskListKind,
+  XCodeTaskListQuery,
+  XCodeTaskListResult,
+  XCodeTaskListSortBy,
+  XCodeTaskListWorkspaceScope,
+  XCodeTaskReadyOutcome,
+  XCodeGroupedTaskRef,
+  XCodeGroupedTaskView,
+  XCodeGroupedTaskViewNode,
+  XCodeGroupedTaskViewOrderInput,
+  XCodeGroupedTaskViewQuery,
+  XCodeGroupedTaskViewStructure,
+  XCodeGroupedTaskViewStructureMember,
+  XCodeGroupedTaskViewStructureTopOrder,
+  XCodeGroupedTaskViewTopLevelNodeRef,
+  XCodeTaskGroup,
+  XCodeTaskGroupColor,
 } from "./session/zcodeTaskService.js";
-export type { ZCodeTaskListItem } from "./session/zcodeTaskListTypes.js";
+export type { XCodeTaskListItem } from "./session/zcodeTaskListTypes.js";
 
 export { IWindowControllerService } from "./window-controller/windowController.js";
 export type {
@@ -135,68 +133,67 @@ export type {
   WindowHostControllerTaskListResult,
 } from "./window-controller/windowController.js";
 
-// ZCode agent service — IZCodeAgentService is both a type (interface) and value (descriptor)
+// XCode agent service — IXCodeAgentService is both a type (interface) and value (descriptor)
 export {
-  IZCodeAgentService,
-  type ZCodeAgentLocalRuntimeChildProcesses,
-  ZCODE_AGENT_RUNTIME_UNAVAILABLE_CODE,
+  IXCodeAgentService,
+  type XCodeAgentLocalRuntimeChildProcesses,
+  XCODE_AGENT_RUNTIME_UNAVAILABLE_CODE,
 } from "./zcode-agent/zcodeAgent.js";
 export {
-  isZCodeAgentMcpStatusModeUnsupportedError,
-  ZCODE_AGENT_MCP_STATUS_MODE_UNSUPPORTED_ERROR_CODE,
-  ZCodeAgentMcpStatusModeUnsupportedError,
+  isXCodeAgentMcpStatusModeUnsupportedError,
+  XCODE_AGENT_MCP_STATUS_MODE_UNSUPPORTED_ERROR_CODE,
+  XCodeAgentMcpStatusModeUnsupportedError,
 } from "./zcode-agent/zcodeAgentErrors.js";
 export {
-  createZCodeAgentConnectionScope,
-  readTrustedZCodeAgentV4Connection,
+  createXCodeAgentConnectionScope,
+  readTrustedXCodeAgentV4Connection,
 } from "./zcode-agent/zcodeAgentConnectionScope.js";
 export type {
-  ZCodeAgentConnectionScope,
-  ZCodeAgentV4ClientMode,
-  ZCodeAgentV4ConnectionContext,
+  XCodeAgentConnectionScope,
+  XCodeAgentV4ClientMode,
+  XCodeAgentV4ConnectionContext,
 } from "./zcode-agent/zcodeAgentConnectionScope.js";
 export type {
-  ZCodeAgentAttachmentBeginParams,
-  ZCodeAgentAttachmentChunkParams,
-  ZCodeAgentAttachmentTerminalParams,
-  ZCodeAgentCreateSessionParams,
-  ZCodeAgentCuaPermissionObservation,
-  ZCodeAgentInitializeResult,
-  ZCodeAgentStorageStartupSnapshot,
-  ZCodeAgentRuntimeLifecycleEvent,
-  ZCodeAgentRuntimePolicy,
-  ZCodeAgentReadSessionParams,
-  ZCodeAgentRespondProviderRuntimeHeadersParams,
-  ZCodeAgentResumeSessionParams,
-  ZCodeAgentRunAutomationNowResult,
-  ZCodeAgentSavedWorkflowTarget,
-  ZCodeAgentSendPromptParams,
-  ZCodeAgentServiceEvent,
-  ZCodeAgentSessionSubscribeParams,
-  ZCodeAgentSessionTarget,
-  ZCodeAgentSetModeParams,
-  ZCodeAgentSetModelParams,
-  ZCodeAgentSetThoughtLevelParams,
-  ZCodeAgentWorkspaceTarget,
+  XCodeAgentAttachmentBeginParams,
+  XCodeAgentAttachmentChunkParams,
+  XCodeAgentAttachmentTerminalParams,
+  XCodeAgentCreateSessionParams,
+  XCodeAgentCuaPermissionObservation,
+  XCodeAgentInitializeResult,
+  XCodeAgentStorageStartupSnapshot,
+  XCodeAgentRuntimeLifecycleEvent,
+  XCodeAgentRuntimePolicy,
+  XCodeAgentReadSessionParams,
+  XCodeAgentResumeSessionParams,
+  XCodeAgentRunAutomationNowResult,
+  XCodeAgentSavedWorkflowTarget,
+  XCodeAgentSendPromptParams,
+  XCodeAgentServiceEvent,
+  XCodeAgentSessionSubscribeParams,
+  XCodeAgentSessionTarget,
+  XCodeAgentSetModeParams,
+  XCodeAgentSetModelParams,
+  XCodeAgentSetThoughtLevelParams,
+  XCodeAgentWorkspaceTarget,
 } from "./zcode-agent/zcodeAgent.js";
 
-// ZCode session service — app-facing session facade without ZCode Agent naming.
-export { IZCodeSessionService } from "./zcode-session/zcodeSession.js";
+// XCode session service — app-facing session facade without XCode Agent naming.
+export { IXCodeSessionService } from "./zcode-session/zcodeSession.js";
 export type {
-  ZCodeSessionCreateParams,
-  ZCodeSessionEventsParams,
-  ZCodeSessionInitializeResult,
-  ZCodeSessionListParams,
-  ZCodeSessionMessagesParams,
-  ZCodeSessionReadParams,
-  ZCodeSessionResumeParams,
-  ZCodeSessionServiceEvent,
-  ZCodeSessionSetModeParams,
-  ZCodeSessionSetModelParams,
-  ZCodeSessionSetThoughtLevelParams,
-  ZCodeSessionSubscribeParams,
-  ZCodeTaskTarget,
-  ZCodeSessionWorkspaceTarget,
+  XCodeSessionCreateParams,
+  XCodeSessionEventsParams,
+  XCodeSessionInitializeResult,
+  XCodeSessionListParams,
+  XCodeSessionMessagesParams,
+  XCodeSessionReadParams,
+  XCodeSessionResumeParams,
+  XCodeSessionServiceEvent,
+  XCodeSessionSetModeParams,
+  XCodeSessionSetModelParams,
+  XCodeSessionSetThoughtLevelParams,
+  XCodeSessionSubscribeParams,
+  XCodeTaskTarget,
+  XCodeSessionWorkspaceTarget,
 } from "./zcode-session/zcodeSession.js";
 
 // Bots service — IBotsService is both a type (interface) and value (descriptor).
@@ -220,8 +217,6 @@ export {
 } from "./memory/memory.js";
 export type { ProjectMemoryFileSummary, ProjectMemoryWorkspaceSummary } from "./memory/memory.js";
 
-// OutputStyle service — IOutputStyleService is both a type (interface) and value (descriptor).
-export { IOutputStyleService } from "./output-style/outputStyle.js";
 export type { SessionRealtimePort } from "./session/sessionRealtimePort.js";
 
 // FileWatcher service — IFileWatcherService is both a type (interface) and value (descriptor)
@@ -249,6 +244,7 @@ export {
   type ClientSceneResponseBody,
   type ClientScenesResponse,
 } from "./client-scenes/clientScenes.js";
+export { IMarketingTouchService } from "./marketing-touch/marketingTouch.js";
 export { isValidCronExpr } from "./session/automationCronValidation.js";
 // 闲时任务管理服务（与 automation 服务面独立）；接口/描述符 browser-safe。
 export { IOffPeakTaskService } from "./session/offPeakTask.js";
@@ -313,48 +309,4 @@ export type {
   FeedbackTicketSummary,
   FeedbackTicketType,
 } from "@zcode/shared";
-
-// 插件 UI 桥：描述符、参数类型与工厂；App-Provided Tools 另有独立描述符。
-export {
-  createPluginUiBridgeService,
-  createPluginUiAppToolsService,
-  createPluginUiSamplingService,
-  IPluginUiSamplingService,
-  type PluginUiSamplingParams,
-  type PluginUiCancelSamplingParams,
-  PluginUiBridgeError,
-  IPluginUiAppToolsService,
-  type PluginUiAppToolInstanceParams,
-  type PluginUiAppToolCallParams,
-  type PluginUiAppToolAcceptedResult,
-  type PluginUiRegisterAppToolsParams,
-  type PluginUiRegisterAppToolsResult,
-  type PluginUiResolveAppToolCallParams,
-} from "./plugin-ui-bridge/index.js";
-export {
-  IPluginUiBridgeService,
-  type PluginUiCallToolParams,
-  type PluginUiCallToolResult,
-  type PluginUiPrepareSandboxParams,
-  type PluginUiReadResourceParams,
-  type PluginUiReadResourceResult,
-  type PluginUiPluginScope,
-  type PluginUiListResourcesParams,
-  type PluginUiListResourcesResult,
-  type PluginUiListResourceTemplatesResult,
-  type PluginUiResourceSubscriptionParams,
-  type PluginUiSurfaceEntry,
-  type PluginUiWorkspaceTarget,
-} from "./plugin-ui-bridge/contract.js";
 export { IClientConfigService } from "./client-config/clientConfig.js";
-
-export { IHighspeedCardService } from "./highspeed/highspeedCard.js";
-export {
-  HighspeedCardService,
-  createHighspeedHttpTransport,
-  buildHighspeedTurnExecution,
-} from "./highspeed/highspeedCardService.js";
-export { createHighspeedMockTransport } from "./highspeed/highspeedMockTransport.js";
-
-export { IGenUiService } from "./gen-ui/contract.js";
-export type { GenUiPrepareParams } from "./gen-ui/contract.js";

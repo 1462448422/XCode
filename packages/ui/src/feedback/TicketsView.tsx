@@ -8,7 +8,7 @@ import { FeedbackErrorTip, StatusIndicator } from "@/feedback/feedbackBadges.js"
 import { ScrollFadeViewport } from "@/components/ui/scroll-fade-viewport.js";
 import { useFeedbackStore } from "@/feedback/feedbackStore.js";
 import { formatRelativeTime } from "@/feedback/feedbackUserView.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { getErrorMessage } from "@/lib/errorMessage.js";
 import { logger } from "@/logger.js";
 
@@ -20,7 +20,7 @@ export function TicketsView({
   onCreateNew: () => void;
 }) {
   const selectedTicketId = useFeedbackStore((state) => state.selectedTicketId);
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const formatMessage = intl.formatMessage;
   const copiedResetTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const [items, setItems] = useState<FeedbackTicketSummary[]>([]);
@@ -138,8 +138,8 @@ export function TicketsView({
   );
 }
 
-export function TicketsInitialLoadingState() {
-  const { intl } = useZCodeIntl();
+function TicketsInitialLoadingState() {
+  const { intl } = useXCodeIntl();
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-6 py-8 text-center text-ui-base text-foreground-subtle">
       <Loader2 className="size-4 animate-spin text-primary" />
@@ -148,7 +148,7 @@ export function TicketsInitialLoadingState() {
   );
 }
 
-export function FeedbackTicketList({
+function FeedbackTicketList({
   items,
   selectedTicketId,
   copiedTicketId,
@@ -159,7 +159,7 @@ export function FeedbackTicketList({
   copiedTicketId: string | null;
   onCopyTicketId: (ticketId: string) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const formatMessage = intl.formatMessage;
   if (items.length === 0) return null;
 
@@ -231,7 +231,7 @@ export function FeedbackTicketList({
 }
 
 function EmptyState({ onCreateNew }: { onCreateNew: () => void }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const formatMessage = intl.formatMessage;
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-4 pt-12 text-center">

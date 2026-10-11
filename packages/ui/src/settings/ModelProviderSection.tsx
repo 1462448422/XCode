@@ -1,7 +1,5 @@
 /* eslint-disable max-lines -- Model Provider 设置页需要集中编排导航、表单和 OAuth 交互，后续整体拆分时再收敛。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useStore } from "zustand";
-import { marketingNavigation, finishMarketingNavigation } from "@/lib/marketingNavigation.js";
 import {
   getProviderFormApiKey,
   type ProviderSettingsFormProvider,
@@ -22,14 +20,14 @@ import {
   resolveProviderFamilyDomainFromOAuthProvider,
   ZAI_PROVIDER_ID,
 } from "@zcode/shared";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { Button } from "@/components/ui/button.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useModelProviders } from "@/hooks/useModelProviders.js";
 import { resolveEntitledAccountProviderAccess } from "@/lib/accountProviderAccess.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { useServices } from "@/hooks/useServices.js";
-import { useZCodeStore } from "@/store/StoreProvider.js";
+import { useXCodeStore } from "@/store/StoreProvider.js";
 import { logger } from "@/logger.js";
 import {
   PRESET_PROVIDER_SPECS,
@@ -79,7 +77,7 @@ type CodingPlanConnectionNavItem = Extract<
   { type: "codingPlan" | "teamPlan" }
 >;
 
-export function resolveCodingPlanProviderSyncAttemptKey({
+function resolveCodingPlanProviderSyncAttemptKey({
   activeOAuthProvider,
   oauthProviderId,
   providerId,
@@ -95,7 +93,7 @@ export function resolveCodingPlanProviderSyncAttemptKey({
   return `${providerId}:${activeOAuthProvider}`;
 }
 
-export function shouldRetryUnchangedCodingPlanProviderSync({
+function shouldRetryUnchangedCodingPlanProviderSync({
   attemptKey,
   attemptStatus,
   modeUnchanged,
@@ -140,8 +138,7 @@ function shouldRefreshCodingPlanEntitlementsAfterSave(
     return false;
   }
 
-  // 只比较手工 Key 配置；OAuth account access 不读取旧 Key，由账号/权益事件刷新。
-  // Bugfix: enabled/name/models 这类 UI 配置不会改变权益查询凭据。
+  // enabled/name/models 这类 UI 配置不会改变权益查询凭据。
   // 之前保存任意 Coding Plan 字段都会刷新状态，导致侧栏短暂进入 loading 并冲掉当前选中。
   return (
     (previousProvider ? getProviderFormApiKey(previousProvider).trim() : "") !==
@@ -216,7 +213,7 @@ function resolveConnectionSelectionForNavItem(
   return isStartPlanModelProviderId(item.presetId) ? null : { kind: "individual-coding-plan" };
 }
 
-export function resolveModelProviderSideSelectionKey(
+function resolveModelProviderSideSelectionKey(
   item: ModelProviderNavGroup["items"][number],
 ): string {
   if (item.type !== "preset" && item.type !== "codingPlan" && item.type !== "teamPlan") {
@@ -247,7 +244,7 @@ export function ModelProviderSection({
   pendingModelProviderTarget?: SettingsModelProviderTarget;
   onConsumePendingModelProviderTarget?: () => void;
 } = {}) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const confirmDialog = useConfirmDialog();
   const platform = usePlatform();
   const { modelSelectionService, oauthService, credentialService } = useServices();
@@ -271,6 +268,7 @@ export function ModelProviderSection({
     saveDisplayOrder,
     reorderableProviderIds,
     testModelConnectivity,
+    fetchUpstreamModels,
     providerSettingsView,
   } = useModelProviders({
     workspacePath,
@@ -386,10 +384,10 @@ export function ModelProviderSection({
   const codingPlanStatusSyncAttemptsRef = useRef(
     new Map<string, "inFlight" | "succeeded" | "failed">(),
   );
-  const requestLoginEntry = useZCodeStore((state) => state.requestLoginEntry);
-  const setUser = useZCodeStore((state) => state.setUser);
-  const oauthError = useZCodeStore((state) => state.oauthError);
-  const setOAuthError = useZCodeStore((state) => state.setOAuthError);
+  const requestLoginEntry = useXCodeStore((state) => state.requestLoginEntry);
+  const setUser = useXCodeStore((state) => state.setUser);
+  const oauthError = useXCodeStore((state) => state.oauthError);
+  const setOAuthError = useXCodeStore((state) => state.setOAuthError);
   const {
     settings: sharedSettings,
     loading: sharedSettingsLoading,
@@ -639,7 +637,7 @@ export function ModelProviderSection({
           presetId: presetSubscriptionProviderId,
         });
         try {
-          // Bugfix: 连接/重新授权成功后账号连接状态会先于本轮权益接口结果就绪。
+          // 连接/重新授权成功后 provider apiKey 会先于权益接口结果落盘。
           // pending 必须等本轮权益刷新完成后再清，否则 Plan Card 会短暂显示旧套餐态或非 loading 状态。
           await refreshProviderPanelAfterAuthChange({});
         } finally {
@@ -1006,47 +1004,6 @@ export function ModelProviderSection({
     [createPersonalProvider, locale],
   );
 
-  const marketingRequest = useStore(marketingNavigation, (state) => state.request);
-  useEffect(() => {
-    if (marketingRequest?.target.page !== "settings" || !marketingRequest.target.provider_id)
-      return;
-    if (
-      loading ||
-      modelProvidersRefreshing ||
-      sharedSettingsLoading ||
-      navigationItems.some((item) => item.type === "codingPlanLoading")
-    )
-      return;
-    const providerId = marketingRequest.target.provider_id;
-    const item = navigationItems.find((item) =>
-      item.type === "custom"
-        ? // 当前表单契约使用 providerId；旧 id 会让所有自定义提供商被误判为不存在。
-          item.provider.providerId === providerId
-        : "presetId" in item &&
-          item.presetId === providerId &&
-          (!isStartPlanModelProviderId(providerId) || item.type === "codingPlan"),
-    );
-    if (!item) {
-      finishMarketingNavigation(marketingRequest.id, new Error("marketing_provider_unavailable"));
-      return;
-    }
-    const key = resolveModelProviderSideSelectionKey(item);
-    if (selectedNodeKey !== key) {
-      // 只定位侧栏节点；禁止复用带 mode 的选择路径，避免营销导航修改套餐连接。
-      setSelectedNodeKey(key);
-    } else if (selectedNavItem) {
-      finishMarketingNavigation(marketingRequest.id);
-    }
-  }, [
-    marketingRequest,
-    loading,
-    modelProvidersRefreshing,
-    sharedSettingsLoading,
-    navigationItems,
-    selectedNodeKey,
-    selectedNavItem,
-  ]);
-
   const handleReorderProviderIds = useCallback(
     async (orderedGroupProviderIds: string[]) => {
       const groupProviderIdSet = new Set(orderedGroupProviderIds);
@@ -1176,6 +1133,7 @@ export function ModelProviderSection({
           // Provider 的 Effective 模型无法写入 Personal modelOrder。模型调序独立于成员来源。
           onReorderProviderModels={reorderProviderModels}
           onTestModel={handleTestModel}
+          onFetchUpstreamModels={fetchUpstreamModels}
           onCodingPlanLogin={handleCodingPlanLogin}
           onRetryCodingPlan={() => {
             // 取 Key 失败不等于登录失效；沿用 Host 手动刷新，不清除 OAuth 或重新登录。

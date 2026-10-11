@@ -5,7 +5,7 @@ import { basename, dirname, join } from "node:path";
 import { getRuntimeToolRuntime } from "@zcode/shared/runtime-tool-runtime";
 const assetPrefix = "zcode-runtime-tools/";
 const manifestAssetKey = `${assetPrefix}manifest.json`;
-const markerFileName = ".zcode-runtime-tool.json";
+const markerFileName = ".xcode-runtime-tool.json";
 const runtimeToolIds = new Set(["bfs", "ripgrep", "ugrep"]);
 export async function ensureSeaRuntimeTools(options = {}) {
     const sea = options.sea ?? getSeaModule();
@@ -18,8 +18,8 @@ export async function ensureSeaRuntimeTools(options = {}) {
         throw new Error(`SEA runtime tool target mismatch: binary contains ${manifest.target}, runtime is ${target}.`);
     }
     const env = options.env ?? process.env;
-    const configuredStorageRoot = options.storageRoot ?? env.ZCODE_STORAGE_DIR?.trim();
-    const storageRoot = configuredStorageRoot || join(homedir(), ".zcode");
+    const configuredStorageRoot = options.storageRoot ?? env.XCODE_STORAGE_DIR?.trim();
+    const storageRoot = configuredStorageRoot || join(homedir(), ".xcode");
     const runtimeEnv = {};
     for (const tool of manifest.tools) {
         const runtime = getRuntimeToolRuntime(tool.id);

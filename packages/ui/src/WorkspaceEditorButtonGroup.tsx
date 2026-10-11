@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { persistLastSelectedEditorId, readLastSelectedEditorId } from "@/lib/editorPreference.js";
 import {
   resolveWorkspaceEditorSelection,
@@ -33,7 +33,7 @@ export function WorkspaceEditorButtonGroup({
   remoteTarget?: RemoteTarget;
   onSelectedEditorChange?: (editor: EditorInfo | null) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const platform = usePlatform();
   const isOfficeMode = useIsOfficeMode();
 
@@ -124,7 +124,7 @@ export function WorkspaceEditorButtonGroup({
     });
   };
 
-  if (!selectedEditor || remoteTarget?.kind === "server") {
+  if (!selectedEditor) {
     return null;
   }
 

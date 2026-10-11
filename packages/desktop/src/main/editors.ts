@@ -19,13 +19,13 @@ import { createRequire } from "node:module";
 import { join, win32 as pathWin32 } from "node:path";
 import { app, nativeImage } from "electron";
 import type { EditorInfo } from "@zcode/shared";
-import { getZCodeDataRootDir } from "@zcode/services/node";
+import { getXCodeDataRootDir } from "@zcode/services/node";
 import { logger } from "./logger.js";
 
 const require = createRequire(import.meta.url);
 const WINDOWS_EXPLORER_PATH = pathWin32.join(process.env.WINDIR ?? "C:/Windows", "explorer.exe");
 
-export interface EditorDef {
+interface EditorDef {
   id: string;
   name: string;
   /** macOS .app bundle 路径 */
@@ -526,7 +526,7 @@ function loadNativeImageFromIcnsViaSips(
   appPath: string,
   icnsPath: string,
 ): Electron.NativeImage | null {
-  const tempRootDir = join(getZCodeDataRootDir(), "editor-icon");
+  const tempRootDir = join(getXCodeDataRootDir(), "editor-icon");
   mkdirSync(tempRootDir, { recursive: true });
   const tempDirPath = mkdtempSync(join(tempRootDir, "icon-"));
   const tempPngPath = join(tempDirPath, "icon.png");

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import type { ZCodeTaskMeta } from "@zcode/shared";
-import { useZCodeSessionService } from "@/hooks/useZCodeSessionService.js";
+import type { XCodeTaskMeta } from "@zcode/shared";
+import { useXCodeSessionService } from "@/hooks/useXCodeSessionService.js";
 import { zcodeSessionSnapshotToTaskMeta } from "@/lib/zcodeSessionProjection.js";
 
-export function resolveImmediateActiveTaskSnapshotMeta(
-  previousSnapshotMeta: ZCodeTaskMeta | null,
+function resolveImmediateActiveTaskSnapshotMeta(
+  previousSnapshotMeta: XCodeTaskMeta | null,
   taskId: string | null,
-  taskMetaFromLists?: ZCodeTaskMeta | null,
+  taskMetaFromLists?: XCodeTaskMeta | null,
 ) {
   if (!taskId || taskMetaFromLists) {
     return null;
@@ -32,24 +32,20 @@ export function useActiveTaskSnapshotMeta(
   taskId: string | null,
   preferredRemoteSessionId?: string | null,
   workspaceIdentity?: string,
-  taskMetaFromLists?: ZCodeTaskMeta | null,
+  taskMetaFromLists?: XCodeTaskMeta | null,
 ) {
-  const zcodeSessionService = useZCodeSessionService(
+  const zcodeSessionService = useXCodeSessionService(
     workspacePath,
     preferredRemoteSessionId,
     workspaceIdentity,
   );
-  const [snapshotMeta, setSnapshotMeta] = useState<ZCodeTaskMeta | null>(null);
+  const [snapshotMeta, setSnapshotMeta] = useState<XCodeTaskMeta | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     setSnapshotMeta((currentSnapshotMeta) =>
-      resolveImmediateActiveTaskSnapshotMeta(
-        currentSnapshotMeta,
-        taskId,
-        taskMetaFromLists,
-      ),
+      resolveImmediateActiveTaskSnapshotMeta(currentSnapshotMeta, taskId, taskMetaFromLists),
     );
 
     if (!taskId) {
@@ -65,7 +61,7 @@ export function useActiveTaskSnapshotMeta(
     }
 
     void zcodeSessionService
-      // active header 只需要 session meta/标题兜底，走 ZCode Protocol 的轻量读取，
+      // active header 只需要 session meta/标题兜底，走 XCode Protocol 的轻量读取，
       // 避免继续经 legacy snapshot 把大任务消息整包拉回 UI。
       .readSession({
         workspacePath,

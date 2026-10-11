@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveSpawnRuntimeOptions } from "../../../../../scripts/spawn-command.mjs";
 import { resolveDownloadedNodeBinary } from "./sea-node-download.mjs";
+import { stageNodeNotices } from "../../../../../scripts/third-party-notices.mjs";
 import {
   adHocCodesignArgs,
   hostTarget,
@@ -57,7 +58,7 @@ const repositoryRoot = resolve(root, "../..");
 const cliRoot = resolve(import.meta.dirname, "..");
 const dist = resolve(cliRoot, "dist");
 const cliBundle = resolve(dist, "zcode.cjs");
-const seaBlobForTarget = (target) => resolve(dist, `zcode-${target}.sea.blob`);
+const seaBlobForTarget = (target) => resolve(dist, `xcode-${target}.sea.blob`);
 const seaConfigForTarget = (target) => resolve(dist, `sea-config-${target}.json`);
 const seaAssetStagingForTarget = (target) => resolve(dist, "sea-assets", target);
 const nodeCache = resolve(dist, "sea-node-cache");
@@ -137,7 +138,7 @@ const resolveNodeBinary = async ({ nodeBinaries, nodeVersion, target }) => {
   });
 };
 
-const prepareSeaBlob = async (target) => {
+const prepareSeaBlob = async (target, nodeVersion) => {
   const seaBlob = seaBlobForTarget(target);
   const seaConfig = seaConfigForTarget(target);
   await prepareSeaRuntimeToolAssets({
@@ -172,6 +173,11 @@ const prepareSeaBlob = async (target) => {
       target,
     });
   const providerConfigAssets = await collectSeaProviderConfigAssets({ root: repositoryRoot });
+  const nodeLicensePath = await stageNodeNotices(
+    seaAssetStagingForTarget(`${target}-node`),
+    nodeVersion,
+    repositoryRoot,
+  );
 
   await writeFile(
     seaConfig,
@@ -184,10 +190,11 @@ const prepareSeaBlob = async (target) => {
           ...runtimeToolAssets,
           ...playwrightAssets,
           ...providerConfigAssets,
+          "zcode-node-license": nodeLicensePath,
         },
         disableExperimentalSEAWarning: true,
         main: "dist/zcode.cjs",
-        output: `dist/zcode-${target}.sea.blob`,
+        output: `dist/xcode-${target}.sea.blob`,
         useCodeCache: false,
         useSnapshot: false,
       },
@@ -238,11 +245,11 @@ const smokeTestHostTarget = async (target, binaryPath) => {
     try {
       const env = {
         ...process.env,
-        ZCODE_STORAGE_DIR: storageRoot,
+        XCODE_STORAGE_DIR: storageRoot,
       };
-      delete env.ZCODE_BFS_BINARY;
-      delete env.ZCODE_RG_BINARY;
-      delete env.ZCODE_UGREP_BINARY;
+      delete env.XCODE_BFS_BINARY;
+      delete env.XCODE_RG_BINARY;
+      delete env.XCODE_UGREP_BINARY;
       run(binaryPath, ["--version"], {
         env,
       });
@@ -260,7 +267,7 @@ const smokeTestHostTarget = async (target, binaryPath) => {
 
 const buildTarget = async ({ nodeBinaries, nodeVersion, postjectBin, target }) => {
   const binaryPath = resolve(dist, outputBinaryName(target));
-  const seaBlob = await prepareSeaBlob(target);
+  const seaBlob = await prepareSeaBlob(target, nodeVersion);
   const targetNodeBinary = await resolveNodeBinary({
     nodeBinaries,
     nodeVersion,
@@ -270,6 +277,8 @@ const buildTarget = async ({ nodeBinaries, nodeVersion, postjectBin, target }) =
   console.log(`[sea] building ${target} -> ${binaryPath}`);
   await copyFile(targetNodeBinary, binaryPath);
   await chmod(binaryPath, 0o755);
+  // 同一原文既内嵌到 --licenses，也随 dist 提供，单文件上传仍可取到完整材料。
+  await stageNodeNotices(dist, nodeVersion, repositoryRoot);
 
   const sentinelFuse = await findSeaFuse(binaryPath);
   if (!sentinelFuse.startsWith(sentinelFusePrefix)) {

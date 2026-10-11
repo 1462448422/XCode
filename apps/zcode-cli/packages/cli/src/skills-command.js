@@ -1,5 +1,5 @@
 import { formatJson } from "@zcode/core";
-const SKILLS_COMMAND_USAGE = "Usage: zcode skills [list|inspect <name>]";
+const SKILLS_COMMAND_USAGE = "Usage: xcode skills [list|inspect <name>]";
 export const runSkillsCommand = async (ctx, options, deps, args) => {
     const subcommand = args[0] ?? "list";
     if (subcommand === "list") {
@@ -24,7 +24,7 @@ async function runSkillsListCommand(ctx, options, deps) {
         const env = deps.env ?? process.env;
         const workingDirectory = (deps.cwd ?? process.cwd)();
         const bootstrap = deps.loadBootstrapModule ?? (() => import("@zcode/bootstrap"));
-        const listSkills = deps.listSkills ?? (await bootstrap()).listZCodeSkills;
+        const listSkills = deps.listSkills ?? (await bootstrap()).listXCodeSkills;
         const outcome = await listSkills({
             env,
             logger: deps.logger,
@@ -44,7 +44,7 @@ async function runSkillsInspectCommand(ctx, options, deps, name) {
         const env = deps.env ?? process.env;
         const workingDirectory = (deps.cwd ?? process.cwd)();
         const bootstrap = deps.loadBootstrapModule ?? (() => import("@zcode/bootstrap"));
-        const inspectSkill = deps.inspectSkill ?? (await bootstrap()).inspectZCodeSkill;
+        const inspectSkill = deps.inspectSkill ?? (await bootstrap()).inspectXCodeSkill;
         const inspection = await inspectSkill({
             env,
             logger: deps.logger,

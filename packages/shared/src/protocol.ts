@@ -2,10 +2,11 @@ import type { RemoteAssetInstallMode } from "./remoteAssetInstallMode.js";
 import type { RemoteResourcePackageSelection } from "./remoteResourcePackages.js";
 import type { ProviderFamilyDomain } from "./model-provider-family.js";
 import type { ProviderFamilyConnectionSelectionSettings } from "./provider-family-connection-selection.js";
-import type { ZCodeProvider } from "./zcode-task-types-core.js";
+import type { XCodeProvider } from "./zcode-task-types-core.js";
 import type { WorkspacePurpose } from "./workspacePurpose.js";
-import type { DynamicWorkflowMode } from "./dynamic-workflow-feature.js";
 import type { EmbeddedBrowserViewportPreference } from "./browser-use/command-metadata.js";
+import { z } from "zod";
+import { customSkinSchema } from "./validationAppSettings.js";
 
 // ── Domain types ──
 
@@ -78,8 +79,8 @@ export type Locale = "zh-CN" | "en-US";
 /** 界面语言偏好；system 表示跟随当前运行端系统语言。 */
 export type LocalePreference = "system" | Locale;
 
-/** ZCode 运行中继续输入时的交互行为 */
-export type ZCodeInteractionBehavior = "queue" | "guide";
+/** XCode 运行中继续输入时的交互行为 */
+export type XCodeInteractionBehavior = "queue" | "guide";
 
 /** 桌面端 Electron 自动更新发布通道。 */
 export type ElectronReleaseChannel = "stable" | "preview";
@@ -157,24 +158,10 @@ export interface DockerRemoteTargetSnapshot {
   container: string;
 }
 
-export interface ServerRemoteTargetSnapshot {
-  kind: "server";
-  url: string;
-  name?: string;
-  workspacePath?: string;
-  serverId?: string;
-  /**
-   * Server token 不写入 setting.json。
-   * 这里只保存 credentialService 的键名，恢复时再读取真实 token。
-   */
-  tokenCredentialKey?: string;
-}
-
 export type RemoteTargetSnapshot =
   | SSHRemoteTargetSnapshot
   | WSLRemoteTargetSnapshot
-  | DockerRemoteTargetSnapshot
-  | ServerRemoteTargetSnapshot;
+  | DockerRemoteTargetSnapshot;
 
 export interface RemoteWorkspaceSessionSnapshot {
   /** 远程 workspace 的真实绝对路径 */
@@ -249,6 +236,56 @@ export interface ResourceUsageSnapshot {
   processes: ResourceUsageProcess[];
 }
 
+/** godmode 预置对话（priming turns）单条角色。 */
+export type ModelJailbreakPrefillRole = "user" | "assistant";
+
+/** godmode 预置对话（priming turns）单条。 */
+export interface ModelJailbreakPrefillMessage {
+  role: ModelJailbreakPrefillRole;
+  content: string;
+}
+
+/** godmode 预置对话（priming turns）设置：开关 + 消息列表。 */
+export interface ModelJailbreakPrefillSettings {
+  enabled?: boolean;
+  messages?: ModelJailbreakPrefillMessage[];
+}
+
+/** godmode 输入混淆档位（对应 Parseltongue light/standard/heavy）。 */
+export type ModelJailbreakObfuscationTier = "light" | "standard" | "heavy";
+
+/** godmode 输入混淆设置。 */
+export interface ModelJailbreakObfuscationSettings {
+  enabled?: boolean;
+  tier?: ModelJailbreakObfuscationTier;
+}
+
+/**
+ * XCode fork：设置页"模型越狱"的持久化形状。
+ * - cliPrefix：整段替换发给模型的第 1 条 system 消息（产品身份行），空串/缺省用内置身份行。
+ * - prefill：priming 对话轮，注入到 system 之后、首个真实 user 之前（对齐 Hermes prefill_messages）。
+ * - obfuscation：Parseltongue 输入混淆开关/档位，改写发给模型的 user 文本（UI 原文不变）。
+ */
+export interface CustomSystemMessagesSettings {
+  /** 整段替换第 1 条 system 消息（产品身份行）。 */
+  cliPrefix?: string;
+  /** godmode 预置对话（priming turns）。 */
+  prefill?: ModelJailbreakPrefillSettings;
+  /** godmode 输入混淆设置。 */
+  obfuscation?: ModelJailbreakObfuscationSettings;
+}
+
+/**
+ * XCode fork：原生皮肤覆盖层配置——base 选底座主题 token 块；overrides 在运行时以 CSS
+ * variables 盖在 .theme-zai-* 之上（内联 style 天然优先），backgroundImage 为 base64
+ * data URL（上限见 shared 的 MAX_SKIN_BACKGROUND_IMAGE_CHARS）。AppSettings.customSkin 持久化。
+ *
+ * 单一事实源是 validationAppSettings.ts 的 customSkinSchema（Zod，负责持久化校验）；
+ * 这里只做类型别名，避免手写接口与 schema 漂移——曾因两份定义不同步，
+ * Skin Studio 新增的 image/surface/safeCss 字段在 UI 侧完全不可见。
+ */
+export type CustomSkinSettings = z.infer<typeof customSkinSchema>;
+
 export interface AppSettings {
   /** 当前 App/Host 不再显示提交前体验套餐推荐；不改变任何入口的模型选择。 */
   startPlanRecommendationDismissed?: boolean;
@@ -276,7 +313,7 @@ export interface AppSettings {
   httpProxyCaCertPath?: string;
   /**
    * 内置浏览器忽略 HTTPS 证书校验错误（自签名、过期、域名不匹配等），用于访问内网测试站点。
-   * 只影响内置浏览器出口，不影响 ZCode 自身对后端与模型 API 的请求。默认关闭，重启后生效。
+   * 只影响内置浏览器出口，不影响 XCode 自身对后端与模型 API 的请求。默认关闭，重启后生效。
    */
   embeddedBrowserAllowInsecureCertificates?: boolean;
   /** 人类用户主动打开 Browser tab 时的一次性显示偏好；Agent Browser Use 不读写。 */
@@ -291,18 +328,12 @@ export interface AppSettings {
   taskAutoArchiveEnabled?: boolean;
   /** 自动归档阈值；当任务最后更新时间早于该天数时允许被归档 */
   taskAutoArchiveOlderThanDays?: number;
-  /** 桌面端关闭窗口时隐藏到托盘驻留（Windows/Linux；spec：docs/desktop/linux-close-to-tray.md） */
+  /** Windows 桌面端关闭窗口时隐藏到托盘；其它平台忽略 */
   closeToTrayOnWindows?: boolean;
   /** 存在执行中的闲时任务时阻止系统闲置休眠（手动开关，防不了合盖）。 */
   keepAwakeWhileRunning?: boolean;
   /** Windows 关闭到托盘默认值是否已执行过一次性迁移；只用于设置迁移，不参与业务判断。 */
   closeToTrayOnWindowsMigrationInitialized?: boolean;
-  /**
-   * Linux 关闭到托盘默认值（关）是否已执行过一次性归位迁移。
-   * shared 迁移无平台概念、曾把存量 Linux 用户归为 true，而 Linux 此前无设置入口，
-   * main 进程 bootstrap 借此标记把首次启动的 Linux 用户一次性归位为默认关。
-   */
-  closeToTrayLinuxMigrationInitialized?: boolean;
   /** 桌面端全局页面缩放档位；用于重启后恢复界面缩放，Web/手机端忽略。 */
   desktopZoomLevel?: number;
   /** 桌面主窗口最近一次非最大化宽高及最大化状态；Web/手机端忽略。 */
@@ -326,19 +357,12 @@ export interface AppSettings {
   toolGroupingTerminalEnabled?: boolean;
   /** 是否把连续的 Write/Edit/ApplyPatch 工具调用聚合成 Changes。 */
   toolGroupingChangesEnabled?: boolean;
-  /** ZCode 运行中继续输入时，是排队到下一轮，还是引导到下一次工具调用后运行 */
-  zcodeInteractionBehavior?: ZCodeInteractionBehavior;
+  /** XCode 运行中继续输入时，是排队到下一轮，还是引导到下一次工具调用后运行 */
+  zcodeInteractionBehavior?: XCodeInteractionBehavior;
   /** Agent 提问五分钟无人回答时是否允许自动继续；缺失按开启兼容旧配置。 */
   askUserQuestionAutoResolutionEnabled?: boolean;
   /** 是否完整保留 Model I/O；开启后不轮转、不限额重置、不压缩或裁剪，鉴权信息仍会脱敏。 */
   modelIoFullRetentionEnabled?: boolean;
-  /**
-   * 用户选的动态工作流模式（docs/dynamic-workflow/launch.md「The user's choice」）。缺席 = 跟随服务端
-   * 提供的模式；只在功能已提供时生效。选回提供的模式时删除该字段，未改动的安装继续跟随服务端翻转。
-   */
-  dynamicWorkflowMode?: DynamicWorkflowMode;
-  /** 已启用的内置 Agent CLI；UI 对外仍展示为“Install”，底层语义保持为启用内置能力。 */
-  enabledBuiltinAgentCliProviders?: ZCodeProvider[];
   /** 设置页中每个 Provider Family 当前唯一的结构化连接选择。 */
   providerFamilyConnectionSelections?: ProviderFamilyConnectionSelectionSettings;
   /** 用户通过 WelcomeScreen 成功连接后确认的 ZAI / BigModel provider family 运行域。 */
@@ -351,6 +375,17 @@ export interface AppSettings {
   nativeSearchEnhancementsEnabled?: boolean;
   /** 新建或冷恢复 Session 是否启用 Memory；默认关闭。 */
   memoryEnabled?: boolean;
+/**
+ * XCode fork：第 1 条 system 消息（产品身份行）的自定义替换内容，
+ * 新建/冷恢复会话物化时生效；替换语义，清空即恢复内置身份行。
+ */
+  customSystemMessages?: CustomSystemMessagesSettings;
+  /**
+   * XCode fork：原生皮肤覆盖层（base + overrides + backgroundImage），AppSettings.customSkin 持久化。
+   * null = 显式移除自定义皮肤、回退官方主题（patch 的删除语义；RPC/JSON 会吞 undefined，
+   * 不能用 undefined 表达"清空"）。
+   */
+  customSkin?: CustomSkinSettings | null;
   onboardingOccupation?:
     | "office"
     | "developer"
@@ -374,7 +409,7 @@ export interface AppSettings {
   lastActiveTabIndex?: number;
   /** 每个 workspace 的最后活跃 taskId，下次打开自动恢复 */
   lastActiveTaskByWorkspace?: Record<string, string>;
-  /** 数据目录的根路径（替代 homedir），默认为 os.homedir()；.zcode/v2 后缀不变 */
+  /** 数据目录的根路径（替代 homedir），默认为 os.homedir()；.xcode/v2 后缀不变 */
   dataBaseDir?: string;
   /** 自动更新安装完成后，等待首次启动展示的版本说明 */
   pendingPostUpdateReleaseNotes?: {
@@ -392,16 +427,6 @@ export interface AppSettings {
   skippedElectronUpdateVersions?: Partial<Record<ElectronReleaseChannel, string>>;
   /** 首次启动设置同步提示是否已消费；只表示弹窗不再出现，不代表导入成功。 */
   settingsSyncFirstRunPromptHandled?: boolean;
-  /** 外部 Web 远控 relay 的非敏感设备身份；passHash 必须存 credentialService。 */
-  webRemoteControlExternalRelayDevice?: {
-    deviceSid: string;
-  };
-  /** 上次成功开启 Web 远控时的目标；缺失表示用户已明确关闭，不自动恢复。 */
-  webRemoteControlLastEnabledContext?: {
-    workspacePath: string;
-    workspaceIdentity?: string;
-    initialTaskId?: string;
-  };
-  /** 设置页里的临时 endpoint override；正式/测试默认 base url 由 ZCODE_BASE_URL env 管理。 */
+  /** 设置页里的临时 endpoint override；正式/测试默认 base url 由 XCODE_BASE_URL env 管理。 */
   zcodeEndpointOrigin?: string;
 }

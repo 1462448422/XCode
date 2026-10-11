@@ -27,17 +27,17 @@ import {
   withProviderProfileSchema,
 } from "./oauthProfileSchema.js";
 import { createOAuthProviderAdapters, type OAuthProviderAdapter } from "./providers/index.js";
-import { OAuthCredentialRepo } from "./repo/oauthCredentialRepo.js";
+import { OAuthCredentialRepo, type OAuthAccountEntry } from "./repo/oauthCredentialRepo.js";
 import { createOAuthRuntimeConfig } from "./runtimeConfig.js";
 import {
   buildDesktopOAuthRedirectUriFromEnv,
-  buildZCodeApiUrlFromEnv,
+  buildXCodeApiUrlFromEnv,
 } from "./providers/configUtils.js";
 
 /** OAuth 超时时间（5 分钟） */
 const OAUTH_TIMEOUT_MS = 5 * 60 * 1000;
 const COMPLETED_POLLING_STATE_GRACE_MS = 30 * 1000;
-const ZCODE_JWT_TOKEN_KEY = "zcodejwttoken";
+const XCODE_JWT_TOKEN_KEY = "zcodejwttoken";
 const log = (...args: unknown[]) =>
   console.log(formatLogPrefix("oauthService", process.pid), ...args);
 const serviceLog = createServiceLogger("oauthService");
@@ -70,6 +70,8 @@ interface OAuthServiceDependencies {
   now?: () => number;
   env?: NodeJS.ProcessEnv;
   onProviderLogout?: (provider: OAuthProviderId, accountIdentity?: string | null) => Promise<void>;
+  /** 激活账号变更（登录/切换/登出）时回调，host 用它刷新 active account 供 deviceMid 等使用。 */
+  onActiveAccountChanged?: (accountRef: string | null) => void | Promise<void>;
 }
 
 function readTrimmedString(value: unknown): string | null {
@@ -123,6 +125,7 @@ export class OAuthService implements IOAuthService {
     provider: OAuthProviderId,
     accountIdentity?: string | null,
   ) => Promise<void>;
+  private readonly onActiveAccountChanged?: (accountRef: string | null) => void | Promise<void>;
   private readonly apiClient?: ApiClient;
   private readonly env: NodeJS.ProcessEnv;
   private pendingState: PendingState | null = null;
@@ -141,6 +144,7 @@ export class OAuthService implements IOAuthService {
     this.credentialService = credentialService;
     this.now = dependencies.now ?? Date.now;
     this.onProviderLogout = dependencies.onProviderLogout;
+    this.onActiveAccountChanged = dependencies.onActiveAccountChanged;
     this.apiClient = dependencies.apiClient;
     this.env = dependencies.env ?? process.env;
 
@@ -172,6 +176,48 @@ export class OAuthService implements IOAuthService {
 
   async getActiveProvider(): Promise<OAuthProviderId | null> {
     return this.repo.getActiveProvider();
+  }
+
+  async getAccounts(): Promise<OAuthAccountEntry[]> {
+    return this.repo.listAccounts();
+  }
+
+  async getActiveAccount(): Promise<OAuthAccountEntry | null> {
+    const accountRef = await this.repo.loadActiveAccountRef();
+    if (!accountRef) return null;
+    return this.repo.loadAccountEntry(accountRef);
+  }
+
+  async switchAccount(accountRef: string): Promise<OAuthAccountEntry | null> {
+    const entry = await this.repo.loadAccountEntry(accountRef);
+    if (!entry) return null;
+    await this.repo.activateAccount(accountRef);
+    await this.onActiveAccountChanged?.(accountRef);
+    return this.repo.loadAccountEntry(accountRef);
+  }
+
+  /** 登出单个账号：仅清除其「登录态」(激活指针)，保留 per-account 凭证；下次切换该账号时还原。不重启。 */
+  async logoutAccount(accountRef: string): Promise<void> {
+    if ((await this.repo.loadActiveAccountRef()) === accountRef) {
+      await this.repo.saveActiveAccountRef(null);
+      await this.repo.saveActiveProvider(null);
+    }
+    await this.onActiveAccountChanged?.(null);
+  }
+
+  /** 删除单个账号：清凭证并从账号列表移除；若删除的是激活账号，自动激活剩余第一个（若有）。 */
+  async removeAccount(accountRef: string): Promise<void> {
+    await this.repo.clearAccount(accountRef);
+    let activeRef = await this.repo.loadActiveAccountRef();
+    if (!activeRef) {
+      const remaining = await this.repo.listAccounts();
+      const next = remaining[0] ? `${remaining[0].provider}:${remaining[0].identity}` : null;
+      if (next) {
+        await this.repo.activateAccount(next);
+        activeRef = next;
+      }
+    }
+    await this.onActiveAccountChanged?.(activeRef);
   }
 
   async restoreCachedSession(): Promise<UserInfo | null> {
@@ -208,7 +254,7 @@ export class OAuthService implements IOAuthService {
 
     // 启动缓存恢复只需要检查共享 zcode JWT；若通过 loadActiveTokenSet 连带读取
     // provider access token，会把原本后台执行的 BigModel profile 迁移重新阻塞到首屏恢复链路。
-    const zcodeJwtToken = (await this.credentialService.load(ZCODE_JWT_TOKEN_KEY))?.trim() ?? "";
+    const zcodeJwtToken = (await this.credentialService.load(XCODE_JWT_TOKEN_KEY))?.trim() ?? "";
     if (zcodeJwtToken && resolveJwtExpiration(zcodeJwtToken, this.now()).kind === "expired") {
       serviceLog.info("cached session invalidated because zcode JWT expired", {
         provider: activeProvider,
@@ -277,7 +323,7 @@ export class OAuthService implements IOAuthService {
     const invalidated = await this.runSessionMutation(async () => {
       const currentProvider = await this.repo.getActiveProvider();
       const currentProfile = await this.repo.loadUserProfile(expectedProvider);
-      const currentJwt = (await this.credentialService.load(ZCODE_JWT_TOKEN_KEY))?.trim() ?? "";
+      const currentJwt = (await this.credentialService.load(XCODE_JWT_TOKEN_KEY))?.trim() ?? "";
       if (
         this.oauthSessionGeneration !== expectedGeneration ||
         currentProvider !== expectedProvider ||
@@ -382,31 +428,15 @@ export class OAuthService implements IOAuthService {
     profile: OAuthUserProfile,
     isStillCurrent?: () => boolean,
   ): Promise<void> {
-    const inactiveProvider = resolveInactiveOAuthProvider(provider);
-    const previousTokenSet = await this.repo.loadTokenSet(provider);
-    const previousProfile = await this.repo.loadUserProfile(provider);
-    const previousInactiveTokenSet = inactiveProvider
-      ? await this.repo.loadTokenSet(inactiveProvider)
-      : null;
-    const previousInactiveProfile = inactiveProvider
-      ? await this.repo.loadUserProfile(inactiveProvider)
-      : null;
-    const previousActiveProvider = await this.repo.getActiveProvider();
+    const accountRef = `${provider}:${profile.id}`;
+    const previousActiveAccountRef = await this.repo.loadActiveAccountRef();
+    const previousAccounts = await this.repo.listAccounts();
+    const previousTokenSet = await this.repo.loadTokenSetForAccount(accountRef);
     const rollback = async () => {
-      if (previousTokenSet) await this.repo.saveTokenSet(provider, previousTokenSet);
-      else await this.repo.clearProvider(provider);
-      if (previousProfile) await this.repo.saveUserProfile(provider, previousProfile);
-      else await this.repo.clearUserProfile(provider);
-      if (inactiveProvider) {
-        if (previousInactiveTokenSet)
-          await this.repo.saveTokenSet(inactiveProvider, previousInactiveTokenSet);
-        else await this.repo.clearProvider(inactiveProvider);
-        if (previousInactiveProfile)
-          await this.repo.saveUserProfile(inactiveProvider, previousInactiveProfile);
-        else await this.repo.clearUserProfile(inactiveProvider);
-      }
-      if (previousActiveProvider) await this.repo.setActiveProvider(previousActiveProvider);
-      else await this.repo.setActiveProvider(null);
+      if (previousTokenSet) await this.repo.saveTokenSetForAccount(accountRef, previousTokenSet);
+      else await this.repo.clearAccount(accountRef);
+      if (previousActiveAccountRef) await this.repo.activateAccount(previousActiveAccountRef);
+      else await this.repo.saveActiveAccountRef(null);
     };
     const assertCurrent = async () => {
       if (isStillCurrent && !isStillCurrent()) {
@@ -415,21 +445,39 @@ export class OAuthService implements IOAuthService {
       }
     };
     this.oauthSessionGeneration += 1;
-    if (inactiveProvider) {
-      await assertCurrent();
-      // ZAI 与 BigModel 是互斥身份域。切换 provider 时必须先清旧 provider，
-      // 再保存当前 token；反序会让 clearProvider 误删共享的 zcodejwttoken。
-      await this.repo.clearProvider(inactiveProvider);
+    await assertCurrent();
+    const accountRefOf = (entry: { provider: OAuthProviderId; identity: string }) =>
+      `${entry.provider}:${entry.identity}`;
+    const existing = previousAccounts.find((account) => accountRefOf(account) === accountRef);
+    const accountEntry = {
+      provider,
+      identity: profile.id,
+      username: profile.username,
+      displayName: profile.displayName,
+      ...(profile.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
+    };
+    const nextAccounts = existing
+      ? previousAccounts.map((account) => (accountRefOf(account) === accountRef ? accountEntry : account))
+      : [...previousAccounts, accountEntry];
+    await assertCurrent();
+    await this.repo.saveAccounts(nextAccounts);
+    await assertCurrent();
+    await this.repo.saveTokenSetForAccount(accountRef, tokenSet);
+    await assertCurrent();
+    await this.repo.saveUserProfileForAccount(
+      accountRef,
+      withProviderProfileSchema(provider, profile),
+    );
+    await assertCurrent();
+    // 仅在当前没有激活账号时自动激活(如首次登录)；否则只加入列表，由用户在账号管理页手动切换。
+    const activeRef = await this.repo.loadActiveAccountRef();
+    if (!activeRef) {
+      await this.repo.activateAccount(accountRef);
+      await this.onActiveAccountChanged?.(accountRef);
     }
-    await assertCurrent();
-    await this.repo.saveTokenSet(provider, tokenSet);
-    await assertCurrent();
-    await this.repo.saveUserProfile(provider, withProviderProfileSchema(provider, profile));
-    await assertCurrent();
-    await this.repo.setActiveProvider(provider);
     if (isStillCurrent && !isStillCurrent()) {
-      // active provider 写入无法被底层 credential IO 取消；失效 flow 不能仅按
-      // provider 清理，否则同 provider 的新 flow 可能被旧 flow 误删。
+      // active account 写入无法被底层 credential IO 取消；失效 flow 不能仅按
+      // 账号清理，否则同账号的新 flow 可能被旧 flow 误删。
       await rollback();
       throw new Error("OAuth flow 已取消");
     }
@@ -606,7 +654,7 @@ export class OAuthService implements IOAuthService {
     this.oauthFlowStartProvider = provider;
     this.clearPendingState();
     const pollToken = randomBytes(32).toString("hex");
-    const initUrl = buildZCodeApiUrlFromEnv(this.env, "/api/v1/oauth/cli/init");
+    const initUrl = buildXCodeApiUrlFromEnv(this.env, "/api/v1/oauth/cli/init");
     const envelope = await readApiJson<OAuthFlowEnvelope>(this.apiClient, initUrl, {
       method: "POST",
       headers: {
@@ -683,7 +731,7 @@ export class OAuthService implements IOAuthService {
         nextPollAt: this.now(),
         pollIntervalMs,
         pollToken,
-        pollUrl: buildZCodeApiUrlFromEnv(
+        pollUrl: buildXCodeApiUrlFromEnv(
           this.env,
           `/api/v1/oauth/cli/poll/${encodeURIComponent(flowId)}`,
         ),
@@ -1003,7 +1051,13 @@ export class OAuthService implements IOAuthService {
           tokenSet.accessToken
       )
         return;
-      await this.repo.saveActiveTokenSet(refreshed);
+      // 刷新写回镜像，同时写 per-account，避免切走再切回时 mirror 回退到旧 token。
+      const activeAccountRef = await this.repo.loadActiveAccountRef();
+      if (activeAccountRef) {
+        await this.repo.saveTokenSetForAccount(activeAccountRef, refreshed);
+      } else {
+        await this.repo.saveActiveTokenSet(refreshed);
+      }
     });
   }
 
@@ -1043,6 +1097,7 @@ export class OAuthService implements IOAuthService {
         serviceLog.warn("Unauthorized session provider cleanup failed", { error });
       }
     }
+    await this.onActiveAccountChanged?.(null);
     return true;
   }
 
@@ -1068,6 +1123,7 @@ export class OAuthService implements IOAuthService {
       await this.notifyProviderLogout(provider, loggedOutIdentity);
     }
     await this.cancelPending(provider);
+    await this.onActiveAccountChanged?.(null);
   }
 
   async logoutAll(): Promise<void> {

@@ -1,4 +1,4 @@
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
 /** 一条 TS 诊断（CreateWorkflow 与 EvalWorkflowSnippet 的 display 共用同一形状）。 */
 interface WorkflowDiagnosticEntry {
@@ -16,7 +16,7 @@ interface WorkflowDiagnosticEntry {
 const ANALYZER_RULE_CODE_MIN = 9001;
 const ANALYZER_RULE_CODE_MAX = 9099;
 
-export function isWorkflowAnalyzerRuleCode(code: number): boolean {
+function isWorkflowAnalyzerRuleCode(code: number): boolean {
   return code >= ANALYZER_RULE_CODE_MIN && code <= ANALYZER_RULE_CODE_MAX;
 }
 
@@ -52,7 +52,7 @@ export function WorkflowDiagnosticsSection({
   /** 脚本来自保存的工作流文件：那句话点名文件而不是这次调用。 */
   saved?: boolean;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   if (diagnostics.length === 0) {
     return null;
   }

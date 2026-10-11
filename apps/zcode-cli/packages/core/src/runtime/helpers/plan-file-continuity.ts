@@ -15,13 +15,13 @@ import {
 
 const PLAN_FILE_REFERENCE_MAX_BYTES = PLAN_MODE_MAX_PLAN_CHARS * 4 + 1024;
 
-export function resolveApprovedPlanFilePath(input: {
+function resolveApprovedPlanFilePath(input: {
   sessionId: SessionId | string;
   workspaceRoot: string;
 }): string {
   return join(
     input.workspaceRoot,
-    ".zcode",
+    ".xcode",
     "plans",
     `plan-${sanitizePlanFileSessionId(input.sessionId)}.md`,
   );
@@ -89,10 +89,7 @@ export async function readApprovedPlanFileReferenceEntry(input: {
   );
 }
 
-export function formatPlanFileReference(input: {
-  planContent: string;
-  planFilePath: string;
-}): string {
+function formatPlanFileReference(input: { planContent: string; planFilePath: string }): string {
   return [
     `A plan file exists from plan mode at: ${input.planFilePath}`,
     "",
@@ -110,9 +107,13 @@ function sanitizePlanFileSessionId(sessionId: SessionId | string): string {
     .replace(/[^A-Za-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
   if (!sanitized) {
-    throw createCoreError(CoreErrorType.InvalidInput, "Session id cannot produce a plan file name", {
-      recoverable: false,
-    });
+    throw createCoreError(
+      CoreErrorType.InvalidInput,
+      "Session id cannot produce a plan file name",
+      {
+        recoverable: false,
+      },
+    );
   }
   return sanitized;
 }

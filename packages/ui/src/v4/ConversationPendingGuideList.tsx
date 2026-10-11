@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import type { QueueItem, UserInputRow } from "@zcode/shared/zcode-protocol-v4";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { ConversationTurnRow } from "@/v4/ConversationTurnRow.js";
 import type { ConversationRowRenderContext } from "@/v4/conversationRowContext.js";
 
@@ -32,14 +32,13 @@ function ConversationPendingGuideListImpl({
   items,
   turnId,
 }: ConversationPendingGuideListProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const rows = useMemo(() => items.map((item) => pendingGuideRow(item, turnId)), [items, turnId]);
   const status = intl.formatMessage({ id: "chat.message.turnSteer.pending" });
 
   if (rows.length === 0) return null;
   return (
-    // 待引导消息直接渲染行，绕过了普通轮容器；补齐输入框 dock 的水平留白，避免气泡和状态贴边。
-    <div data-v4-pending-guide-list="true" className="flex flex-col gap-5 px-4 pt-5">
+    <div data-v4-pending-guide-list="true" className="flex flex-col gap-5 pt-5">
       {rows.map((row) => (
         <ConversationTurnRow
           key={row.sourceCommandId}

@@ -1,6 +1,6 @@
 /* eslint-disable max-lines */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import type { ZCodeProvider } from "@zcode/shared";
+import type { XCodeProvider } from "@zcode/shared";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { createPortal } from "react-dom";
 import { PaletteIcon, WandSparkles } from "lucide-react";
@@ -17,7 +17,7 @@ import {
   KEY_ESCAPE_COMMAND,
   KEY_TAB_COMMAND,
 } from "lexical";
-import { useZCodeIntl } from "../i18n/IntlProvider.js";
+import { useXCodeIntl } from "../i18n/IntlProvider.js";
 import {
   extractActivePromptInputTrigger,
   getActivePromptInputTokenTailLength,
@@ -67,11 +67,7 @@ interface MentionPluginProps {
   onWhiteboardMentionSelected?: (boardId: string) => void | Promise<void>;
 }
 
-export function getWrappedMentionIndex(
-  currentIndex: number,
-  delta: number,
-  itemCount: number,
-): number {
+function getWrappedMentionIndex(currentIndex: number, delta: number, itemCount: number): number {
   if (itemCount <= 0) {
     return 0;
   }
@@ -85,7 +81,7 @@ export function getWrappedMentionIndex(
  * 在循环导航的基础上跳过禁选项（V1 同名 Plugin 冲突项）。
  * 全部禁选时保持原地不动，Enter/Tab 的选择守卫会拒绝插入。
  */
-export function getNextEnabledMentionIndex(
+function getNextEnabledMentionIndex(
   currentIndex: number,
   delta: number,
   items: ReadonlyArray<Pick<MentionItem, "disabled">>,
@@ -108,7 +104,7 @@ export function getNextEnabledMentionIndex(
  * 根因：冲突 Plugin 保持可见后可能占据 flatItems[0]；若仍默认选中 0，
  * 第一次 Enter/Tab 会命中禁选项并回落编辑器默认行为，而不是继续键盘导航。
  */
-export function coerceEnabledMentionIndex(
+function coerceEnabledMentionIndex(
   currentIndex: number,
   items: ReadonlyArray<Pick<MentionItem, "disabled">>,
 ): number {
@@ -129,10 +125,7 @@ export function coerceEnabledMentionIndex(
  * Android 例外：Chrome + Gboard 对拉丁词也走 composition（整词到空格才 compositionend），
  * 冻结会让手机 Web 的 @ 面板失去逐字过滤，因此 Android 保持实时重算。
  */
-export function shouldFreezeMentionRecalcWhileComposing(
-  isComposing: boolean,
-  userAgent: string,
-): boolean {
+function shouldFreezeMentionRecalcWhileComposing(isComposing: boolean, userAgent: string): boolean {
   return isComposing && !/Android/i.test(userAgent);
 }
 
@@ -144,9 +137,9 @@ export function MentionPlugin({
   container,
   disabled = false,
   onWhiteboardMentionSelected,
-}: MentionPluginProps & { provider: ZCodeProvider }) {
+}: MentionPluginProps & { provider: XCodeProvider }) {
   const [editor] = useLexicalComposerContext();
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const [activeTrigger, setActiveTrigger] = useState<ActivePromptInputTrigger | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const dismissedSignatureRef = useRef<string | null>(null);
@@ -325,7 +318,7 @@ export function MentionPlugin({
               <ContextMentionOptionContent item={item} workspacePath={workspacePath} />
             ) : item.category === "skills" ? (
               <span className="min-w-0 flex flex-1 items-center gap-2">
-                {/* Bugfix: skills 候选项需要和命令类项保持一致的主次信息密度，
+                {/* skills 候选项需要和命令类项保持一致的主次信息密度，
                     这里保留图标 + 名称主文案，再把描述压成右侧弱信息，而不是额外占第二行。 */}
                 <WandSparkles className="size-3.5 shrink-0 text-foreground" />
                 <span className="shrink-0 whitespace-nowrap text-ui-base font-medium text-foreground">

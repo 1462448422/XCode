@@ -3,11 +3,10 @@ import type {
   AiSdkNetworkConfig,
   EnvRecord,
 } from "@zcode/adapters/model";
-import type { ProviderEndpointRoutingPort } from "@zcode/contracts";
 import {
-  resolveRuntimeZCodeEnv,
-  resolveRuntimeZCodeEndpointOrigin,
-  ZCODE_APP_VERSION_ENV,
+  resolveRuntimeXCodeEnv,
+  resolveRuntimeXCodeEndpointOrigin,
+  XCODE_APP_VERSION_ENV,
 } from "@zcode/shared";
 import {
   createRuntimePlatformHeaders,
@@ -18,7 +17,6 @@ export type ModelProviderSourceTitle = "cli" | "electron";
 
 interface RuntimeExecutionConfigOptions {
   appVersion?: string;
-  endpointRoutingPort?: ProviderEndpointRoutingPort;
   network?: AiSdkNetworkConfig;
   sourceTitle?: ModelProviderSourceTitle;
 }
@@ -29,10 +27,9 @@ export function createRuntimeAiSdkModelExecutionConfig(
 ): AiSdkModelExecutionConfig {
   const network = normalizeAiSdkNetworkConfig(options.network);
   return {
-    defaultHeaders: buildCliZCodeSourceHeaders(env, options),
+    defaultHeaders: buildCliXCodeSourceHeaders(env, options),
     env,
     ...(network ? { network } : {}),
-    ...(options.endpointRoutingPort ? { endpointRoutingPort: options.endpointRoutingPort } : {}),
   };
 }
 
@@ -47,7 +44,7 @@ function normalizeAiSdkNetworkConfig(
   };
 }
 
-export function buildCliZCodeSourceHeaders(
+function buildCliXCodeSourceHeaders(
   env: EnvRecord,
   options: Pick<RuntimeExecutionConfigOptions, "appVersion" | "sourceTitle"> = {},
 ): Record<string, string> {
@@ -56,14 +53,14 @@ export function buildCliZCodeSourceHeaders(
   const locale = normalizePrintableHeaderValue(Intl.DateTimeFormat().resolvedOptions().locale);
   const timezone = normalizePrintableHeaderValue(Intl.DateTimeFormat().resolvedOptions().timeZone);
   return {
-    "HTTP-Referer": resolveRuntimeZCodeEndpointOrigin(env),
-    "User-Agent": `ZCode/${appVersion ?? "unknown"}`,
-    ...(appVersion ? { "X-ZCode-App-Version": appVersion } : {}),
+    "HTTP-Referer": resolveRuntimeXCodeEndpointOrigin(env),
+    "User-Agent": `XCode/${appVersion ?? "unknown"}`,
+    ...(appVersion ? { "X-XCode-App-Version": appVersion } : {}),
     "X-Title": `Z Code@${sourceTitle}`,
-    "X-Release-Channel": resolveRuntimeZCodeEnv(env),
+    "X-Release-Channel": resolveRuntimeXCodeEnv(env),
     "X-Client-Language": locale ?? "unknown",
     "X-Client-Timezone": timezone ?? "unknown",
-    "X-ZCode-Agent": "glm",
+    "X-XCode-Agent": "glm",
     ...createRuntimePlatformHeaders(),
   };
 }
@@ -72,7 +69,7 @@ function resolveAppVersionForHeaders(
   env: EnvRecord,
   options: Pick<RuntimeExecutionConfigOptions, "appVersion">,
 ): string | undefined {
-  return normalizePrintableHeaderValue(env[ZCODE_APP_VERSION_ENV] ?? options.appVersion);
+  return normalizePrintableHeaderValue(env[XCODE_APP_VERSION_ENV] ?? options.appVersion);
 }
 
 function detectDefaultProviderSourceTitle(): ModelProviderSourceTitle {

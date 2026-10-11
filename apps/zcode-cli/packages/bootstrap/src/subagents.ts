@@ -1,4 +1,3 @@
-import { parseRuntimeSubagentConfig } from "./subagent-runtime-config.js";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { migrateUserSubagentMarkdown, migrateSubagentStateFile } from "@zcode/shared/node";
@@ -9,20 +8,22 @@ import {
 } from "@zcode/core";
 import type { Logger, PluginMetadata } from "@zcode/contracts";
 import {
+  createAgentStateId,
   createPluginAgentStateId,
   parsePluginSubagentModelSelectionOverrides,
   modelSelectionSchema,
   type BuiltInSubagentModelSelectionOverrides,
+  type BuiltInSubagentName,
   type PluginSubagentModelSelectionOverrides,
 } from "@zcode/shared";
 
-interface LoadZCodeAgentProfilesInput {
+interface LoadXCodeAgentProfilesInput {
   logger?: Logger;
   storageRoot: string;
   workingDirectory: string;
 }
 
-interface LoadZCodeAgentProfilesResult {
+interface LoadXCodeAgentProfilesResult {
   builtInModelSelectionOverrides: BuiltInSubagentModelSelectionOverrides;
   pluginAgentModelSelectionOverrides: PluginSubagentModelSelectionOverrides;
   diagnostics: AgentProfileParseDiagnostic[];
@@ -45,14 +46,14 @@ interface ParsedPluginAgentProfile {
 
 const RESERVED_AGENT_NAMES = new Set(["general-purpose", "Explore"]);
 
-export async function loadZCodeAgentProfiles(
-  input: LoadZCodeAgentProfilesInput,
-): Promise<LoadZCodeAgentProfilesResult> {
+export async function loadXCodeAgentProfiles(
+  input: LoadXCodeAgentProfilesInput,
+): Promise<LoadXCodeAgentProfilesResult> {
   const migration = await migrateUserSubagentMarkdown(join(input.storageRoot, "agents"));
   await migrateSubagentStateFile(join(input.storageRoot, "v2", "agents-state.json"));
   const roots = [
     { path: join(input.storageRoot, "agents"), source: "user" as const },
-    { path: join(input.workingDirectory, ".zcode", "agents"), source: "project" as const },
+    { path: join(input.workingDirectory, ".xcode", "agents"), source: "project" as const },
   ];
   const diagnostics: AgentProfileParseDiagnostic[] = [];
   for (const failure of migration.failures) {
@@ -68,33 +69,70 @@ export async function loadZCodeAgentProfiles(
     });
   }
   const agentState = readAgentState(input.storageRoot);
-  const documents = roots.flatMap((root) =>
-    listMarkdownFiles(root.path).map((path) => ({
-      path,
-      source: root.source,
-      content: readFileSync(path, "utf8"),
-    })),
-  );
-  const parsed = parseRuntimeSubagentConfig({
-    documents,
-    state: {
-      ...agentState,
-      disabledAgentIds: [...agentState.disabledAgentIds],
-    },
+  const profiles: AgentProfile[] = [];
+
+  for (const root of roots) {
+    for (const filePath of listMarkdownFiles(root.path)) {
+      const content = readFileSync(filePath, "utf8");
+      const result = parseAgentProfileFromMarkdown({
+        content,
+        path: filePath,
+        source: root.source,
+      });
+      if (result.diagnostic) {
+        diagnostics.push(result.diagnostic);
+        input.logger?.warn("Agent profile diagnostic", {
+          code: result.diagnostic.code,
+          message: result.diagnostic.message,
+          module: "bootstrap.subagents",
+          path: filePath,
+        });
+      }
+      if (result.profile) {
+        const profile = sanitizeProjectAgentProfile(result.profile);
+        if (isDisabledUserProfile(profile, agentState.disabledAgentIds)) {
+          continue;
+        }
+        profiles.push(profile);
+      }
+    }
+  }
+
+  input.logger?.debug("Agent profiles loaded", {
+    diagnosticCount: diagnostics.length,
+    module: "bootstrap.subagents",
+    profileCount: profiles.length,
   });
-  for (const diagnostic of parsed.diagnostics)
-    input.logger?.warn("Agent profile diagnostic", {
-      ...diagnostic,
-      module: "bootstrap.subagents",
-    });
-  return { ...parsed, diagnostics: [...diagnostics, ...parsed.diagnostics] };
+
+  return {
+    builtInModelSelectionOverrides: agentState.builtInModelSelectionOverrides,
+    pluginAgentModelSelectionOverrides: agentState.pluginAgentModelSelectionOverrides,
+    diagnostics,
+    profiles,
+  };
 }
 
-export function loadPluginAgentTemplates(
-  input: Pick<LoadPluginAgentProfilesInput, "plugins" | "logger">,
-): { profiles: ParsedPluginAgentProfile[]; diagnostics: AgentProfileParseDiagnostic[] } {
-  const parsedProfiles: ParsedPluginAgentProfile[] = [];
+function sanitizeProjectAgentProfile(profile: AgentProfile): AgentProfile {
+  if (profile.source !== "project" || profile.permissionMode === undefined) {
+    return profile;
+  }
+
+  // 项目级 .xcode/agents/*.md 是仓库内容，不能通过 frontmatter
+  // 把 child runtime 切到 bypass/yolo；用户级与受信插件 profile 不受影响。
+  const { permissionMode: _permissionMode, ...safeProfile } = profile;
+  return safeProfile;
+}
+
+export function loadPluginAgentProfiles(
+  input: LoadPluginAgentProfilesInput,
+): LoadXCodeAgentProfilesResult {
   const diagnostics: AgentProfileParseDiagnostic[] = [];
+  const parsedProfiles: ParsedPluginAgentProfile[] = [];
+  const reservedProfileNames = new Set([
+    ...RESERVED_AGENT_NAMES,
+    ...(input.reservedProfileNames ?? []),
+  ]);
+
   for (const plugin of input.plugins) {
     if (!plugin.enabled) continue;
     const agents = plugin.components.find((group) => group.kind === "agent")?.items ?? [];
@@ -106,19 +144,6 @@ export function loadPluginAgentTemplates(
     }
   }
 
-  return { profiles: parsedProfiles, diagnostics };
-}
-
-export function resolvePluginAgentProfiles(
-  input: LoadPluginAgentProfilesInput,
-  templates: ReturnType<typeof loadPluginAgentTemplates>,
-): LoadZCodeAgentProfilesResult {
-  const diagnostics = [...templates.diagnostics];
-  const parsedProfiles = templates.profiles;
-  const reservedProfileNames = new Set([
-    ...RESERVED_AGENT_NAMES,
-    ...(input.reservedProfileNames ?? []),
-  ]);
   const bareNameCounts = countBareProfileNames(parsedProfiles);
   const profiles: AgentProfile[] = [];
   for (const parsed of parsedProfiles) {
@@ -276,6 +301,22 @@ function normalizeBuiltInSelectionOverrides(
   return result;
 }
 
+function isDisabledUserProfile(
+  profile: AgentProfile,
+  disabledAgentIds: ReadonlySet<string>,
+): boolean {
+  if (profile.source !== "user") {
+    return false;
+  }
+  return disabledAgentIds.has(
+    createAgentStateId({
+      name: profile.name,
+      scope: "user",
+      source: "user",
+    }),
+  );
+}
+
 function listMarkdownFiles(root: string): string[] {
   if (!existsSync(root)) return [];
   if (!statSync(root).isDirectory()) return [];
@@ -283,7 +324,10 @@ function listMarkdownFiles(root: string): string[] {
   const result: string[] = [];
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     const path = join(root, entry.name);
-    // 与 Host / Settings 一致，只加载根目录直接文件；插件使用独立发现入口。
+    if (entry.isDirectory()) {
+      result.push(...listMarkdownFiles(path));
+      continue;
+    }
     if (entry.isFile() && /\.(md|markdown)$/iu.test(entry.name)) {
       result.push(path);
     }

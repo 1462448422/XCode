@@ -3,19 +3,12 @@ export { AppErrorBoundary, ScopedErrorBoundary } from "./ErrorBoundary.js";
 export type { ScopedErrorBoundaryVariant } from "./ErrorBoundary.js";
 export { Button, buttonVariants } from "./components/ui/button.js";
 export { DesktopWindowFrame } from "./DesktopWindowFrame.js";
-export { WebRemoteControlDialog } from "./WebRemoteControlDialog.js";
-export {
-  WebRemoteControlFeatureProvider,
-  useWebRemoteControlFeatureEnabled,
-} from "./WebRemoteControlFeatureProvider.js";
 export {
   AssistantCodeCommentFeatureProvider,
   useAssistantCodeCommentFeatureEnabled,
 } from "./AssistantCodeCommentFeatureProvider.js";
 export { Root } from "./Root.js";
 export { UpdateStatusWindowRoot } from "./UpdateStatusWindowRoot.js";
-export type { WebRemoteControlTerminalTransportState } from "./root/types.js";
-export { setWebRemoteControlTerminalTransportState } from "./webRemoteControlTerminalTransportState.js";
 export { ConfirmDialogHost } from "./ConfirmDialog.js";
 export { Terminal } from "./Terminal.js";
 export { GitGraphPane } from "./git-graph/GitGraphPane.js";
@@ -34,8 +27,8 @@ export { useTheme } from "./useTheme.js";
 export type { Theme } from "./useTheme.js";
 export { useTestActions } from "./test-actions.js";
 export type { TestActions } from "./test-actions.js";
-export { StoreProvider, useZCodeStore } from "./store/StoreProvider.js";
-export type { ZCodeState } from "./store/index.js";
+export { StoreProvider, useXCodeStore } from "./store/StoreProvider.js";
+export type { XCodeState } from "./store/index.js";
 export {
   bindRemoteWorkspacePath,
   getRemoteWorkspaceSession,
@@ -72,7 +65,7 @@ export {
   useGitActions,
 } from "./hooks/index.js";
 
-export { ZCodeIntlProvider, useZCodeIntl, LocaleSwitcher } from "./i18n/index.js";
+export { XCodeIntlProvider, useXCodeIntl, LocaleSwitcher } from "./i18n/index.js";
 export { ResourceManagerApp } from "./resource-manager/ResourceManagerApp.js";
 export type {
   ResourceManagerAppProps,
@@ -88,7 +81,6 @@ export {
 } from "./lib/fileDisplay.js";
 export type { FileDisplayDescriptor, FileDisplayOptions } from "./lib/fileDisplay.js";
 export { playTaskNotificationSound } from "./lib/taskNotificationSound.js";
-export { installDocumentHiddenMotionPause } from "./lib/documentHiddenMotionPause.js";
 export {
   applyUiFontSizePx,
   loadUiFontSizePx,

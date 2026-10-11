@@ -1,9 +1,9 @@
 import type { RefObject } from "react";
 import type {
-  ZCodeProvider,
+  XCodeProvider,
   SessionCreateSource,
-  ZCodeTaskRuntimeStatus,
-  ZCodeTaskMeta,
+  XCodeTaskRuntimeStatus,
+  XCodeTaskMeta,
   GitChangeSourceId,
   DesktopWindowChromeState,
   IPlatformService,
@@ -13,10 +13,6 @@ import type {
   UserInfo,
 } from "@zcode/shared";
 import type { IFeedbackService, IServiceAccessor } from "@zcode/services";
-import type { SavedWorkflowsOpenTarget } from "@/settings/saved-workflows/SavedWorkflowsSection.js";
-import type { SavedWorkflowHubTarget } from "@/v4/savedWorkflowHubContext.js";
-import type { WebRemoteControlWorkspaceSwitcherApi } from "@/root/types.js";
-import type { WebRemoteControlTerminalTransportState } from "@/root/types.js";
 import type { BrowserNavigationRequest, RecentClosedSidePaneTab } from "@/hooks/useAppPanels.js";
 import type { CodeViewerSource } from "@/lib/codeViewer.js";
 import type { AssistantPreviewCardsAutoOpenRequest } from "@/lib/assistantPreviewCards.js";
@@ -33,7 +29,7 @@ import type {
   WorkspaceSidePaneState,
 } from "@/lib/workspaceSidePane.js";
 import type { TreemappingSidePaneTab } from "@/lib/workspaceSidePane.js";
-import type { WorkspaceZCodeUIState } from "@/store/zcodeSessionStore.js";
+import type { WorkspaceXCodeUIState } from "@/store/zcodeSessionStore.js";
 import type { RemoteConnectionLogEntry } from "@/hooks/useRemoteConnectionLogs.js";
 import type { Theme } from "@/useTheme.js";
 import type {
@@ -48,22 +44,22 @@ import type {
 import type { TaskFindDialogProps } from "@/quickpick/TaskFindDialog.js";
 import type { AutomationsNavigationTab, OpenAutomationsMain } from "@/lib/taskNavigationHistory.js";
 
-export interface WorkspaceShellZCodeState {
-  activeTaskId: WorkspaceZCodeUIState["activeTaskId"];
-  draftFocusVersion: WorkspaceZCodeUIState["draftFocusVersion"];
-  modelSwitchPending: WorkspaceZCodeUIState["modelSwitchPending"];
-  modelSwitchStage: WorkspaceZCodeUIState["modelSwitchStage"];
-  selectedProvider: WorkspaceZCodeUIState["selectedProvider"];
-  optimisticTaskListByTaskId: WorkspaceZCodeUIState["optimisticTaskListByTaskId"];
-  workspaceInit: WorkspaceZCodeUIState["workspaceInit"];
-  taskStatus: ZCodeTaskRuntimeStatus;
+export interface WorkspaceShellXCodeState {
+  activeTaskId: WorkspaceXCodeUIState["activeTaskId"];
+  draftFocusVersion: WorkspaceXCodeUIState["draftFocusVersion"];
+  modelSwitchPending: WorkspaceXCodeUIState["modelSwitchPending"];
+  modelSwitchStage: WorkspaceXCodeUIState["modelSwitchStage"];
+  selectedProvider: WorkspaceXCodeUIState["selectedProvider"];
+  optimisticTaskListByTaskId: WorkspaceXCodeUIState["optimisticTaskListByTaskId"];
+  workspaceInit: WorkspaceXCodeUIState["workspaceInit"];
+  taskStatus: XCodeTaskRuntimeStatus;
   taskError: string | null;
 }
 
 export interface CreateTaskOptions {
   /** 异步预填只能提交到解析 Skill 时的同一新任务目标。 */
   expectedWorkspaceKey?: string;
-  provider?: ZCodeProvider;
+  provider?: XCodeProvider;
   groupedDraftPlacement?: GroupedDraftTaskPlacement;
   createSource?: SessionCreateSource;
   /** 新草稿输入框预填文本；只写草稿，不自动发送。 */
@@ -74,7 +70,7 @@ export interface CreateTaskOptions {
   targetWorkspace?: { workspacePath: string; workspaceIdentity?: string };
 }
 
-export type CreateTaskRequest = ZCodeProvider | CreateTaskOptions;
+export type CreateTaskRequest = XCodeProvider | CreateTaskOptions;
 
 export interface AppProps {
   services: IServiceAccessor;
@@ -104,10 +100,6 @@ export interface AppProps {
   remoteConnectionInProgress?: boolean;
   onReturnToWorkspace?: () => void;
   allowOpenWorkspace?: boolean;
-  webRemoteControlWorkspaceSwitcher?: WebRemoteControlWorkspaceSwitcherApi;
-  initialWebRemoteControlMobileNavigationIntent?: import("@zcode/shared").WebRemoteControlMobileNavigationIntent;
-  initialWebRemoteControlWorkspaceList?: import("@zcode/shared").WebRemoteControlWorkspaceListResult;
-  webRemoteControlTerminalTransportState?: WebRemoteControlTerminalTransportState;
   allowRemoteWorkspace?: boolean;
   remoteWorkspaceSessions?: RemoteWorkspaceSessionEntry[];
   workspaceAbsPath: string;
@@ -133,20 +125,12 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
   pluginStoreOpenVersion: number;
   openAutomationId: string | null;
   openAutomationTab: AutomationsNavigationTab | null;
-  /** 中枢深链：落到某个已保存工作流的详情页；定位后由 `onOpenWorkflowConsumed` 清空。 */
-  openWorkflow: SavedWorkflowsOpenTarget | null;
-  onOpenWorkflowConsumed: () => void;
-  /**
-   * 完成卡「已保存」芯片 → 中枢那一页（docs/dynamic-workflow/transcript-and-notifications.md
-   * 「Saving the run, and running it again」）：切到自动化主视图的「工作流」标签并设深链。
-   */
-  onOpenSavedWorkflowInHub: (target: SavedWorkflowHubTarget) => void;
   onWorkspaceMainViewChange: (view: WorkspaceMainView) => void;
   onOpenAutomationConsumed: () => void;
   handleOpenAutomations: OpenAutomationsMain;
   handleOpenPluginStore: () => void;
   handleManageInstalledPlugins: () => void;
-  workspaceShellZCodeState: WorkspaceShellZCodeState;
+  workspaceShellXCodeState: WorkspaceShellXCodeState;
   theme: Theme;
   isMacFullscreen: boolean;
   desktopWindowChromeState: DesktopWindowChromeState | null;
@@ -191,8 +175,8 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
   sidePaneOwnerId: string | null;
   activeTraceId: string | null;
   activeSessionId: string | null;
-  activeTaskProvider: ZCodeProvider | null;
-  resolvedActiveTaskMeta?: ZCodeTaskMeta | null;
+  activeTaskProvider: XCodeProvider | null;
+  resolvedActiveTaskMeta?: XCodeTaskMeta | null;
   activeTaskTitle: string;
   activeTaskChangeSummary: ReturnType<
     typeof import("@/lib/taskChangeSummary.js").getTaskChangeSummary
@@ -203,9 +187,6 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
   gitState: ReturnType<typeof import("@/hooks/useGitRepository.js").useGitRepository>;
   browserNavigationRequest: BrowserNavigationRequest | null;
   browserRestoreUrls: Record<string, string>;
-  providerConfigFile: ReturnType<
-    typeof import("@/hooks/useWorkspaceProviderConfigFile.js").useWorkspaceProviderConfigFile
-  >;
   taskNativeSessionLogFile: ReturnType<
     typeof import("@/hooks/useTaskNativeSessionLogFile.js").useTaskNativeSessionLogFile
   >;
@@ -229,7 +210,7 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
   reloadSessionPending: boolean;
   handleReloadSession: (options?: {
     resumeTaskId?: string | null;
-    provider?: ZCodeProvider | null;
+    provider?: XCodeProvider | null;
   }) => Promise<void>;
   handleSelectTask: (
     targetWorkspacePath: string,
@@ -253,7 +234,6 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
   handleToggleTerminal: () => void;
   handleToggleBrowser: () => void;
   handleOpenBrowserTab: () => void;
-  handleOpenBrowserPermissionSettings: (origin: string) => void;
   handleOpenTreemapping: (source?: TreemappingSidePaneTab["source"]) => void;
   handleOpenWhiteboard: () => void;
   handleOpenDeveloperTools: () => void;
@@ -278,9 +258,7 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
   handleOpenWorkflowRunDirectory: (
     request: import("@/lib/workspaceSidePane.js").OpenScopedWorkflowRunDirectorySideTabRequest,
   ) => void;
-  handleOpenWorkflowActorSession: (
-    request: OpenScopedWorkflowActorSessionSideTabRequest,
-  ) => void;
+  handleOpenWorkflowActorSession: (request: OpenScopedWorkflowActorSessionSideTabRequest) => void;
   handleOpenWorkflowWorkspace: (request: OpenScopedWorkflowWorkspaceSideTabRequest) => void;
   handleOpenWorkflowArtifact: (request: OpenScopedWorkflowArtifactSideTabRequest) => void;
   handleCloseCodeViewer: () => void;

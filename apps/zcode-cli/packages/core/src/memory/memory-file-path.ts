@@ -14,8 +14,7 @@ const SENSITIVE_MEMORY_PATH_SEGMENTS = new Set([
   "config",
   "objects",
   "refs",
-  ".claude",
-  ".zcode",
+  ".xcode",
   "skills",
   "commands",
   "agents",
@@ -60,7 +59,7 @@ export function memoryFileRelativePath(rootDir: string, filePath: string): strin
   return isContainedRelativePath(relativePath) ? relativePath : undefined;
 }
 
-export function containsSensitiveMemoryPathSegment(relativePath: string): boolean {
+function containsSensitiveMemoryPathSegment(relativePath: string): boolean {
   return relativePath
     .split(/[\\/]+/u)
     .some((segment) => SENSITIVE_MEMORY_PATH_SEGMENTS.has(normalizeSensitiveSegment(segment)));

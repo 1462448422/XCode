@@ -60,7 +60,7 @@ export interface BrowserTabInfo {
   viewport: BrowserViewportSize;
 }
 
-export class BrowserCapability {
+class BrowserCapability {
   readonly #readDocumentation: (name?: string) => string;
 
   constructor(
@@ -76,7 +76,7 @@ export class BrowserCapability {
   }
 }
 
-export class VisibilityBrowserCapability extends BrowserCapability {
+class VisibilityBrowserCapability extends BrowserCapability {
   constructor(
     info: BrowserCapabilityInfo,
     readDocumentation: (name?: string) => string,
@@ -142,7 +142,7 @@ export interface BrowserClientTransport {
   execute: BrowserTransportExecuteFn;
 }
 
-export interface CuaTab {
+interface CuaTab {
   click(options: Point & { button?: number; keypress?: string[] }): Promise<void>;
   double_click(options: Point & { keypress?: string[] }): Promise<void>;
   downloadMedia(options: Point & { timeoutMs?: number }): Promise<void>;
@@ -153,7 +153,7 @@ export interface CuaTab {
   type(options: { text: string }): Promise<void>;
 }
 
-export interface DomCuaTab {
+interface DomCuaTab {
   get_visible_dom(): Promise<BrowserSnapshot>;
   click(options: { node_id: string }): Promise<void>;
   double_click(options: { node_id: string }): Promise<void>;
@@ -347,7 +347,7 @@ export class RawTab {
   }
 }
 
-export type JsDialog = AlertDialog | ConfirmDialog | PromptDialog | BeforeUnloadDialog;
+type JsDialog = AlertDialog | ConfirmDialog | PromptDialog | BeforeUnloadDialog;
 
 class DialogBase {
   constructor(
@@ -468,7 +468,7 @@ export class Tab {
     return expectPayload(command, result, result.state, "state");
   }
 
-  /** 对齐 Playwright Page.setViewportSize；ZCode 额外施加内置自由尺寸的安全边界。 */
+  /** 对齐 Playwright Page.setViewportSize；XCode 额外施加内置自由尺寸的安全边界。 */
   async setViewportSize(viewportSize: BrowserViewportSize): Promise<void> {
     validateViewportSize(viewportSize);
     await this.action({ method: "browserViewportSet", ...viewportSize });
@@ -1003,8 +1003,8 @@ export class BrowsersFacade {
   ) {
     const assertAvailable = options.assertAvailable ?? (() => undefined);
     this.assertAvailable = assertAvailable;
-    // Browser 对象是持久引用，内核 reset 后旧绑定必须失效。guard 必须包住持久对象的每次
-    // transport/doc 调用，不能只在初始化时判断。
+    // 主 agent 与 subagent 复用 node_repl 内核，Browser 对象可能由主 agent 创建后
+    // 被 child 持有。guard 必须包住持久对象的每次 transport/doc 调用，不能只在初始化时判断。
     this.transport = {
       list: async () => {
         assertAvailable();

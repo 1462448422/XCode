@@ -1,28 +1,28 @@
 !include nsDialogs.nsh
 !include FileFunc.nsh
 
-!ifndef ZCODE_INSTALLER_DEFAULT_LOG_PATH
-  !define ZCODE_INSTALLER_DEFAULT_LOG_PATH "$TEMP\ZCode-installer.log"
+!ifndef XCODE_INSTALLER_DEFAULT_LOG_PATH
+  !define XCODE_INSTALLER_DEFAULT_LOG_PATH "$TEMP\ZCode-installer.log"
 !endif
-!ifndef ZCODE_INSTALLER_ELEVATED_LOG_PATH
-  !define ZCODE_INSTALLER_ELEVATED_LOG_PATH "$WINDIR\Logs\ZCode-installer.log"
+!ifndef XCODE_INSTALLER_ELEVATED_LOG_PATH
+  !define XCODE_INSTALLER_ELEVATED_LOG_PATH "$WINDIR\Logs\ZCode-installer.log"
 !endif
-!ifndef ZCODE_INSTALLER_IS_ELEVATED_INNER
-  ; 修复原因：来源只在测试夹具模拟内层，正式默认恒假会让提权进程继续使用调用方 /LOG。
+!ifndef XCODE_INSTALLER_IS_ELEVATED_INNER
+  ; 来源只在测试夹具模拟内层，正式默认恒假会让提权进程继续使用调用方 /LOG。
   ; 使用 electron-builder 同一 UAC 判据；隔离夹具仍可显式替换，不改变真正的提权流程。
   !include UAC.nsh
-  !define ZCODE_INSTALLER_IS_ELEVATED_INNER `${UAC_IsInnerInstance}`
+  !define XCODE_INSTALLER_IS_ELEVATED_INNER `${UAC_IsInnerInstance}`
 !endif
 
-!ifndef ZCODE_INSTALL_MANIFEST_NAME
-  !define ZCODE_INSTALL_MANIFEST_NAME ".zcode-install-manifest"
+!ifndef XCODE_INSTALL_MANIFEST_NAME
+  !define XCODE_INSTALL_MANIFEST_NAME ".zcode-install-manifest"
 !endif
 
-!ifndef ZCODE_UNINSTALLER_LOG_PATH
-  !define ZCODE_UNINSTALLER_LOG_PATH "$TEMP\ZCode-uninstaller.log"
+!ifndef XCODE_UNINSTALLER_LOG_PATH
+  !define XCODE_UNINSTALLER_LOG_PATH "$TEMP\ZCode-uninstaller.log"
 !endif
-!ifndef ZCODE_UNINSTALLER_FUNCTION_PREFIX
-  !define ZCODE_UNINSTALLER_FUNCTION_PREFIX "un."
+!ifndef XCODE_UNINSTALLER_FUNCTION_PREFIX
+  !define XCODE_UNINSTALLER_FUNCTION_PREFIX "un."
 !endif
 
 !ifdef BUILD_UNINSTALLER
@@ -32,10 +32,10 @@
   !macro ZCodeReportUninstallerStage MESSAGE
     DetailPrint "ZCode: ${MESSAGE}"
     Push "${MESSAGE}"
-    Call ${ZCODE_UNINSTALLER_FUNCTION_PREFIX}ZCodeWriteUninstallerLog
+    Call ${XCODE_UNINSTALLER_FUNCTION_PREFIX}ZCodeWriteUninstallerLog
   !macroend
 
-  Function ${ZCODE_UNINSTALLER_FUNCTION_PREFIX}ZCodeWriteUninstallerLog
+  Function ${XCODE_UNINSTALLER_FUNCTION_PREFIX}ZCodeWriteUninstallerLog
     Exch $R9
     Push $R0
     Push $R1
@@ -43,7 +43,7 @@
 
     StrCmp $ZCodeUninstallerLogUnavailable "1" zcodeUninstallerLogDone
     ClearErrors
-    FileOpen $R1 "${ZCODE_UNINSTALLER_LOG_PATH}" a
+    FileOpen $R1 "${XCODE_UNINSTALLER_LOG_PATH}" a
     IfErrors zcodeUninstallerLogFailed zcodeUninstallerLogWrite
     zcodeUninstallerLogWrite:
       System::Call "kernel32::GetCurrentProcessId() i.R0"
@@ -72,14 +72,14 @@
 !endif
 
 !macro customRemoveFiles
-  ; Bugfix：electron-builder 默认在更新时递归删除整个 $INSTDIR，用户放入的无关文件也会被清掉。
+  ; electron-builder 默认在更新时递归删除整个 $INSTDIR，用户放入的无关文件也会被清掉。
   ; 只按上一版本随包生成的所有权清单删除，清单缺失时迁移旧版本采用 fail-open 保留策略。
   ${if} ${isUpdated}
     !ifdef BUILD_UNINSTALLER
       !insertmacro customRemoveFilesDiagnosticsStart
     !endif
     ClearErrors
-    FileOpen $R0 "$INSTDIR\${ZCODE_INSTALL_MANIFEST_NAME}" r
+    FileOpen $R0 "$INSTDIR\${XCODE_INSTALL_MANIFEST_NAME}" r
     IfErrors zcodeManifestMissing
 
     zcodeManifestRead:
@@ -191,7 +191,7 @@
   Function ZCodeResetUninstallerLog
     StrCpy $ZCodeUninstallerDetailsUnavailable ""
     ClearErrors
-    FileOpen $R0 "${ZCODE_UNINSTALLER_LOG_PATH}" w
+    FileOpen $R0 "${XCODE_UNINSTALLER_LOG_PATH}" w
     IfErrors zcodeUninstallerDetailsResetFailed zcodeUninstallerDetailsResetSucceeded
     zcodeUninstallerDetailsResetSucceeded:
       FileClose $R0
@@ -210,7 +210,7 @@
 
     StrCmp $ZCodeUninstallerDetailsUnavailable "1" zcodeShowUninstallerDetailsDone
     ClearErrors
-    FileOpen $R0 "${ZCODE_UNINSTALLER_LOG_PATH}" r
+    FileOpen $R0 "${XCODE_UNINSTALLER_LOG_PATH}" r
     IfErrors zcodeShowUninstallerDetailsDone
     zcodeShowUninstallerDetailsRead:
       ClearErrors
@@ -277,13 +277,13 @@
   Function ZCodeDetectPreviousUninstallerCapabilities
     StrCpy $ZCodePreviousUninstallerSupportsManifest "0"
     ; manifest 是卸载器能力标记：存在即表示旧卸载器会按清单选择性删除。
-    IfFileExists "$INSTDIR\${ZCODE_INSTALL_MANIFEST_NAME}" 0 zcodePreviousUninstallerCapabilityCheckNested
+    IfFileExists "$INSTDIR\${XCODE_INSTALL_MANIFEST_NAME}" 0 zcodePreviousUninstallerCapabilityCheckNested
       StrCpy $ZCodePreviousUninstallerSupportsManifest "1"
       Return
 
     zcodePreviousUninstallerCapabilityCheckNested:
       ; assisted installer 的目录页会在后续 instfilesPre 才补上 APP_FILENAME 子目录，提前兼容两种形态。
-      IfFileExists "$INSTDIR\${APP_FILENAME}\${ZCODE_INSTALL_MANIFEST_NAME}" 0 zcodePreviousUninstallerCapabilityDone
+      IfFileExists "$INSTDIR\${APP_FILENAME}\${XCODE_INSTALL_MANIFEST_NAME}" 0 zcodePreviousUninstallerCapabilityDone
         StrCpy $ZCodePreviousUninstallerSupportsManifest "1"
 
     zcodePreviousUninstallerCapabilityDone:
@@ -293,12 +293,12 @@
     ; handleUninstallResult 会把旧卸载器的退出码放在 $R0；失败时显示清理诊断，
     ; 不再复用 appCannotBeClosed（该文案只适用于进程占用）。
     ${if} $R0 != 0
-      ; 修复原因：静默自动更新无人值守，未设置 /SD 的模态框会一直等待用户点击，
+      ; 静默自动更新无人值守，未设置 /SD 的模态框会一直等待用户点击，
       ; 使明确的退出码无法返回 electron-updater。静默时自动采用 IDOK，交互时仍显示提示。
       SetDetailsPrint listonly
       DetailPrint "ZCode: cleanup-failed exit-code=$R0"
       Call ZCodeShowUninstallerCleanupDetails
-      MessageBox MB_OK|MB_ICONSTOP "旧版本清理失败（错误码 $R0）。可能是文件被占用、权限不足或磁盘空间不足。详细日志：${ZCODE_UNINSTALLER_LOG_PATH}" /SD IDOK
+      MessageBox MB_OK|MB_ICONSTOP "旧版本清理失败（错误码 $R0）。可能是文件被占用、权限不足或磁盘空间不足。详细日志：${XCODE_UNINSTALLER_LOG_PATH}" /SD IDOK
       SetErrorLevel 2
       Quit
     ${endif}
@@ -311,20 +311,20 @@
   !macroend
 !endif
 
-!define ZCODE_INSTALL_DIR_BACK_BUTTON_WIDTH 180
+!define XCODE_INSTALL_DIR_BACK_BUTTON_WIDTH 180
 
 !macro customHeader
   !ifndef BUILD_UNINSTALLER
-    ; 修复原因：异步生成的 header 可能先 include 本文件，再注册 UAC 插件目录。
+    ; 异步生成的 header 可能先 include 本文件，再注册 UAC 插件目录。
     ; 在 customHeader 展开函数，确保插件已注册；preInit 仍调用同一函数和真实 UAC 判据。
     Function ZCodeInitializeInstallerLog
       Push $R0
       Push $R1
       Push $R2
       StrCpy $ZCodeInstallerLogUnavailable ""
-      ${If} ${ZCODE_INSTALLER_IS_ELEVATED_INNER}
+      ${If} ${XCODE_INSTALLER_IS_ELEVATED_INNER}
         StrCpy $ZCodeInstallerProcessRole "elevated-inner"
-        StrCpy $ZCodeInstallerLogPath "${ZCODE_INSTALLER_ELEVATED_LOG_PATH}"
+        StrCpy $ZCodeInstallerLogPath "${XCODE_INSTALLER_ELEVATED_LOG_PATH}"
       ${Else}
         StrCpy $ZCodeInstallerProcessRole "outer"
         StrCpy $R0 $CMDLINE
@@ -335,7 +335,7 @@
         StrCpy $ZCodeInstallerLogPath $R1
         Goto zcodeInstallerLogPathReady
         zcodeInstallerLogUseDefault:
-          StrCpy $ZCodeInstallerLogPath "${ZCODE_INSTALLER_DEFAULT_LOG_PATH}"
+          StrCpy $ZCodeInstallerLogPath "${XCODE_INSTALLER_DEFAULT_LOG_PATH}"
         zcodeInstallerLogPathReady:
           ${GetParent} $ZCodeInstallerLogPath $R2
           StrCmp $R2 "" zcodeInstallerLogInitialized
@@ -348,11 +348,11 @@
       Pop $R0
     FunctionEnd
 
-    ; 修复原因：electron-builder 的 common.nsh 先设置 ShowInstDetails nevershow；
+    ; electron-builder 的 common.nsh 先设置 ShowInstDetails nevershow；
     ; hide 在该模板组合下仍可能留下空白列表且没有可展开入口，因此直接常显阶段详情。
     ShowInstDetails show
     !ifdef allowToChangeInstallationDirectory
-      ; 修复原因：electron-builder 已在 assistedInstaller.nsh 中用该开关生成安装目录页面，
+      ; electron-builder 已在 assistedInstaller.nsh 中用该开关生成安装目录页面，
       ; 但 installUtil.nsh 随后还会用它禁止无 --updated 的手动覆盖保留快捷方式，导致旧卸载器
       ; 调用 UninstShortcut 注销开始菜单固定项。页面生成后撤掉开关，让自动更新和手动覆盖
       ; 在同一安装目录覆盖时都通过 KeepShortcuts 保留同一个 .lnk。
@@ -362,7 +362,7 @@
 !macroend
 
 !ifndef BUILD_UNINSTALLER
-  ; 修复原因：electron-builder 会先编译卸载器，但快捷方式目标读取只在安装更新流程中调用。
+  ; electron-builder 会先编译卸载器，但快捷方式目标读取只在安装更新流程中调用。
   ; 若把函数带入卸载器，NSIS 会产生 6010 未引用告警，并在 /WX 下直接中断 Windows CI。
   Function ZCodeReadShortcutTarget
     Exch $R9
@@ -370,17 +370,17 @@
     Push $R2
 
     StrCpy $R2 ""
-    System::Call 'Kernel32::SetEnvironmentVariableW(w "ZCODE_SHORTCUT_PATH", w "$R9") i.R1'
+    System::Call 'Kernel32::SetEnvironmentVariableW(w "XCODE_SHORTCUT_PATH", w "$R9") i.R1'
     StrCmp $R1 "0" zcodeReadShortcutTargetDone 0
 
-    nsExec::ExecToStack /TIMEOUT=5000 `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -Command "[Console]::Out.Write(([Activator]::CreateInstance([type]::GetTypeFromProgID('WScript.Shell'))).CreateShortcut([Environment]::GetEnvironmentVariable('ZCODE_SHORTCUT_PATH')).TargetPath)"`
+    nsExec::ExecToStack /TIMEOUT=5000 `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -Command "[Console]::Out.Write(([Activator]::CreateInstance([type]::GetTypeFromProgID('WScript.Shell'))).CreateShortcut([Environment]::GetEnvironmentVariable('XCODE_SHORTCUT_PATH')).TargetPath)"`
     Pop $R1
     Pop $R2
     StrCmp $R1 "0" zcodeReadShortcutTargetDone 0
     StrCpy $R2 ""
 
     zcodeReadShortcutTargetDone:
-      System::Call 'Kernel32::SetEnvironmentVariableW(w "ZCODE_SHORTCUT_PATH", p 0) i.R1'
+      System::Call 'Kernel32::SetEnvironmentVariableW(w "XCODE_SHORTCUT_PATH", p 0) i.R1'
       StrCpy $R9 "$R2"
       Pop $R2
       Pop $R1
@@ -395,7 +395,7 @@
     Pop $R0
     StrCmp $R0 "$appExe" ${LABEL_PREFIX}Done 0
 
-    ; 修复原因：历史版本可能留下指向已移动 exe 的 .lnk，但无条件覆盖正确快捷方式会让
+    ; 历史版本可能留下指向已移动 exe 的 .lnk，但无条件覆盖正确快捷方式会让
     ; 部分 Windows 11 丢失“所有应用”索引或用户固定关系，因此只修复目标不一致的项。
     ClearErrors
     CreateShortCut "${SHORTCUT_PATH}" "$appExe" "" "$appExe" 0 "" "" "${APP_DESCRIPTION}"
@@ -406,7 +406,7 @@
       Goto ${LABEL_PREFIX}Done
     ${LABEL_PREFIX}Succeeded:
       WinShell::SetLnkAUMI "${SHORTCUT_PATH}" "${APP_ID}"
-      ; 修复后的 .lnk 必须在最后一次写入后通知 Shell，避免开始菜单继续使用旧索引。
+      ; 重写后的 .lnk 必须在最后一次写入后通知 Shell，避免开始菜单继续使用旧索引。
       System::Call 'Shell32::SHChangeNotify(i 0x00002000, i 0x0005, w "${SHORTCUT_PATH}", p 0)'
     ${LABEL_PREFIX}Done:
   ${endIf}
@@ -427,7 +427,7 @@
     !endif
   ${endIf}
 
-  ; 修复原因：手动覆盖没有 --updated，继承旧快捷方式时仍需检查目标；首次安装没有旧项，
+  ; 手动覆盖没有 --updated，继承旧快捷方式时仍需检查目标；首次安装没有旧项，
   ; 不应额外启动 PowerShell。用户已删除的快捷方式也不会重建。
   ; assisted installer 完成页始终直接运行本次安装落盘的 exe。
   StrCpy $launchLink "$appExe"
@@ -450,13 +450,13 @@
 
     IntOp $7 $5 - $3
     IntOp $8 $6 - $4
-    IntCmp $7 ${ZCODE_INSTALL_DIR_BACK_BUTTON_WIDTH} zcodeResizeInstallDirBackButtonDone zcodeResizeInstallDirBackButtonResize zcodeResizeInstallDirBackButtonDone
+    IntCmp $7 ${XCODE_INSTALL_DIR_BACK_BUTTON_WIDTH} zcodeResizeInstallDirBackButtonDone zcodeResizeInstallDirBackButtonResize zcodeResizeInstallDirBackButtonDone
 
     zcodeResizeInstallDirBackButtonResize:
-      ; 修复原因：阻断页把“上一步”改成中文动作文案，NSIS 默认按钮宽度可能裁掉文字。
+      ; 阻断页把“上一步”改成中文动作文案，NSIS 默认按钮宽度可能裁掉文字。
       ; 保持右边缘不动向左扩宽，避免和右侧“安装/取消”按钮重叠。
-      IntOp $3 $5 - ${ZCODE_INSTALL_DIR_BACK_BUTTON_WIDTH}
-      System::Call "user32::MoveWindow(p r1, i r3, i r4, i ${ZCODE_INSTALL_DIR_BACK_BUTTON_WIDTH}, i r8, i 1)"
+      IntOp $3 $5 - ${XCODE_INSTALL_DIR_BACK_BUTTON_WIDTH}
+      System::Call "user32::MoveWindow(p r1, i r3, i r4, i ${XCODE_INSTALL_DIR_BACK_BUTTON_WIDTH}, i r8, i 1)"
 
     zcodeResizeInstallDirBackButtonDone:
   FunctionEnd
@@ -506,7 +506,7 @@
     Call ZCodeDetectPreviousUninstallerCapabilities
     StrCmp $ZCodePreviousUninstallerSupportsManifest "1" zcodeInstallDirDataBlockSkip
 
-    ; Bugfix: 用户可能把数据存储目录放进安装目录，Windows 更新覆盖安装目录时会清掉 .zcode。
+    ;  用户可能把数据存储目录放进安装目录，Windows 更新覆盖安装目录时会清掉 .zcode。
     ; assisted installer 会把不含应用名的选择目录补成 "$INSTDIR\${APP_FILENAME}"，所以这里按相同规则计算最终安装目录。
     ${StrContains} $R1 "${APP_FILENAME}" "$INSTDIR"
     StrCmp $R1 "" 0 zcodeInstallDirDataBlockUseSelectedDir
@@ -517,7 +517,7 @@
       StrCpy $R0 "$INSTDIR"
 
     zcodeInstallDirDataBlockCheckDir:
-      ; 修复原因：旧阻断只检查最终安装目录直属的 .zcode，漏掉 data\.zcode 等子目录数据。
+      ; 旧阻断只检查最终安装目录直属的 .zcode，漏掉 data\.zcode 等子目录数据。
       ; 安装器覆盖安装时会管理整个安装目录树，递归命中任意 .zcode 都必须阻断。
       Push "$R0"
       Call ZCodeFindNestedDataDir
@@ -560,7 +560,7 @@
   FunctionEnd
 
   Function ZCodeBlockInstallDirContainsDataLeave
-    ; 修复原因：阻断页的下一步按钮已禁用，但自动化或系统快捷键仍可能触发下一页。
+    ; 阻断页的下一步按钮已禁用，但自动化或系统快捷键仍可能触发下一页。
     ; leave 回调只处理继续前进的路径，这里强制留在当前页，确保用户只能返回修改安装目录。
     Abort
   FunctionEnd

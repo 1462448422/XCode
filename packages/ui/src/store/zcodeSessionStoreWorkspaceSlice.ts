@@ -2,28 +2,27 @@ import type { SessionCreateSource } from "@zcode/shared";
 /* eslint-disable max-lines -- workspace 级状态动作集中在同一 slice，先保持收口便于维护。 */
 import {
   buildNativeSupplierKey,
-  normalizeAgentProviderToZCodeAgent,
-  type ZCodeConfigOption,
+  normalizeAgentProviderToXCodeAgent,
+  type XCodeConfigOption,
   type ModelSelectionResolution,
-  type ZCodeProvider,
-  type ZCodeSlashCommand,
-  type ZCodeTaskMeta,
-  type ZCodeTaskRuntimeStatus,
-  type ZCodeWorkspaceInitStatus,
+  type XCodeProvider,
+  type XCodeSlashCommand,
+  type XCodeTaskMeta,
+  type XCodeTaskRuntimeStatus,
+  type XCodeWorkspaceInitStatus,
 } from "@zcode/shared";
-import { persistLastSelectedAgentProvider } from "@/lib/zcodeProviderPreference.js";
 import { areConfigOptionsEquivalent } from "@/lib/configOptionsEquality.js";
-import type { ZCodeUiError } from "@/lib/zcodeUiError.js";
+import type { XCodeUiError } from "@/lib/zcodeUiError.js";
 import { pushNavEntry } from "@/lib/taskNavigationHistory.js";
 import { resolveTaskRestorePreloadConfigOptions } from "@/lib/taskModelRecovery.js";
 import type {
-  ZCodeSessionStoreState,
+  XCodeSessionStoreState,
   ConfigOptionsStatus,
   ComposerMentionPrefill,
   GroupedDraftTaskState,
   GroupedDraftTaskPlacement,
   ModelSwitchStage,
-  WorkspaceZCodeUIState,
+  WorkspaceXCodeUIState,
 } from "@/store/zcodeSessionStoreTypes.js";
 import {
   getTaskMeta,
@@ -34,9 +33,9 @@ import {
 
 type SetFn = (
   partial:
-    | ZCodeSessionStoreState
-    | Partial<ZCodeSessionStoreState>
-    | ((state: ZCodeSessionStoreState) => ZCodeSessionStoreState | Partial<ZCodeSessionStoreState>),
+    | XCodeSessionStoreState
+    | Partial<XCodeSessionStoreState>
+    | ((state: XCodeSessionStoreState) => XCodeSessionStoreState | Partial<XCodeSessionStoreState>),
 ) => void;
 
 let groupedDraftSequence = 0;
@@ -46,7 +45,7 @@ function createGroupedDraftId(createdAt: number): string {
   return `grouped-draft-${createdAt}-${groupedDraftSequence}`;
 }
 
-function normalizeThoughtLevelConfigOption(option: ZCodeConfigOption): ZCodeConfigOption {
+function normalizeThoughtLevelConfigOption(option: XCodeConfigOption): XCodeConfigOption {
   if (
     option.type !== "select" ||
     (option.id !== "thought_level" && option.category !== "thought_level")
@@ -65,11 +64,11 @@ function normalizeThoughtLevelConfigOption(option: ZCodeConfigOption): ZCodeConf
   return { ...option, currentValue: fallbackValue };
 }
 
-function normalizeConfigOptions(options: ZCodeConfigOption[]): ZCodeConfigOption[] {
+function normalizeConfigOptions(options: XCodeConfigOption[]): XCodeConfigOption[] {
   return options.map(normalizeThoughtLevelConfigOption);
 }
 
-function cloneConfigOptions(options: readonly ZCodeConfigOption[]): ZCodeConfigOption[] {
+function cloneConfigOptions(options: readonly XCodeConfigOption[]): XCodeConfigOption[] {
   return options.map((option) => ({
     ...option,
     options: option.options?.map((entry) => ({ ...entry })),
@@ -89,14 +88,14 @@ function isSameGroupedDraftPlacement(
   return right.type === "group" && left.groupId === right.groupId;
 }
 
-function isModeConfigOption(option: ZCodeConfigOption): boolean {
+function isModeConfigOption(option: XCodeConfigOption): boolean {
   return option.category === "mode" && option.type === "select";
 }
 
 function createFallbackModeOption(params: {
   currentModeId: string;
-  options?: NonNullable<ZCodeConfigOption["options"]>;
-}): ZCodeConfigOption {
+  options?: NonNullable<XCodeConfigOption["options"]>;
+}): XCodeConfigOption {
   const options = params.options?.length
     ? params.options
     : [{ value: params.currentModeId, name: params.currentModeId }];
@@ -111,9 +110,9 @@ function createFallbackModeOption(params: {
 }
 
 function replaceModeConfigOption(
-  currentOptions: ZCodeConfigOption[] | null,
-  nextModeOption: ZCodeConfigOption | null,
-): ZCodeConfigOption[] | null {
+  currentOptions: XCodeConfigOption[] | null,
+  nextModeOption: XCodeConfigOption | null,
+): XCodeConfigOption[] | null {
   const options = currentOptions ?? [];
   const modeIndex = options.findIndex(isModeConfigOption);
   if (modeIndex === -1) {
@@ -138,9 +137,9 @@ function replaceModeConfigOption(
 }
 
 function updateCurrentModeConfigOption(
-  currentOptions: ZCodeConfigOption[] | null,
+  currentOptions: XCodeConfigOption[] | null,
   modeId: string | null,
-): ZCodeConfigOption[] | null {
+): XCodeConfigOption[] | null {
   const options = currentOptions ?? [];
   const existingModeOption = options.find(isModeConfigOption);
   if (!modeId) {
@@ -170,9 +169,9 @@ function updateCurrentModeConfigOption(
 }
 
 function updateActiveTaskConfigOptions(
-  current: WorkspaceZCodeUIState,
-  updater: (options: ZCodeConfigOption[] | null) => ZCodeConfigOption[] | null,
-): Pick<WorkspaceZCodeUIState, "taskConfigOptionsByTaskId"> | null {
+  current: WorkspaceXCodeUIState,
+  updater: (options: XCodeConfigOption[] | null) => XCodeConfigOption[] | null,
+): Pick<WorkspaceXCodeUIState, "taskConfigOptionsByTaskId"> | null {
   const activeTaskId = current.activeTaskId;
   if (!activeTaskId) {
     return null;
@@ -197,9 +196,9 @@ function updateActiveTaskConfigOptions(
 }
 
 function resolveActiveTaskConfigOptionsOnSwitch(
-  current: WorkspaceZCodeUIState,
+  current: WorkspaceXCodeUIState,
   taskId: string,
-): { configOptions: ZCodeConfigOption[]; status: ConfigOptionsStatus } | null {
+): { configOptions: XCodeConfigOption[]; status: ConfigOptionsStatus } | null {
   const cachedTaskConfigOptions = current.taskConfigOptionsByTaskId[taskId];
   if (cachedTaskConfigOptions) {
     return {
@@ -312,9 +311,9 @@ export function createWorkspaceSlice(set: SetFn) {
           state,
           workspacePath,
           (current) => {
-            const optimisticTask: ZCodeTaskMeta = {
+            const optimisticTask: XCodeTaskMeta = {
               taskId,
-              traceId: `session-${taskId}` as ZCodeTaskMeta["traceId"],
+              traceId: `session-${taskId}` as XCodeTaskMeta["traceId"],
               title: "",
               workspacePath,
               ...(workspaceIdentity ? { workspaceIdentity } : {}),
@@ -323,7 +322,7 @@ export function createWorkspaceSlice(set: SetFn) {
               // updatedAt 用最低哨兵值，保证任何 sessions-index 权威 meta 都会在
               // mergeTaskWithOptimisticMeta 中获胜，避免本地时钟压住 mode/provider/status 等字段。
               updatedAt: 0,
-              mode: "default",
+              mode: "build",
               provider: current.selectedProvider,
             };
             // task 导航和 draft session 创建是不同状态转换。只有创建成功边界
@@ -510,7 +509,7 @@ export function createWorkspaceSlice(set: SetFn) {
 
     startDraft: (
       workspacePath: string,
-      provider?: ZCodeProvider,
+      provider?: XCodeProvider,
       workspaceIdentity?: string,
       options?: {
         groupedDraftPlacement?: GroupedDraftTaskPlacement;
@@ -518,18 +517,15 @@ export function createWorkspaceSlice(set: SetFn) {
       },
     ) => {
       const normalizedProvider = provider
-        ? normalizeAgentProviderToZCodeAgent(provider)
+        ? normalizeAgentProviderToXCodeAgent(provider)
         : undefined;
-      if (normalizedProvider) {
-        persistLastSelectedAgentProvider(normalizedProvider);
-      }
 
       set((state) =>
         updateWorkspaceState(
           state,
           workspacePath,
           (current) => {
-            const nextSelectedProvider = normalizeAgentProviderToZCodeAgent(
+            const nextSelectedProvider = normalizeAgentProviderToXCodeAgent(
               normalizedProvider ?? current.selectedProvider,
             );
             const shouldResetSupplierForDraftProvider =
@@ -547,7 +543,7 @@ export function createWorkspaceSlice(set: SetFn) {
             const inheritedConfigOptions = activeTaskIdForInheritance
               ? cachedActiveTaskConfigOptions && cachedActiveTaskConfigOptions.length > 0
                 ? cachedActiveTaskConfigOptions
-                : // Bug 原因：protocol-v4 当前任务的配置可能只完成了 workspace 投影，
+                : // protocol-v4 当前任务的配置可能只完成了 workspace 投影，
                   // legacy task 缓存尚未写入或仍是首帧空数组。此时工具条已经显示
                   // current.configOptions，新草稿必须从当前投影继承，不能无种子预热。
                   current.configOptions
@@ -599,7 +595,7 @@ export function createWorkspaceSlice(set: SetFn) {
                 options?.createSource ?? (options?.groupedDraftPlacement ? "group" : "session"),
               draftRuntime: { status: "idle", error: null },
               // 从已有 task 点 New Task 时，草稿输入框必须继承当前 task 的完整配置。
-              // 否则后续 workspace prepare 会按 Team Plan / 默认模型重建草稿，把已选的其他模型回弹成 GLM。
+              // 否则后续 workspace prepare 会按 Team Plan / 默认模型重建草稿，把 deepseek 回弹成 GLM。
               ...(inheritedDraftConfigOptions
                 ? {
                     configOptions: inheritedDraftConfigOptions,
@@ -657,7 +653,7 @@ export function createWorkspaceSlice(set: SetFn) {
 
     bindRuntimeProvider: (
       workspacePath: string,
-      provider: ZCodeProvider,
+      provider: XCodeProvider,
       workspaceIdentity?: string,
     ) =>
       set((state) =>
@@ -666,7 +662,7 @@ export function createWorkspaceSlice(set: SetFn) {
           workspacePath,
           (current) => ({
             ...current,
-            selectedProvider: normalizeAgentProviderToZCodeAgent(provider),
+            selectedProvider: normalizeAgentProviderToXCodeAgent(provider),
           }),
           workspaceIdentity,
         ),
@@ -697,7 +693,7 @@ export function createWorkspaceSlice(set: SetFn) {
 
     setWorkspaceInitState: (
       workspacePath: string,
-      status: ZCodeWorkspaceInitStatus,
+      status: XCodeWorkspaceInitStatus,
       error?: string | null,
       workspaceIdentity?: string,
     ) => {
@@ -741,7 +737,7 @@ export function createWorkspaceSlice(set: SetFn) {
 
     setTaskState: (
       workspacePath: string,
-      status: ZCodeTaskRuntimeStatus,
+      status: XCodeTaskRuntimeStatus,
       error?: string | null,
       workspaceIdentity?: string,
     ) => {
@@ -763,7 +759,7 @@ export function createWorkspaceSlice(set: SetFn) {
 
     setDraftError: (
       workspacePath: string,
-      error: ZCodeUiError | null,
+      error: XCodeUiError | null,
       workspaceIdentity?: string,
     ) => {
       set((state) =>
@@ -855,7 +851,7 @@ export function createWorkspaceSlice(set: SetFn) {
 
     setConfigOptions: (
       workspacePath: string,
-      options: ZCodeConfigOption[],
+      options: XCodeConfigOption[],
       workspaceIdentity?: string,
     ) => {
       set((state) => {
@@ -902,7 +898,7 @@ export function createWorkspaceSlice(set: SetFn) {
 
     setSlashCommands: (
       workspacePath: string,
-      commands: ZCodeSlashCommand[],
+      commands: XCodeSlashCommand[],
       workspaceIdentity?: string,
     ) => {
       set((state) =>
@@ -965,7 +961,7 @@ export function createWorkspaceSlice(set: SetFn) {
 
     setTaskListCache: (
       workspacePath: string,
-      tasks: ZCodeTaskMeta[],
+      tasks: XCodeTaskMeta[],
       workspaceIdentity?: string,
     ) => {
       set((state) =>

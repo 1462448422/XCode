@@ -14,7 +14,7 @@ import {
   resolveProviderFamilyDomainFromOAuthProvider,
   type OAuthProviderId,
 } from "@zcode/shared";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   CODING_PLAN_PROVIDER_SPECS,
   type CodingPlanEntitlementState,
@@ -25,6 +25,7 @@ import { pickCodingPlanEntitlementProvider } from "@/lib/codingPlanProvider.js";
 import {
   createCodingPlanProviderNodeKey,
   createCustomProviderNodeKey,
+  createFreeProviderNodeKey,
   createPresetProviderNodeKey,
 } from "@/settings/model-provider-section/utils.js";
 import {
@@ -60,7 +61,7 @@ interface UseModelProviderNavigationOptions {
   showPurchasedTeamPlanFallback?: boolean;
   selectedNodeKey: string | null;
   setSelectedNodeKey: (key: string | null) => void;
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
 }
 
 export function useModelProviderNavigation({
@@ -88,6 +89,18 @@ export function useModelProviderNavigation({
     // 这里复用模型菜单的展示排序，确保设置页和聊天框供应商顺序一致。
     return sortModelProvidersForDisplay(allCustomProviders, displayOrder);
   }, [displayOrder, modelProviders]);
+
+  // 免费供应商组（内置凭据 provider，如「冇名AI」）。
+  const freeProviders = useMemo(
+    () => modelProviders.filter((provider) => provider.config.group === "free"),
+    [modelProviders],
+  );
+
+  // 其他登录型供应商组（CodeBuddy 等，OAuth/API Key 双模式）。
+  const otherProviders = useMemo(
+    () => modelProviders.filter((provider) => provider.config.group === "other"),
+    [modelProviders],
+  );
 
   const codingPlanItems = useMemo(
     () =>
@@ -211,6 +224,28 @@ export function useModelProviderNavigation({
         ],
       },
       {
+        id: "free",
+        title: intl.formatMessage({ id: "settings.modelProvider.freeTitle" }),
+        items: freeProviders.map((provider) => ({
+          key: createFreeProviderNodeKey(provider.providerId),
+          type: "free" as const,
+          label: getProviderFormLabel(provider),
+          provider,
+          statusActive: provider.executable === true,
+        })),
+      },
+      {
+        id: "other",
+        title: intl.formatMessage({ id: "settings.modelProvider.otherTitle" }),
+        items: otherProviders.map((provider) => ({
+          key: createFreeProviderNodeKey(provider.providerId),
+          type: "other" as const,
+          label: getProviderFormLabel(provider),
+          provider,
+          statusActive: provider.executable === true,
+        })),
+      },
+      {
         id: "custom",
         title: intl.formatMessage({ id: "settings.modelProvider.customTitle" }),
         items: customProviders.map((provider) => ({
@@ -226,6 +261,8 @@ export function useModelProviderNavigation({
     return groups;
   }, [
     customProviders,
+    freeProviders,
+    otherProviders,
     codingPlanItems,
     connectionModeCodingPlanItems,
     // 左侧导航分组标题在这个 memo 内格式化。
@@ -370,7 +407,7 @@ function resolvePresetFamilyStatusProvider({
   );
 }
 
-export function resolveFallbackModelProviderNodeKey({
+function resolveFallbackModelProviderNodeKey({
   selectedNodeKey,
   selectableNavigationItems,
 }: {
@@ -519,46 +556,12 @@ function pickFamilyModeNavigationItem(
   );
 }
 
-export function resolveSelectedFamilyModeNodeKey({
-  selectedNavItem,
-  selectableNavigationItems,
-  connectionSelections = {},
-  pendingConnectionSelections = {},
-}: {
-  selectedNavItem: Exclude<
-    ModelProviderNavGroup["items"][number],
-    { type: "codingPlanLoading" }
-  > | null;
-  selectableNavigationItems: Array<
-    Exclude<ModelProviderNavGroup["items"][number], { type: "codingPlanLoading" }>
-  >;
-  connectionSelections?: ProviderFamilyConnectionSelectionSettings;
-  pendingConnectionSelections?: ProviderFamilyConnectionSelectionSettings;
-}): string | null {
-  if (
-    selectedNavItem?.type !== "preset" &&
-    selectedNavItem?.type !== "codingPlan" &&
-    selectedNavItem?.type !== "teamPlan"
-  ) {
-    return null;
-  }
-  const familySpec = resolveModelProviderFamilySpecByProviderId(selectedNavItem.presetId);
-  if (!familySpec) {
-    return null;
-  }
-  const savedItem = pickFamilyModeNavigationItem(selectableNavigationItems, familySpec.id, {
-    ...connectionSelections,
-    ...pendingConnectionSelections,
-  });
-  return savedItem && savedItem.key !== selectedNavItem.key ? savedItem.key : null;
-}
-
 export function connectionSelectionMatchesNavigationItem(
   family: ProviderFamilyDomain,
   selection: ProviderFamilyConnectionSelection,
   item: Exclude<ModelProviderNavGroup["items"][number], { type: "codingPlanLoading" }>,
 ): boolean {
-  if (item.type === "custom") return false;
+  if (item.type === "custom" || item.type === "free" || item.type === "other") return false;
   const familySpec = resolveModelProviderFamilySpecByProviderId(item.presetId ?? "");
   if (familySpec?.id !== family) return false;
   if (selection.kind === "start-plan") {

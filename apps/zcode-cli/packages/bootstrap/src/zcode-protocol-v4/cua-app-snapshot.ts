@@ -21,7 +21,7 @@ function asAppRef(value: unknown): Record<string, unknown> | null {
   return asRecord(value);
 }
 
-export function readCuaInputPid(input: unknown): number | null {
+function readCuaInputPid(input: unknown): number | null {
   const root = asRecord(input);
   const candidates = [root?.app_ref, root?.app, asRecord(root?.target)?.app_ref];
   for (const candidate of candidates) {
@@ -31,7 +31,7 @@ export function readCuaInputPid(input: unknown): number | null {
   return null;
 }
 
-export function readCuaInputBundleId(input: unknown): string | null {
+function readCuaInputBundleId(input: unknown): string | null {
   const root = asRecord(input);
   const candidates = [root?.app_ref, root?.app, asRecord(root?.target)?.app_ref];
   for (const candidate of candidates) {

@@ -8,7 +8,7 @@ import {
 } from "@zcode/contracts";
 import { parseRemoteWorkspaceIdentity } from "@zcode/shared";
 
-export const REMOTE_SESSION_PATH_CORRUPTION_REASON = "remote_session_workspace_path_corrupted";
+const REMOTE_SESSION_PATH_CORRUPTION_REASON = "remote_session_workspace_path_corrupted";
 
 type PathFieldResolution = "clean" | "repair" | "unrelated" | "unsafe";
 

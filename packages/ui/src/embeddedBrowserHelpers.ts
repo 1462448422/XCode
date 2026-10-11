@@ -27,9 +27,8 @@ const WEBVIEW_DETACHED_ERROR_FRAGMENTS = [
   "Render frame was disposed",
 ] as const;
 
-export function isWebviewDetachedError(error: unknown): boolean {
-  const message =
-    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+function isWebviewDetachedError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   if (!message) {
     return false;
   }
@@ -59,13 +58,7 @@ export function safeWebviewCall<T>(
   }
 }
 
-const ALLOWED_BROWSER_PROTOCOLS = new Set([
-  "about:",
-  "data:",
-  "file:",
-  "http:",
-  "https:",
-]);
+const ALLOWED_BROWSER_PROTOCOLS = new Set(["about:", "data:", "file:", "http:", "https:"]);
 
 const URL_PROTOCOL_RE = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 const IPV4_RE = /^\d{1,3}(?:\.\d{1,3}){3}$/;
@@ -167,9 +160,7 @@ function parseSchemeLessUrl(input: string): URL | null {
   try {
     const normalizedInput = normalizeBareIpv6LoopbackInput(input);
     return new URL(
-      normalizedInput.startsWith("//")
-        ? `http:${normalizedInput}`
-        : `http://${normalizedInput}`,
+      normalizedInput.startsWith("//") ? `http:${normalizedInput}` : `http://${normalizedInput}`,
     );
   } catch {
     return null;
@@ -223,14 +214,10 @@ function parseIpv4Address(host: string): [number, number, number, number] | null
 }
 
 function isLocalhostName(host: string): boolean {
-  return (
-    host === "localhost" ||
-    host === "localhost.localdomain" ||
-    host.endsWith(".localhost")
-  );
+  return host === "localhost" || host === "localhost.localdomain" || host.endsWith(".localhost");
 }
 
-export function isLocalDevelopmentHost(host: string): boolean {
+function isLocalDevelopmentHost(host: string): boolean {
   const normalizedHost = host.toLowerCase().replace(/^\[(.*)]$/, "$1");
   if (
     isLocalhostName(normalizedHost) ||
@@ -258,7 +245,7 @@ export function isLocalDevelopmentHost(host: string): boolean {
   );
 }
 
-export function isLocalDevelopmentBrowserUrl(url: string): boolean {
+function isLocalDevelopmentBrowserUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
@@ -271,7 +258,7 @@ export function isLocalDevelopmentBrowserUrl(url: string): boolean {
   }
 }
 
-export type MessageLinkOpenTarget = "app-browser" | "external-browser";
+type MessageLinkOpenTarget = "app-browser" | "external-browser";
 
 /**
  * 交互语义：右键菜单的两项是显式互补的目标选择，只有左键单击才走本机/私网启发式。
@@ -291,9 +278,7 @@ export function resolveMessageLinkOpenTarget(input: {
     return "app-browser";
   }
 
-  return isLocalDevelopmentBrowserUrl(input.href)
-    ? "app-browser"
-    : "external-browser";
+  return isLocalDevelopmentBrowserUrl(input.href) ? "app-browser" : "external-browser";
 }
 
 function shouldPreferHttpForSchemeLessUrl(parsed: URL, explicitPort: string | null): boolean {
@@ -312,8 +297,7 @@ function inferBrowserUrl(input: string): string {
   const normalizedInput = normalizeBareIpv6LoopbackInput(input);
   const parsed = parseSchemeLessUrl(normalizedInput);
   const protocol =
-    parsed &&
-    shouldPreferHttpForSchemeLessUrl(parsed, getSchemeLessExplicitPort(normalizedInput))
+    parsed && shouldPreferHttpForSchemeLessUrl(parsed, getSchemeLessExplicitPort(normalizedInput))
       ? "http"
       : "https";
   return normalizedInput.startsWith("//")

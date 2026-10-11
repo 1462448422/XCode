@@ -2,13 +2,18 @@ import type { ProviderConfigObject } from "@zcode/provider";
 import { PackageIcon } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/components/lib/utils.js";
-import { useZCodeStoreWithDefault } from "@/store/StoreProvider.js";
+import { useXCodeStoreWithDefault } from "@/store/StoreProvider.js";
 import { resolveTheme, type ResolvedTheme } from "@/useTheme.js";
 import alibabaModelStudioLogo from "@/assets/provider-icons/model-provider-alibaba-cloud.png";
 import anthropicLogo from "@/assets/provider-icons/model-provider-anthropic.png";
 import bigModelLogo from "@/assets/provider-icons/logo-bigmodel.svg";
 import deepSeekLogo from "@/assets/provider-icons/model-provider-deepseek.png";
+import kiloFreeLogo from "@/assets/provider-icons/model-provider-kilo-free.png";
+import opencodeFreeLogo from "@/assets/provider-icons/model-provider-opencode-free.png";
+import codebuddyLogo from "@/assets/provider-icons/model-provider-codebuddy.png";
+import qoderLogo from "@/assets/provider-icons/model-provider-qoder.png";
 import miniMaxLogo from "@/assets/provider-icons/model-provider-minimax.png";
+import moumingAiLogo from "@/assets/provider-icons/model-provider-mouming-ai.jpg";
 import moonshotKimiLogo from "@/assets/provider-icons/model-provider-moonshot-kimi.png";
 import openAiLogo from "@/assets/provider-icons/model-provider-openai.png";
 import xAiLogo from "@/assets/provider-icons/model-provider-xai.png";
@@ -43,9 +48,18 @@ const BUILTIN_PROVIDER_LOGO_ASSETS: Readonly<Record<string, BuiltinProviderLogoA
   xai: { light: xAiLogo },
   openrouter: { light: openrouterLight, dark: openrouterDark },
   opencode: { light: opencodeLight, dark: opencodeDark },
+  // 免费供应商「冇名AI」。
+  "mouming-ai": { light: moumingAiLogo },
+  // 免费供应商「Kilo Free」（免鉴权网关）。
+  "kilo-free": { light: kiloFreeLogo },
+  // 免费供应商「OpenCode Free」（Zen 免费档）；opencode key 已被上游 OpenCode Zen/Go 占用。
+  "opencode-free": { light: opencodeFreeLogo },
+  // 其他登录型供应商「CodeBuddy」「Qoder」（预置 Qoder 备用）。
+  codebuddy: { light: codebuddyLogo },
+  qoder: { light: qoderLogo },
 };
 
-export function resolveBuiltinProviderLogoAsset(
+function resolveBuiltinProviderLogoAsset(
   logo: ProviderLogoRef | null | undefined,
   theme: ResolvedTheme,
 ): string | null {
@@ -63,7 +77,7 @@ export function ProviderLogo({
   logo?: ProviderLogoRef | null;
   className?: string;
 }) {
-  const theme = useZCodeStoreWithDefault((state) => state.theme, "zai-dark");
+  const theme = useXCodeStoreWithDefault((state) => state.theme, "zai-dark");
   const src = resolveBuiltinProviderLogoAsset(logo, resolveTheme(theme));
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   if (!src || failedSrc === src) {

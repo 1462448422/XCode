@@ -1,7 +1,6 @@
 import React from "react";
 import type { ApprovalPrompt } from "./app-model.js";
-import { palette } from "./app-model.js";
-import { decisionsForApproval } from "./app-approval.js";
+import { approvalDecisions, palette } from "./app-model.js";
 import {
   approvalDecisionLabel,
   isOfficialCuaProjectApproval,
@@ -117,7 +116,7 @@ function approvalRows(approval: ApprovalPrompt, contentWidth: number): ApprovalT
     );
   }
 
-  for (const decision of decisionsForApproval(approval.request)) {
+  for (const decision of approvalDecisions) {
     rows.push(
       approvalTextRow(
         decision,

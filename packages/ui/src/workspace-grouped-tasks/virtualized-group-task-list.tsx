@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { XCodeTaskMeta } from "@zcode/shared";
 import { GroupedTaskItem } from "@/workspace-grouped-tasks/task-item.js";
 import { taskKey } from "@/workspace-grouped-tasks/ids.js";
 import {
@@ -46,7 +46,6 @@ export function VirtualizedGroupedTaskList({
   activeWorkspacePath,
   activeWorkspaceIdentity,
   activeTaskId,
-  mobileActiveTaskKey,
   getTaskRemoteSessionId,
   getTaskWorkspaceLabel,
   onSelectTask,
@@ -60,23 +59,22 @@ export function VirtualizedGroupedTaskList({
   activeDragTaskKey,
   tooltipsDisabled,
 }: {
-  tasks: ZCodeTaskMeta[];
+  tasks: XCodeTaskMeta[];
   groupId: string;
   groups: TaskGroupMenuItem[];
   activeWorkspacePath: string;
   activeWorkspaceIdentity?: string;
   activeTaskId: string | null;
-  mobileActiveTaskKey?: string | null;
-  getTaskRemoteSessionId: (task: ZCodeTaskMeta) => string | undefined;
-  getTaskWorkspaceLabel: (task: ZCodeTaskMeta) => string;
+  getTaskRemoteSessionId: (task: XCodeTaskMeta) => string | undefined;
+  getTaskWorkspaceLabel: (task: XCodeTaskMeta) => string;
   onSelectTask: (workspacePath: string, taskId: string, workspaceIdentity?: string) => void;
-  onCloseTask: (task: ZCodeTaskMeta) => void;
-  onOpenFileTree?: (task: ZCodeTaskMeta) => void;
-  onMoveTaskToGroup: (task: ZCodeTaskMeta, groupId: string | null) => void;
-  onMoveTaskToTop: (task: ZCodeTaskMeta) => void;
-  onStartRenameTask: (task: ZCodeTaskMeta) => void;
-  onArchiveTask: (task: ZCodeTaskMeta) => void;
-  onMarkTaskAsUnread: (task: ZCodeTaskMeta) => void;
+  onCloseTask: (task: XCodeTaskMeta) => void;
+  onOpenFileTree?: (task: XCodeTaskMeta) => void;
+  onMoveTaskToGroup: (task: XCodeTaskMeta, groupId: string | null) => void;
+  onMoveTaskToTop: (task: XCodeTaskMeta) => void;
+  onStartRenameTask: (task: XCodeTaskMeta) => void;
+  onArchiveTask: (task: XCodeTaskMeta) => void;
+  onMarkTaskAsUnread: (task: XCodeTaskMeta) => void;
   activeDragTaskKey?: string | null;
   tooltipsDisabled?: boolean;
 }) {
@@ -151,7 +149,7 @@ export function VirtualizedGroupedTaskList({
   const measureElement = rowVirtualizer.measureElement;
 
   const renderTask = useCallback(
-    (task: ZCodeTaskMeta) => (
+    (task: XCodeTaskMeta) => (
       <GroupedTaskItem
         key={taskKey(task)}
         task={task}
@@ -162,7 +160,6 @@ export function VirtualizedGroupedTaskList({
         activeWorkspacePath={activeWorkspacePath}
         activeWorkspaceIdentity={activeWorkspaceIdentity}
         activeTaskId={activeTaskId}
-        mobileActiveTaskKey={mobileActiveTaskKey}
         onSelectTask={onSelectTask}
         onCloseTask={onCloseTask}
         onOpenFileTree={onOpenFileTree}
@@ -184,7 +181,6 @@ export function VirtualizedGroupedTaskList({
       getTaskWorkspaceLabel,
       groupId,
       groups,
-      mobileActiveTaskKey,
       onArchiveTask,
       onCloseTask,
       onMarkTaskAsUnread,
@@ -237,9 +233,9 @@ export function VirtualizedGroupedTaskList({
         overflowAnchor: "none",
       }}
     >
-      {/* Bugfix: 大 group 以前一次渲染所有 task 行，2000 条会制造数万 DOM 节点并拖高
+      {/* 大 group 以前一次渲染所有 task 行，2000 条会制造数万 DOM 节点并拖高
           JS/布局 CPU。这里只挂载滚动窗口内的行，保持点击和菜单操作可用。 */}
-      {/* Bugfix: group 内虚拟行会在滚动时不断挂载/卸载，浏览器滚动锚点可能误把
+      {/* group 内虚拟行会在滚动时不断挂载/卸载，浏览器滚动锚点可能误把
           这些绝对定位行当成稳定锚点，测量回写时就可能把 scrollTop 拉回顶部。
           禁用虚拟列表子树的锚点选择，避免和 react-virtual 的定位计算打架。 */}
       {renderedVirtualTasks}

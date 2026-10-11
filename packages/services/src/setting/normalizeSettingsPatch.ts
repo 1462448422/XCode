@@ -73,9 +73,9 @@ export function normalizeSettingsPatch(patch: Partial<AppSettings>): Partial<App
     typeof normalizedPatch.zcodeEndpointOrigin === "string"
   ) {
     // 非生产 endpoint override 需要支持 Reset 清空；RPC/JSON 对 undefined 不稳定时，用空串也能回到默认生产域。
-    const trimmedZCodeEndpointOrigin = normalizedPatch.zcodeEndpointOrigin.trim();
+    const trimmedXCodeEndpointOrigin = normalizedPatch.zcodeEndpointOrigin.trim();
     normalizedPatch.zcodeEndpointOrigin =
-      trimmedZCodeEndpointOrigin.length > 0 ? trimmedZCodeEndpointOrigin : undefined;
+      trimmedXCodeEndpointOrigin.length > 0 ? trimmedXCodeEndpointOrigin : undefined;
   }
 
   if (
@@ -87,15 +87,6 @@ export function normalizeSettingsPatch(patch: Partial<AppSettings>): Partial<App
     const trimmedProviderFamilyDomain = normalizedPatch.providerFamilyDomain.trim();
     normalizedPatch.providerFamilyDomain =
       trimmedProviderFamilyDomain.length > 0 ? normalizedPatch.providerFamilyDomain : undefined;
-  }
-
-  if (
-    "dynamicWorkflowMode" in normalizedPatch &&
-    (normalizedPatch.dynamicWorkflowMode as string | undefined) === ""
-  ) {
-    // docs/dynamic-workflow/launch.md「The user's choice」：选回服务端提供的模式等于删除选择，
-    // 安装才能继续跟随服务端翻转。RPC 会吞掉 undefined，这里把空串哨兵归一成删除。
-    normalizedPatch.dynamicWorkflowMode = undefined;
   }
 
   return normalizedPatch;

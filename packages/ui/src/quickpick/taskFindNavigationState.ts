@@ -1,4 +1,4 @@
-export interface TaskFindNavigationState {
+interface TaskFindNavigationState {
   activeIndex: number;
   navigationRequestId: number;
   query: string;

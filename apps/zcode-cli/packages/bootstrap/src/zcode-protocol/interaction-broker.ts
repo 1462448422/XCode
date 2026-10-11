@@ -1,50 +1,32 @@
-import { randomUUID } from "node:crypto";
 import { raceClientRequestWithV4Interaction } from "./interaction-response-race.js";
 import {
   ASK_USER_QUESTION_TOOL_NAME,
-  CoreErrorType,
-  createCoreError,
   AskUserQuestionInputSchema,
   AMEND_WORKFLOW_TOOL_NAME,
   CREATE_WORKFLOW_TOOL_NAME,
   EXIT_PLAN_MODE_TOOL_NAME,
   SESSION_ENTRY_USER_INPUT_AUTO_RESOLUTION,
-  SessionEventType,
-  createEventId,
   type AskUserQuestion,
-  type McpElicitationRequest,
-  type McpElicitationResult,
   type PermissionBrokerPort,
   type PermissionBrokerRequest,
   type PermissionBrokerRequestOptions,
   type PermissionBrokerResult,
-  type SessionEvent,
 } from "@zcode/contracts";
-import {
-  MCP_ELICITATION_INTERACTION,
-  MCP_ELICITATION_TOOL_NAME,
-  mcpElicitationContentFromAnswers,
-  mcpElicitationQuestions,
-} from "../zcode-protocol-v4/mcp-elicitation.js";
 import {
   WORKFLOW_REFINE_PERMISSION_OPTION_ID,
   zcodePermissionResponseSchema,
   zcodeProtocolMethods,
   zcodeUserInputResponseSchema,
-  type ZCodePermissionOption,
-  type ZCodePermissionResponse,
-  type ZCodeUserInputQuestion,
-  type ZCodeUserInputResponse,
+  type XCodePermissionOption,
+  type XCodePermissionResponse,
+  type XCodeUserInputQuestion,
+  type XCodeUserInputResponse,
 } from "@zcode/shared";
 import type {
   V4InteractionAnswer,
   V4InteractionRegistrationOptions,
 } from "../zcode-protocol-v4/interaction-registry.js";
-import {
-  PROTOCOL_CLIENT_REQUEST_ERROR_CODES,
-  ProtocolRequestError,
-  type ZCodeProtocolAgentServerContext,
-} from "./server-types.js";
+import type { XCodeProtocolAgentServerContext } from "./server-types.js";
 import {
   buildProtocolPermissionOptions,
   buildSessionPermissionUpdates,
@@ -53,59 +35,31 @@ import {
   buildPermissionDeniedContent,
   PERMISSION_DENIED_BY_USER_CONTENT,
 } from "./permission-options.js";
-import { withWorkflowSettingsAdjustment } from "./workflow-settings-answer.js";
 
 const EXIT_PLAN_MODE_APPROVAL_QUESTION = "Review this implementation plan.";
 const EXIT_PLAN_MODE_APPROVAL_APPROVE = "approve";
 const INTERACTION_REQUEST_REANNOUNCE_INTERVAL_MS = 1_000;
 
-interface RegisteredRequestOptions extends PermissionBrokerRequestOptions {
-  onRegistered?: () => void;
-}
-
 export function createProtocolInteractionBroker(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
 ): PermissionBrokerPort {
   return {
     requestPermission(request, options) {
-      const ready = Promise.withResolvers<void>();
-      const registeredOptions = { ...options, onRegistered: () => ready.resolve() };
-      const requestResult =
-        request.toolName === ASK_USER_QUESTION_TOOL_NAME
-          ? requestUserInput(context, request, registeredOptions)
-          : request.toolName === EXIT_PLAN_MODE_TOOL_NAME
-            ? requestExitPlanModeApproval(context, request, registeredOptions)
-            : requestPermission(context, request, registeredOptions);
-      const result = requestResult.catch((error: unknown) => {
-        // 协议错误只在适配层翻译；core 不识别传输错误码，也不能把基础设施故障当用户拒绝。
-        if (request.mode === "guarded" && error instanceof ProtocolRequestError) {
-          const type =
-            error.code === PROTOCOL_CLIENT_REQUEST_ERROR_CODES.cancelled
-              ? CoreErrorType.ToolCancelled
-              : error.code === PROTOCOL_CLIENT_REQUEST_ERROR_CODES.timedOut
-                ? CoreErrorType.PermissionTimeout
-                : error.code === PROTOCOL_CLIENT_REQUEST_ERROR_CODES.noClientAttached
-                  ? CoreErrorType.ConfigurationError
-                  : CoreErrorType.ToolExecutionFailed;
-          throw createCoreError(type, error.message, { cause: error, recoverable: true });
-        }
-        throw error;
-      });
-      void result.then(
-        () => ready.resolve(),
-        (error: unknown) => ready.reject(error),
-      );
-      // 旧调用方只消费 result；它们不观察登记信号时也不能产生未处理拒绝。
-      void ready.promise.catch(() => {});
-      return Object.assign(result, { registered: ready.promise });
+      if (request.toolName === ASK_USER_QUESTION_TOOL_NAME) {
+        return requestUserInput(context, request, options);
+      }
+      if (request.toolName === EXIT_PLAN_MODE_TOOL_NAME) {
+        return requestExitPlanModeApproval(context, request, options);
+      }
+      return requestPermission(context, request, options);
     },
   };
 }
 
 async function requestPermission(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   request: PermissionBrokerRequest,
-  options?: RegisteredRequestOptions,
+  options?: PermissionBrokerRequestOptions,
 ): Promise<PermissionBrokerResult> {
   const permissionOptions = buildProtocolPermissionOptions(request);
   // v3 反向 RPC 的选项列表：会话免确认只在 v4 投放（旧桌面回传 response 原文，认不出会话语义）。
@@ -135,20 +89,17 @@ async function requestPermission(
         zcodePermissionResponseSchema,
         withInteractionRequestRecovery(options, signal),
       ),
-    // v4 answer → ZCodePermissionResponse：optionId 语义来自 v4 reducer 合成的
+    // v4 answer → XCodePermissionResponse：optionId 语义来自 v4 reducer 合成的
     // allowOnce/allowAlways/deny（见 product-projection onPermissionRequested）。
     (answer) => {
-      // 工作流确认窗里调整过的设置随放行应答一起走（docs/dynamic-workflow/launch.md
-      // 「Adjusting the settings in the window」）。
-      const base = v4AnswerToPermissionResponse(answer, permissionOptions, request.toolName);
-      const response = withWorkflowSettingsAdjustment(base, answer, request.toolName);
+      const response = v4AnswerToPermissionResponse(answer, permissionOptions, request.toolName);
       return response.decision === "deny" && answer.freeText?.trim()
         ? { ...response, preserveReasonFormatting: true }
         : response;
     },
     {
       ...createInteractionRegistrationOptions(request, "other"),
-      ...(request.approvalMode !== "user-once" && !request.origin &&
+      ...(!request.origin &&
       !request.optionsPolicy &&
       options?.claimResponse &&
       context.deps?.sessionStore?.commitPermissionFullAccess
@@ -170,7 +121,6 @@ async function requestPermission(
           }
         : {}),
     },
-    options?.onRegistered,
   );
   return {
     ...response,
@@ -196,9 +146,9 @@ async function requestPermission(
  */
 function v4AnswerToPermissionResponse(
   answer: V4InteractionAnswer,
-  permissionOptions: ZCodePermissionOption[],
+  permissionOptions: XCodePermissionOption[],
   toolName: string,
-): ZCodePermissionResponse & {
+): XCodePermissionResponse & {
   reasonSource?: PermissionBrokerResult["reasonSource"];
   sessionPermissionUpdates?: PermissionBrokerResult["sessionPermissionUpdates"];
 } {
@@ -242,107 +192,10 @@ function v4AnswerToPermissionResponse(
   return { decision: "deny", reason: buildPermissionDeniedContent(answer.freeText) };
 }
 
-/**
- * MCP elicitation：server 在工具执行中向用户提问。
- * 复用 AskUserQuestion 的两条通道——旧 RPC interaction/requestUserInput 与 v4 pending interaction——
- * 后者靠合成（不持久化）的 PermissionRequested / PermissionResolved 事件推进投影。
- */
-export async function requestMcpElicitation(
-  context: ZCodeProtocolAgentServerContext,
-  request: McpElicitationRequest,
-  options?: { signal?: AbortSignal },
-): Promise<McpElicitationResult> {
-  const sessionId = request.trace?.sessionId;
-  const record = sessionId ? context.sessions?.get(sessionId) : undefined;
-  if (!sessionId || !record) {
-    // 没有正在执行的工具调用可归属（如 server 在空闲时主动提问）：拒绝而不是猜会话。
-    return { action: "decline" };
-  }
-  const interactionId = `mcp-elicit-${randomUUID()}`;
-  const toolCallId = request.trace?.toolCallId ?? interactionId;
-  const questions = mcpElicitationQuestions(request.message, request.requestedSchema);
-  const input = {
-    serverName: request.serverName,
-    message: request.message,
-    requestedSchema: request.requestedSchema,
-  };
-  const traceId = request.trace?.traceId ?? String(record.traceContext.traceId);
-  const ingestSynthetic = async (
-    type: typeof SessionEventType.PermissionRequested | typeof SessionEventType.PermissionResolved,
-    payload: Record<string, unknown>,
-  ) => {
-    const gateway = context.v4Gateway;
-    if (!gateway) return;
-    const event: SessionEvent = {
-      id: createEventId(),
-      sessionId: sessionId as never,
-      ...(request.trace?.turnId ? { turnId: request.trace.turnId as never } : {}),
-      type,
-      timestamp: new Date(),
-      traceId: traceId as never,
-      // 只进 live 投影、不落盘：raw seq 置 0，让 v4 gateway 分配 transport 序号。
-      // 若沿用持久化高水位 +1，第二条合成事件会因 seq 不高于游标被当作重放丢弃，pending 永远清不掉。
-      sequenceNumber: 0,
-      payload: payload as never,
-    };
-    gateway.ingest(sessionId, event);
-  };
-  await ingestSynthetic(SessionEventType.PermissionRequested, {
-    requestId: interactionId,
-    toolCallId,
-    toolName: MCP_ELICITATION_TOOL_NAME,
-    riskLevel: "low",
-    reason: request.message,
-    input,
-  });
-  let response: ZCodeUserInputResponse;
-  try {
-    response = await raceClientRequestWithV4Interaction(
-      context,
-      interactionId,
-      options?.signal,
-      (signal) =>
-        context.requestClient(
-          zcodeProtocolMethods.interactionRequestUserInput,
-          {
-            input,
-            prompt: request.message,
-            questions,
-            requestId: interactionId,
-            schema: {
-              interaction: MCP_ELICITATION_INTERACTION,
-              serverName: request.serverName,
-              requestedSchema: request.requestedSchema,
-            },
-            sessionId,
-            toolCallId,
-            toolName: MCP_ELICITATION_TOOL_NAME,
-            ...(request.trace?.turnId ? { turnId: request.trace.turnId } : {}),
-          },
-          zcodeUserInputResponseSchema,
-          withInteractionRequestRecovery(options, signal),
-        ),
-      (answer) => v4AnswerToUserInputResponse(answer),
-      { sessionId, kind: "other" },
-    );
-  } finally {
-    await ingestSynthetic(SessionEventType.PermissionResolved, {
-      requestId: interactionId,
-      toolCallId,
-      decision: "allow",
-    }).catch(() => undefined);
-  }
-  if (response.action !== "accept") return { action: response.action };
-  return {
-    action: "accept",
-    content: mcpElicitationContentFromAnswers(request.requestedSchema, questions, response.content),
-  };
-}
-
 async function requestUserInput(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   request: PermissionBrokerRequest,
-  options?: RegisteredRequestOptions,
+  options?: PermissionBrokerRequestOptions,
 ): Promise<PermissionBrokerResult> {
   const parsed = AskUserQuestionInputSchema.safeParse(request.input);
   if (!parsed.success) {
@@ -389,13 +242,12 @@ async function requestUserInput(
       context,
       initialAutoResolution,
     ),
-    options?.onRegistered,
   );
 
   return userInputResponseToBrokerResult(request, response);
 }
 
-function v4AnswerToUserInputResponse(answer: V4InteractionAnswer): ZCodeUserInputResponse {
+function v4AnswerToUserInputResponse(answer: V4InteractionAnswer): XCodeUserInputResponse {
   // answer.action 存在（host adapter respondElicitation 收敛路径）
   // 时按旧 respondUserInput 语义精确直传——content 携带多题 answers/annotations，
   // normalizeAskUserQuestionResponseContent 继续负责 schema 收敛。
@@ -415,9 +267,9 @@ function v4AnswerToUserInputResponse(answer: V4InteractionAnswer): ZCodeUserInpu
 }
 
 async function requestExitPlanModeApproval(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   request: PermissionBrokerRequest,
-  options?: RegisteredRequestOptions,
+  options?: PermissionBrokerRequestOptions,
 ): Promise<PermissionBrokerResult> {
   const response = await raceClientRequestWithV4Interaction(
     context,
@@ -445,13 +297,12 @@ async function requestExitPlanModeApproval(
     // （planApprovalResponseToBrokerResult 走 plan_approval_feedback deny）；否则 decline。
     (answer) => v4AnswerToPlanApprovalResponse(answer),
     createInteractionRegistrationOptions(request, "other"),
-    options?.onRegistered,
   );
 
   return planApprovalResponseToBrokerResult(response);
 }
 
-function v4AnswerToPlanApprovalResponse(answer: V4InteractionAnswer): ZCodeUserInputResponse {
+function v4AnswerToPlanApprovalResponse(answer: V4InteractionAnswer): XCodeUserInputResponse {
   // 同 v4AnswerToUserInputResponse——host adapter 收敛路径直传
   // action/content，planApprovalResponseToBrokerResult 继续做 approve/feedback 归一。
   if (answer.action) {
@@ -472,7 +323,7 @@ function v4AnswerToPlanApprovalResponse(answer: V4InteractionAnswer): ZCodeUserI
   return { action: "decline" };
 }
 
-function createExitPlanModeApprovalQuestion(): ZCodeUserInputQuestion {
+function createExitPlanModeApprovalQuestion(): XCodeUserInputQuestion {
   return {
     header: "Plan",
     options: [
@@ -502,7 +353,7 @@ function withInteractionRequestRecovery(
   };
 }
 
-function mapAskUserQuestion(question: AskUserQuestion): ZCodeUserInputQuestion {
+function mapAskUserQuestion(question: AskUserQuestion): XCodeUserInputQuestion {
   return {
     header: question.header,
     multiSelect: question.multiSelect,
@@ -518,7 +369,7 @@ function mapAskUserQuestion(question: AskUserQuestion): ZCodeUserInputQuestion {
 
 function userInputResponseToBrokerResult(
   request: PermissionBrokerRequest,
-  response: ZCodeUserInputResponse,
+  response: XCodeUserInputResponse,
 ): PermissionBrokerResult {
   if (response.action !== "accept") {
     return {
@@ -546,7 +397,7 @@ function userInputResponseToBrokerResult(
 }
 
 function planApprovalResponseToBrokerResult(
-  response: ZCodeUserInputResponse,
+  response: XCodeUserInputResponse,
 ): PermissionBrokerResult {
   if (response.action !== "accept") {
     return {
@@ -652,7 +503,7 @@ function normalizeAskUserQuestionAnswers(
 function createInteractionRegistrationOptions(
   request: PermissionBrokerRequest,
   kind: V4InteractionRegistrationOptions["kind"],
-  context?: ZCodeProtocolAgentServerContext,
+  context?: XCodeProtocolAgentServerContext,
   initialAutoResolution?: V4InteractionRegistrationOptions["initialAutoResolution"],
 ): V4InteractionRegistrationOptions {
   return {
@@ -692,7 +543,7 @@ function createInteractionRegistrationOptions(
 }
 
 async function readPersistedAutoResolution(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   request: PermissionBrokerRequest,
 ): Promise<V4InteractionRegistrationOptions["initialAutoResolution"]> {
   const sessionStore = context.deps?.sessionStore;

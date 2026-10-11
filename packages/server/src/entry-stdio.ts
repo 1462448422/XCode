@@ -1,8 +1,6 @@
 import { disposeServiceResourcesAndWait, getAppConfigDir } from "@zcode/services/node";
-import type { IChannel } from "@zcode/rpc";
 import {
-  ZCODE_VERSION,
-  TOPIC_RESOURCE_RELAY_CHANNEL,
+  XCODE_VERSION,
   SERVICE_AUTHORITY_MODE_ENV,
   formatLogPrefix,
   formatZodError,
@@ -14,9 +12,9 @@ import { registerStdioProcessLifecycle } from "./stdio-lifecycle.js";
 import { createStdioServices } from "./stdioServices.js";
 import { ensureRemoteServerDeviceMid } from "./stdioDeviceMid.js";
 import {
-  materializeBundledZCodeBuiltinProviderConfig,
-  readBundledZCodeBuiltinProviderConfig,
-} from "./bundledZCodeBuiltinProviderConfig.js";
+  materializeBundledXCodeBuiltinProviderConfig,
+  readBundledXCodeBuiltinProviderConfig,
+} from "./bundledXCodeBuiltinProviderConfig.js";
 
 // In stdio mode, all logging goes to stderr
 const log = (...args: unknown[]) =>
@@ -34,7 +32,7 @@ console.debug = stderrConsoleLog;
 
 // --version flag: print version and exit (used by deploy version check)
 if (process.argv.includes("--version")) {
-  process.stdout.write(ZCODE_VERSION + "\n");
+  process.stdout.write(XCODE_VERSION + "\n");
   process.exit(0);
 }
 
@@ -42,7 +40,7 @@ async function main() {
   // Phase 1: Send hello message
   const hello: HelloMessage = {
     type: "zcode-hello",
-    version: ZCODE_VERSION,
+    version: XCODE_VERSION,
     platform: process.platform,
     arch: process.arch,
     pid: process.pid,
@@ -53,38 +51,26 @@ async function main() {
   const ack = await waitForAck();
   log(`client connected: ${ack.clientId} (v${ack.version})`);
 
-  // 远端主机没有 Desktop main，没人写 telemetry-state.json，services 发往 ZCode endpoint
+  // 远端主机没有 Desktop main，没人写 telemetry-state.json，services 发往 XCode endpoint
   // 的请求缺 X-Device-Mid，Start Plan 的 billing/balance 被拒。远端 server 是本机设备身份的
   // 生命周期所有者，必须在 services 创建前确保 deviceMid 存在（详见 stdioDeviceMid.ts）。
   await ensureRemoteServerDeviceMid({ log });
 
   // Phase 3: Initialize services and start stdio RPC server
-  let topicResourceChannel: IChannel | undefined;
-  const zcodeBuiltinProviderConfigFilePath = await materializeBundledZCodeBuiltinProviderConfig({
+  const zcodeBuiltinProviderConfigFilePath = await materializeBundledXCodeBuiltinProviderConfig({
     environmentConfigRoot: getAppConfigDir(),
-    content: readBundledZCodeBuiltinProviderConfig(),
+    content: readBundledXCodeBuiltinProviderConfig(),
   });
   const { authorityModeParseResult, services } = createStdioServices({
     env: process.env,
     zcodeBuiltinProviderConfigFilePath,
-    topicResourceRelayChannel: () => {
-      if (!topicResourceChannel) throw new Error("Desktop topic resource channel is unavailable");
-      return topicResourceChannel;
-    },
   });
   if (authorityModeParseResult.invalidRawValue) {
     log(
       `${SERVICE_AUTHORITY_MODE_ENV}=${authorityModeParseResult.invalidRawValue} 非法，按默认本机 Environment 权威模式启动`,
     );
   }
-  const stdioServer = createStdioServer(
-    services,
-    authorityModeParseResult.mode === "desktop-attached-remote"
-      ? (client) => {
-          topicResourceChannel = client.getChannel(TOPIC_RESOURCE_RELAY_CHANNEL);
-        }
-      : undefined,
-  );
+  const stdioServer = createStdioServer(services);
   registerStdioProcessLifecycle({
     stdin: process.stdin,
     signalSource: process,

@@ -3,18 +3,18 @@ import {
   zcodeOffPeakCreateResultSchema,
   zcodeOffPeakListResultSchema,
   zcodeProtocolMethods,
-  type ZCodeOffPeakTaskProtocolSnapshot,
+  type XCodeOffPeakTaskProtocolSnapshot,
 } from "@zcode/shared";
 import type {
-  ZCodeProtocolAgentServerContext,
-  ZCodeProtocolSessionRecord,
+  XCodeProtocolAgentServerContext,
+  XCodeProtocolSessionRecord,
 } from "./server-types.js";
 
-export const OFF_PEAK_CREATE_FROM_OFF_PEAK_RUN_ERROR =
+const OFF_PEAK_CREATE_FROM_OFF_PEAK_RUN_ERROR =
   "Cannot create an idle-time task while running an idle-time task.";
-export const OFF_PEAK_CREATE_IN_BOUND_SESSION_ERROR =
+const OFF_PEAK_CREATE_IN_BOUND_SESSION_ERROR =
   "This session already has a pending idle-time task. Wait for it to finish (or cancel it in Automations) before creating another one here.";
-export const OFF_PEAK_CREATE_BOUND_SESSION_CHECK_ERROR =
+const OFF_PEAK_CREATE_BOUND_SESSION_CHECK_ERROR =
   "Cannot verify whether this session already has a pending idle-time task; try again later.";
 
 const OFF_PEAK_TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
@@ -32,8 +32,8 @@ const OFF_PEAK_TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"])
  * - 不冻结会话标题：绑定的是用户的工作会话，标题不该被任务改写。
  */
 export function createProtocolOffPeakPort(
-  context: ZCodeProtocolAgentServerContext,
-  resolveOwnSession?: () => ZCodeProtocolSessionRecord | undefined,
+  context: XCodeProtocolAgentServerContext,
+  resolveOwnSession?: () => XCodeProtocolSessionRecord | undefined,
 ): OffPeakPort {
   return {
     async create(input, createContext) {
@@ -55,7 +55,8 @@ export function createProtocolOffPeakPort(
             zcodeOffPeakListResultSchema,
           );
           bound = listed.tasks.some(
-            (task) => task.sessionId === boundSessionId && !OFF_PEAK_TERMINAL_STATUSES.has(task.status),
+            (task) =>
+              task.sessionId === boundSessionId && !OFF_PEAK_TERMINAL_STATUSES.has(task.status),
           );
         } catch (error) {
           context.logger?.warn("Failed to check bound idle-time tasks before OffPeakCreate", {
@@ -103,7 +104,7 @@ export function createProtocolOffPeakPort(
   };
 }
 
-function toOffPeakTaskSummary(input: ZCodeOffPeakTaskProtocolSnapshot): OffPeakTaskSummary {
+function toOffPeakTaskSummary(input: XCodeOffPeakTaskProtocolSnapshot): OffPeakTaskSummary {
   return {
     offPeakTaskId: input.offPeakTaskId,
     title: input.title,

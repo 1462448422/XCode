@@ -1,10 +1,10 @@
-import type { FileEntry, ZCodeTaskMeta, ZCodeTaskRuntimeStatus } from "@zcode/shared";
+import type { FileEntry, XCodeTaskMeta, XCodeTaskRuntimeStatus } from "@zcode/shared";
 import type { IFileService } from "@zcode/services";
-import type { WorkspaceZCodeUIState } from "@/store/zcodeSessionStoreTypes.js";
+import type { WorkspaceXCodeUIState } from "@/store/zcodeSessionStoreTypes.js";
 import { isChatTaskRunning } from "@/lib/chatStatus.js";
 import { logger } from "@/logger.js";
 
-export const WINDOWS_RESERVED_NAME_SCAN_SKIPPED_DIRECTORIES = new Set([
+const WINDOWS_RESERVED_NAME_SCAN_SKIPPED_DIRECTORIES = new Set([
   ".git",
   "node_modules",
   "dist",
@@ -17,13 +17,13 @@ export const WINDOWS_RESERVED_NAME_SCAN_SKIPPED_DIRECTORIES = new Set([
   ".vite",
 ]);
 
-export interface WorkspaceRemovalRiskScanOptions {
+interface WorkspaceRemovalRiskScanOptions {
   maxEntries?: number;
   maxFindings?: number;
   skippedDirectories?: ReadonlySet<string>;
 }
 
-export interface WorkspaceRemovalRiskScanResult {
+interface WorkspaceRemovalRiskScanResult {
   findings: string[];
   scannedEntries: number;
   truncated: boolean;
@@ -39,8 +39,8 @@ for (let index = 1; index <= 9; index += 1) {
 }
 
 export function hasRunningWorkspaceChat(params: {
-  workspaceState: Pick<WorkspaceZCodeUIState, "draftRuntime" | "taskRuntimeByTaskId">;
-  taskItems: Pick<ZCodeTaskMeta, "taskId">[];
+  workspaceState: Pick<WorkspaceXCodeUIState, "draftRuntime" | "taskRuntimeByTaskId">;
+  taskItems: Pick<XCodeTaskMeta, "taskId">[];
 }): boolean {
   if (isChatTaskRunning(params.workspaceState.draftRuntime.status)) {
     return true;
@@ -51,11 +51,11 @@ export function hasRunningWorkspaceChat(params: {
   );
 }
 
-export function isWorkspaceRemovalBlockingRuntimeStatus(status: ZCodeTaskRuntimeStatus): boolean {
+function isWorkspaceRemovalBlockingRuntimeStatus(status: XCodeTaskRuntimeStatus): boolean {
   return isChatTaskRunning(status);
 }
 
-export function isWindowsReservedDevicePathSegment(segment: string): boolean {
+function isWindowsReservedDevicePathSegment(segment: string): boolean {
   const normalizedSegment = segment.replace(/[ .]+$/u, "");
   if (!normalizedSegment) {
     return false;
@@ -73,7 +73,8 @@ export async function scanWindowsReservedDeviceNameFiles(
 ): Promise<WorkspaceRemovalRiskScanResult> {
   const maxEntries = options.maxEntries ?? DEFAULT_MAX_SCAN_ENTRIES;
   const maxFindings = options.maxFindings ?? DEFAULT_MAX_FINDINGS;
-  const skippedDirectories = options.skippedDirectories ?? WINDOWS_RESERVED_NAME_SCAN_SKIPPED_DIRECTORIES;
+  const skippedDirectories =
+    options.skippedDirectories ?? WINDOWS_RESERVED_NAME_SCAN_SKIPPED_DIRECTORIES;
   const pendingDirectories = [rootPath];
   const findings: string[] = [];
   let scannedEntries = 0;

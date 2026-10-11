@@ -91,18 +91,18 @@ export interface IProviderSettingsService {
   testModelConnectivity(
     input: ProviderSettingsConnectivityRequest,
   ): Promise<ModelConnectivityResult>;
-  /** ZCode fork：从供应商上游拉取模型列表（GET {baseUrl}/models），用于批量添加模型。 */
+  /** XCode fork：从供应商上游拉取模型列表（GET {baseUrl}/models），用于批量添加模型。 */
   fetchUpstreamModels(
     input: ProviderSettingsUpstreamModelsRequest,
   ): Promise<UpstreamModelListResult>;
-  /** ZCode fork：CodeBuddy 登录——获取 state + 浏览器授权 URL（cn/intl）。 */
+  /** XCode fork：CodeBuddy 登录——获取 state + 浏览器授权 URL（cn/intl）。 */
   codebuddyBeginLogin(region: "cn" | "intl"): Promise<{ state: string; authUrl: string }>;
-  /** ZCode fork：CodeBuddy 登录——轮询一次授权结果；成功即入账号列表并激活。 */
+  /** XCode fork：CodeBuddy 登录——轮询一次授权结果；成功即入账号列表并激活。 */
   codebuddyPollLogin(
     region: "cn" | "intl",
     state: string,
   ): Promise<CodeBuddyPollResult>;
-  /** ZCode fork：CodeBuddy 账号列表（含激活标记与当前令牌）。 */
+  /** XCode fork：CodeBuddy 账号列表（含激活标记与当前令牌）。 */
   codebuddyListAccounts(region: "cn" | "intl"): Promise<{
     accounts: Array<{
       id: string;
@@ -114,30 +114,30 @@ export interface IProviderSettingsService {
     }>;
     activeAccessToken: string | null;
   }>;
-  /** ZCode fork：切换激活账号，返回新激活账号（令牌供 overlay 回写）。 */
+  /** XCode fork：切换激活账号，返回新激活账号（令牌供 overlay 回写）。 */
   codebuddySwitchAccount(
     region: "cn" | "intl",
     id: string,
   ): Promise<{ id: string; displayName: string; accessToken: string; expiresAt: number } | null>;
-  /** ZCode fork：删除账号；删激活账号时自动激活剩余第一个并返回其令牌。 */
+  /** XCode fork：删除账号；删激活账号时自动激活剩余第一个并返回其令牌。 */
   codebuddyRemoveAccount(
     region: "cn" | "intl",
     id: string,
   ): Promise<{ accounts: unknown; activeAccessToken: string | null }>;
-  /** ZCode fork：Qoder 设备流登录——生成 nonce/PKCE + 浏览器授权 URL。 */
+  /** XCode fork：Qoder 设备流登录——生成 nonce/PKCE + 浏览器授权 URL。 */
   qoderBeginLogin(region: "cn" | "intl"): Promise<{
     nonce: string;
     userCode: string;
     verificationUri: string;
     codeVerifier: string;
     machineIdHint: string;
-    /** ZCode fork：登录前从 mi-token 接口取的设备标识三件套，一号一绑。 */
+    /** XCode fork：登录前从 mi-token 接口取的设备标识三件套，一号一绑。 */
     machineToken?: string;
     machineType?: string;
     machineCode?: string;
     expiresAt: number;
   }>;
-  /** ZCode fork：Qoder 登录——轮询一次授权结果；成功即入账号列表并激活。 */
+  /** XCode fork：Qoder 登录——轮询一次授权结果；成功即入账号列表并激活。 */
   qoderPollLogin(
     region: "cn" | "intl",
     nonce: string,
@@ -158,7 +158,7 @@ export interface IProviderSettingsService {
       }
     | { status: "failed"; message: string }
   >;
-  /** ZCode fork：Qoder 账号列表（含激活标记）。 */
+  /** XCode fork：Qoder 账号列表（含激活标记）。 */
   qoderListAccounts(region: "cn" | "intl"): Promise<{
     accounts: Array<{
       /** 账号标识（Cosy-User）。 */
@@ -176,27 +176,27 @@ export interface IProviderSettingsService {
       active: boolean;
     }>;
   }>;
-  /** ZCode fork：切换激活账号。machineId 必须回传，设备指纹由它确定性派生。 */
+  /** XCode fork：切换激活账号。machineId 必须回传，设备指纹由它确定性派生。 */
   qoderSwitchAccount(
     region: "cn" | "intl",
     id: string,
   ): Promise<{ id: string; displayName: string; accessToken: string; machineId?: string } | null>;
-  /** ZCode fork：删除账号。 */
+  /** XCode fork：删除账号。 */
   qoderRemoveAccount(
     region: "cn" | "intl",
     id: string,
   ): Promise<{ accounts: unknown; activeAccessToken: string | null }>;
   /**
-   * ZCode fork：激活 Qoder PRO（领取 38max 800 点活动试用点）。
+   * XCode fork：激活 Qoder PRO（领取 38max 800 点活动试用点）。
    * machineToken 由 mi-token 接口下发或取自账号缓存——claim 接口校验其真实性，
    * 伪造值会被判"不可领取"，因此本地不自造。
    */
   /**
-   * ZCode fork：为账号生成本机设备指纹三件套（替代远程 mi-token 接口）。
+   * XCode fork：为账号生成本机设备指纹三件套（替代远程 mi-token 接口）。
    * 同一台机器重复调用结果一致，一号一绑。
    */
   /**
-   * ZCode fork：查询账号的 PRO 状态（Bearer-only 端点，不触发设备指纹复核，
+   * XCode fork：查询账号的 PRO 状态（Bearer-only 端点，不触发设备指纹复核，
    * 不会把已 PRO 账号打回）。
    */
   qoderQueryProStatus(
@@ -215,7 +215,7 @@ export interface IProviderSettingsService {
     message: string;
   }>;
 
-  /** ZCode fork：CodeBuddy 令牌刷新（对应区域当前激活账号）。 */
+  /** XCode fork：CodeBuddy 令牌刷新（对应区域当前激活账号）。 */
   codebuddyRefreshStored(region: "cn" | "intl"): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -415,16 +415,16 @@ export function createProviderSettingsService(
       const result = await fetchUpstreamModels({
         baseUrl,
         ...(apiKey ? { apiKey } : {}),
-        // 与 UI 默认请求格式一致（ZCode fork 默认 chat completions）。
+        // 与 UI 默认请求格式一致（XCode fork 默认 chat completions）。
         apiType: api?.type ?? "openai-chat-completions",
-        // ZCode fork：Qoder 的模型目录端点与协议由 requestProfile 决定（需 COSY
+        // XCode fork：Qoder 的模型目录端点与协议由 requestProfile 决定（需 COSY
         // 签名），不能按通用 `{baseUrl}/models` 处理。
         ...(provider.effectiveConfig.requestProfile
           ? { requestProfile: provider.effectiveConfig.requestProfile }
           : {}),
         ...(api?.headers ? { headers: api.headers } : {}),
       });
-      // ZCode fork：提供商可配置 upstreamModelIdFilter（正则片段，不区分大小写），
+      // XCode fork：提供商可配置 upstreamModelIdFilter（正则片段，不区分大小写），
       // 上游列表只保留匹配的模型 ID（如 Kilo Free 只暴露带 free 的免费模型）。
       const filterSource = provider.effectiveConfig.upstreamModelIdFilter?.trim();
       if (!result.success || !filterSource) return result;

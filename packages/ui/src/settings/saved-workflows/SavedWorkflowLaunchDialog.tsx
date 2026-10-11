@@ -7,7 +7,7 @@ import {
   TID_WORKFLOW_LAUNCH_SUBMIT,
   TID_WORKFLOW_LAUNCH_TARGET,
   testId,
-  type ZCodeSavedWorkflowEntry,
+  type XCodeSavedWorkflowEntry,
 } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import {
@@ -28,7 +28,7 @@ import {
 import { Spinner } from "@/components/ui/spinner.js";
 import { Switch } from "@/components/ui/switch.js";
 import { cn } from "@/components/lib/utils.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { AutomationRunNowIcon } from "@/settings/AutomationDesignPrimitives.js";
 import { SettingsFormTextarea } from "@/settings/SettingsFormTextarea.js";
 import {
@@ -46,7 +46,7 @@ import {
 import type { SavedWorkflowLaunchError } from "@/settings/saved-workflows/useSavedWorkflowLauncher.js";
 
 interface SavedWorkflowLaunchDialogProps {
-  entry: ZCodeSavedWorkflowEntry | null;
+  entry: XCodeSavedWorkflowEntry | null;
   /** 作用域徽标与「将立即在 X 的新会话中运行」文案都要它；也决定启动命令的 scope。 */
   scope: "project" | "global";
   /**
@@ -56,7 +56,7 @@ interface SavedWorkflowLaunchDialogProps {
   projectLabel: string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (
-    entry: ZCodeSavedWorkflowEntry,
+    entry: XCodeSavedWorkflowEntry,
     args: Record<string, unknown>,
     target?: AutomationWorkspaceOption,
   ) => void;
@@ -67,11 +67,6 @@ interface SavedWorkflowLaunchDialogProps {
   targets?: readonly AutomationWorkspaceOption[];
   /** 默认选中的项目 key（活动项目）；不在候选里时回落到首个候选。 */
   defaultTargetKey?: string | null;
-  /**
-   * 预填实参：完成卡的「再次运行」传这次 run 跑过的那一份（journal 给的）。声明里没有的键忽略；
-   * 缺席即按声明的默认值铺（中枢自己的「运行」就是这条）。
-   */
-  initialArgs?: Record<string, unknown>;
   /** 正在启动：主按钮 loading + 禁用，防重复点击（launcher.pending）。 */
   pending?: boolean;
   /** 启动失败：行内错误区展示（title 按 reason + 服务端 message）；成功由组关窗清空。 */
@@ -92,19 +87,18 @@ export function SavedWorkflowLaunchDialog({
   onSubmit,
   targets,
   defaultTargetKey,
-  initialArgs,
   pending = false,
   error = null,
 }: SavedWorkflowLaunchDialogProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const [fields, setFields] = useState<SavedWorkflowArgField[]>([]);
   const [errors, setErrors] = useState<Record<string, SavedWorkflowArgFieldError>>({});
   const [targetKey, setTargetKey] = useState<string | null>(null);
 
   useEffect(() => {
-    setFields(buildSavedWorkflowArgFields(entry?.args, initialArgs));
+    setFields(buildSavedWorkflowArgFields(entry?.args));
     setErrors({});
-  }, [entry, initialArgs]);
+  }, [entry]);
 
   // 候选变化时保留仍有效的选择，否则回落到默认项目、首个候选或 null（reconcile 同一套规则）。
   useEffect(() => {

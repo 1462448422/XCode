@@ -47,7 +47,7 @@ export async function runEmbeddedSearchCli(argv, io) {
         abortScope.dispose();
     }
 }
-export function resolveNativeSearchArgs(command, args) {
+function resolveNativeSearchArgs(command, args) {
     if (command !== "grep")
         return [...args];
     if (args.some(isGrepBypassArgument))
@@ -165,7 +165,7 @@ function runNativeSearchCommand(command, args, io, signal) {
             if (forceKillTimer) {
                 clearTimeout(forceKillTimer);
             }
-            settle(signal.aborted ? exitCodeForAbortSignal(signal) : code ?? (childSignal ? 128 : 1));
+            settle(signal.aborted ? exitCodeForAbortSignal(signal) : (code ?? (childSignal ? 128 : 1)));
         });
         if (io.stdin) {
             io.stdin.pipe(child.stdin);

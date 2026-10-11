@@ -1,9 +1,5 @@
 import { BrowserWindow, ipcMain } from "electron";
-import {
-  DISABLED_RENDERER_ACTION_TRACE_CONFIG,
-  PlatformChannels,
-  type RendererActionTraceConfigV1,
-} from "@zcode/shared";
+import { PlatformChannels, type RendererActionTraceConfigV1 } from "@zcode/shared";
 import type { RendererActionTraceBroker } from "./rendererActionTraceBroker.js";
 import type { RendererActionTraceRollout } from "./rendererActionTraceRollout.js";
 
@@ -116,12 +112,12 @@ export function registerRendererActionTraceIpc(options: {
   };
 }
 
-export function resolveRuntimeConfig(
+function resolveRuntimeConfig(
   config: RendererActionTraceConfigV1,
   env: Record<string, string | undefined>,
 ): RendererActionTraceConfigV1 {
-  if (isTruthy(env.ZCODE_LOCAL_TTFT_ENABLED)) config = { ...config, localTtftEnabled: true };
-  if (!isTruthy(env.ZCODE_RENDERER_ACTION_TRACE_ENABLED)) return config;
+  if (isTruthy(env.XCODE_LOCAL_TTFT_ENABLED)) config = { ...config, localTtftEnabled: true };
+  if (!isTruthy(env.XCODE_RENDERER_ACTION_TRACE_ENABLED)) return config;
   return {
     ...config,
     enabled: true,
@@ -129,10 +125,6 @@ export function resolveRuntimeConfig(
     enabledGroups: ["core", "settings"],
     configVersion: "local-explicit",
   } as RendererActionTraceConfigV1;
-}
-
-export function disabledRendererActionTraceConfig(): RendererActionTraceConfigV1 {
-  return { ...DISABLED_RENDERER_ACTION_TRACE_CONFIG };
 }
 
 function isTruthy(value: string | undefined): boolean {

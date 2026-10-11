@@ -1,12 +1,12 @@
 import { create } from "zustand";
-import type { ZCodeTaskMeta } from "@zcode/shared";
-import type { ZCodeTaskListSortBy, IZCodeTaskService } from "@zcode/services";
+import type { XCodeTaskMeta } from "@zcode/shared";
+import type { XCodeTaskListSortBy, IXCodeTaskService } from "@zcode/services";
 import { logger } from "@/logger.js";
 import { buildTaskWorkspaceKey } from "@/lib/taskQueryCache.js";
 import { getRemoteWorkspaceSession } from "@/store/remoteWorkspaceSessionStore.js";
 
 interface RemoteTimelineTaskState {
-  itemsByWorkspaceKey: Record<string, ZCodeTaskMeta[]>;
+  itemsByWorkspaceKey: Record<string, XCodeTaskMeta[]>;
   totalByWorkspaceKey: Record<string, number>;
   hasMoreByWorkspaceKey: Record<string, boolean>;
   loadingByWorkspaceKey: Record<string, boolean>;
@@ -14,11 +14,11 @@ interface RemoteTimelineTaskState {
   refreshWorkspace: (params: {
     workspacePath: string;
     workspaceIdentity?: string;
-    zcodeTaskService: Pick<IZCodeTaskService, "listTaskList">;
-    sortBy: ZCodeTaskListSortBy;
+    zcodeTaskService: Pick<IXCodeTaskService, "listTaskList">;
+    sortBy: XCodeTaskListSortBy;
     limit?: number;
   }) => Promise<void>;
-  upsertTask: (task: ZCodeTaskMeta, sortBy?: ZCodeTaskListSortBy) => void;
+  upsertTask: (task: XCodeTaskMeta, sortBy?: XCodeTaskListSortBy) => void;
   removeTask: (workspacePath: string, taskId: string, workspaceIdentity?: string) => void;
   clearWorkspace: (workspacePath: string, workspaceIdentity?: string) => void;
 }
@@ -28,9 +28,9 @@ function getWorkspaceKey(workspacePath: string, workspaceIdentity?: string): str
 }
 
 function sortTimelineTasks(
-  tasks: ZCodeTaskMeta[],
-  sortBy: ZCodeTaskListSortBy = "updated",
-): ZCodeTaskMeta[] {
+  tasks: XCodeTaskMeta[],
+  sortBy: XCodeTaskListSortBy = "updated",
+): XCodeTaskMeta[] {
   return [...tasks].sort((left, right) => {
     if (sortBy === "created") {
       if (right.createdAt !== left.createdAt) {
@@ -191,7 +191,7 @@ export async function refreshRemoteTimelineTasksForSession({
   sessionId: string;
   workspacePath: string;
   workspaceIdentity?: string;
-  sortBy?: ZCodeTaskListSortBy;
+  sortBy?: XCodeTaskListSortBy;
   limit?: number;
 }): Promise<void> {
   const session = getRemoteWorkspaceSession(sessionId);

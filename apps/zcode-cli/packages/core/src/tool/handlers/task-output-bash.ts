@@ -3,12 +3,12 @@ import type { BackgroundExecutionSnapshot, TaskOutputTask } from "@zcode/contrac
 import type { RuntimeTaskSnapshot } from "../../runtime-task/registry.js";
 import type { ToolExecutionContext } from "../types.js";
 
-export interface ProjectBashTaskOptions {
+interface ProjectBashTaskOptions {
   readOutputFile: (path: string | undefined) => Promise<TaskOutputFileRead>;
   runningOutputPrefixBytes: number;
 }
 
-export interface TaskOutputFileRead {
+interface TaskOutputFileRead {
   available: boolean;
   content: string;
   truncated: boolean;

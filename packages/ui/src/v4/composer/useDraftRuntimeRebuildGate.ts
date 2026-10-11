@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 
 /**
  * 重建窗口上限。实测 agent start→ready 约 550-650ms，createSession 再数百 ms，5s 有充分余量。
  * 超时只解除门禁，不取消重建——迟到的 binding 仍会正常更新 effectiveSessionId 并唤醒附件重传。
  */
-export const DRAFT_RUNTIME_REBUILD_TIMEOUT_MS = 5000;
+const DRAFT_RUNTIME_REBUILD_TIMEOUT_MS = 5000;
 
-export interface DraftRuntimeRebuildGateState {
+interface DraftRuntimeRebuildGateState {
   rebuilding: boolean;
   /** 换代发生时的预热会话 id；出现与之不同的非空 id 即视为重建完成。 */
   pendingFrom: string | null;
@@ -15,18 +15,18 @@ export interface DraftRuntimeRebuildGateState {
   epoch: number;
 }
 
-export type DraftRuntimeRebuildGateEvent =
+type DraftRuntimeRebuildGateEvent =
   | { type: "runtimeRestart"; prewarmSessionId: string | null }
   | { type: "prewarmSessionChanged"; prewarmSessionId: string | null }
   | { type: "rebuildTimeout" };
 
-export const DRAFT_RUNTIME_REBUILD_GATE_IDLE: DraftRuntimeRebuildGateState = {
+const DRAFT_RUNTIME_REBUILD_GATE_IDLE: DraftRuntimeRebuildGateState = {
   epoch: 0,
   pendingFrom: null,
   rebuilding: false,
 };
 
-export function reduceDraftRuntimeRebuildGate(
+function reduceDraftRuntimeRebuildGate(
   state: DraftRuntimeRebuildGateState,
   event: DraftRuntimeRebuildGateEvent,
 ): DraftRuntimeRebuildGateState {
@@ -49,7 +49,7 @@ export function reduceDraftRuntimeRebuildGate(
   }
 }
 
-export interface DraftRuntimeRebuildGate {
+interface DraftRuntimeRebuildGate {
   /** 预热会话正在重建；true 时必须禁止发送，否则附件会挂在已消失的会话上。 */
   rebuilding: boolean;
 }
@@ -103,7 +103,7 @@ export function useDraftRuntimeRebuildGate(params: {
   const handleRuntimeRestart = useCallback(() => {
     if (!enabledRef.current) return;
     dispatch({ prewarmSessionId: prewarmSessionIdRef.current, type: "runtimeRestart" });
-    useZCodeSessionStore.getState().invalidateDraftRuntime(workspacePath, workspaceIdentity);
+    useXCodeSessionStore.getState().invalidateDraftRuntime(workspacePath, workspaceIdentity);
   }, [workspaceIdentity, workspacePath]);
 
   useEffect(() => {

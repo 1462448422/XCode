@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 const DEFAULT_MAX_CLIPBOARD_IMAGE_BYTES = 20 * 1024 * 1024;
 function resolveDefaultClipboardDirectory(processEnv = process.env) {
-    const storageRoot = processEnv.ZCODE_STORAGE_DIR?.trim() || join(homedir(), ".zcode");
+    const storageRoot = processEnv.XCODE_STORAGE_DIR?.trim() || join(homedir(), ".xcode");
     return join(storageRoot, "clipboard");
 }
 export function createNodeClipboardImageReader(options = {}) {

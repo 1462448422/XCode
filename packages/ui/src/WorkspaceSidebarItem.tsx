@@ -46,13 +46,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   buildWorkspaceSessionKey,
   formatRemoteWorkspaceDisplayLabel,
 } from "@/lib/remoteWorkspaceHistory.js";
 import { TaskList } from "@/TaskList.js";
-import { selectWorkspaceZCodeState, useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { selectWorkspaceXCodeState, useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import type { WorkspaceTabState } from "@/store/tabStore.js";
 import type { RemoteConnectionLogEntry } from "@/hooks/useRemoteConnectionLogs.js";
 import { ReconnectingRemoteWorkspaceLogTooltip } from "@/WorkspaceSidebar/ReconnectingRemoteWorkspaceLogTooltip.js";
@@ -63,7 +63,7 @@ import {
   TID_WORKSPACE_ITEM,
   testId,
 } from "@zcode/shared";
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { XCodeTaskMeta } from "@zcode/shared";
 import { useBaseWorkspaceServices, useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import {
   applyTaskQueryCacheMutation,
@@ -94,7 +94,7 @@ export type SortableBindings = Pick<ReturnType<typeof useSortable>, "attributes"
 
 // workspace 行在流式工具事件期间会因父级刷新而重渲染；
 // TaskList 如果每次收到新的空数组，会把等价数据误判成变化并连带刷新任务行。
-const EMPTY_PINNED_TASKS: ZCodeTaskMeta[] = [];
+const EMPTY_PINNED_TASKS: XCodeTaskMeta[] = [];
 
 function isHomeWorkspacePath(path: string): boolean {
   const normalizedPath = path.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -141,8 +141,6 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
   taskListHasMore,
   taskListHasUnread = false,
   taskListLiveWorkflowCount = 0,
-  mobileActiveTaskKey,
-  isWebRemoteControl = false,
   onShowMoreTasks,
   reconnectingRemoteWorkspaceKeys,
   remoteWorkspaceErrorByWorkspaceKey,
@@ -166,14 +164,12 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
     targetWorkspaceIdentity?: string,
   ) => void;
   onStartDraftInWorkspace: (targetWorkspacePath: string, targetWorkspaceIdentity?: string) => void;
-  taskItems: ZCodeTaskMeta[];
+  taskItems: XCodeTaskMeta[];
   taskListLoading: boolean;
   taskListHasMore: boolean;
   taskListHasUnread?: boolean;
   /** 组内在跑的工作流 run 数；项目收起时在未读点旁画脉冲灯（>1 带数量）。 */
   taskListLiveWorkflowCount?: number;
-  mobileActiveTaskKey?: string | null;
-  isWebRemoteControl?: boolean;
   onShowMoreTasks: () => void;
   reconnectingRemoteWorkspaceKeys: string[];
   remoteWorkspaceErrorByWorkspaceKey: Record<string, string>;
@@ -190,19 +186,19 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
   sortableBindings?: SortableBindings;
   isDragging?: boolean;
 }) {
-  const { intl } = useZCodeIntl();
-  const workspaceZCodeState = useZCodeSessionStore((state) =>
-    selectWorkspaceZCodeState(state, tab.workspacePath, tab.workspaceIdentity),
+  const { intl } = useXCodeIntl();
+  const workspaceXCodeState = useXCodeSessionStore((state) =>
+    selectWorkspaceXCodeState(state, tab.workspacePath, tab.workspaceIdentity),
   );
-  const activeTaskId = workspaceZCodeState.activeTaskId;
-  const removeTaskState = useZCodeSessionStore((state) => state.removeTaskState);
-  const upsertOptimisticTaskListItem = useZCodeSessionStore(
+  const activeTaskId = workspaceXCodeState.activeTaskId;
+  const removeTaskState = useXCodeSessionStore((state) => state.removeTaskState);
+  const upsertOptimisticTaskListItem = useXCodeSessionStore(
     (state) => state.upsertOptimisticTaskListItem,
   );
-  const removeOptimisticTaskListItem = useZCodeSessionStore(
+  const removeOptimisticTaskListItem = useXCodeSessionStore(
     (state) => state.removeOptimisticTaskListItem,
   );
-  const setTaskUnreadIndicator = useZCodeSessionStore((state) => state.setTaskUnreadIndicator);
+  const setTaskUnreadIndicator = useXCodeSessionStore((state) => state.setTaskUnreadIndicator);
   const services = useWorkspaceServices(
     tab.workspacePath,
     tab.remoteSessionId,
@@ -214,8 +210,8 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
   const zcodeTaskService = services.zcodeTaskService;
   const taskItemsRef = useRef(taskItems);
   taskItemsRef.current = taskItems;
-  const workspaceZCodeStateRef = useRef(workspaceZCodeState);
-  workspaceZCodeStateRef.current = workspaceZCodeState;
+  const workspaceXCodeStateRef = useRef(workspaceXCodeState);
+  workspaceXCodeStateRef.current = workspaceXCodeState;
   const findCurrentTaskItem = useCallback((taskId: string) => {
     // 流式刷新会重建 taskItems 数组，任务操作回调如果直接依赖数组，
     // 即使任务语义没变也会换引用，继续击穿 TaskListItem 的 memo。
@@ -251,7 +247,7 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
   const showRemoteSkillSyncAction = shouldShowRemoteSyncActions({
     remoteSessionId: tab.remoteSessionId,
     remoteTarget: tab.remoteTarget,
-    clientMode: isWebRemoteControl ? "web-remote-replayable" : "desktop-continuous",
+    clientMode: "desktop-continuous" as const,
     hasLocalSourceService: Boolean(baseServices.skillSyncService),
   });
   // 远端工作区在“重连中”时，之前只有轻微背景呼吸效果，
@@ -275,10 +271,7 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
   const shouldMountWorkspaceRowActions =
     // workspace action 以前常驻 DOM，仅靠 opacity 隐藏；相邻 tooltip 会在
     // 浮层定位完成前误认隐藏 trigger，短暂显示到错误位置。改为交互时挂载，菜单打开时保活。
-    workspaceRowHovered ||
-    workspaceRowFocusWithin ||
-    workspaceActionMenuOpen ||
-    isHoverNone;
+    workspaceRowHovered || workspaceRowFocusWithin || workspaceActionMenuOpen || isHoverNone;
   const remoteErrorCopyResetRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -362,7 +355,7 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
 
     if (
       hasRunningWorkspaceChat({
-        workspaceState: workspaceZCodeStateRef.current,
+        workspaceState: workspaceXCodeStateRef.current,
         taskItems: taskItemsRef.current,
       })
     ) {
@@ -493,7 +486,7 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
         previousTitleLength: previousTask?.title.length,
         nextTitleLength: title.length,
       });
-      let meta: ZCodeTaskMeta;
+      let meta: XCodeTaskMeta;
       try {
         meta = await zcodeTaskService.renameTask({
           taskId,
@@ -750,7 +743,9 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
       <span className="relative flex size-4 shrink-0 items-center justify-center">
         {renderWorkspaceIcon()}
       </span>
-      <div className="min-w-0 truncate text-ui-base text-foreground-subtle">{workspaceSidebarLabel}</div>
+      <div className="min-w-0 truncate text-ui-base text-foreground-subtle">
+        {workspaceSidebarLabel}
+      </div>
       {!isExpanded && taskListHasUnread ? (
         <span
           aria-hidden="true"
@@ -911,9 +906,7 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
                         open={workspaceActionMenuOpen}
                         onOpenChange={setWorkspaceActionMenuOpen}
                       >
-                        <ControlHintTooltip
-                          title={intl.formatMessage({ id: "common.more" })}
-                        >
+                        <ControlHintTooltip title={intl.formatMessage({ id: "common.more" })}>
                           <DropdownMenuTrigger asChild>
                             <Button
                               type="button"
@@ -958,7 +951,7 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
                     ) : null}
                     {shouldMountWorkspaceRowActions && showFileTreeAction ? (
                       <span className="shrink-0">
-                        {/* Bugfix：Project 文件树入口以前单独覆盖 hover:bg-surface-hover，
+                        {/* Project 文件树入口以前单独覆盖 hover:bg-surface-hover，
                             与 Pinned / Grouped 的 bg-hover 不一致；三种入口统一复用同一 action。 */}
                         <TaskRowActionButton
                           // 该按钮默认继承 ghost 的主前景色，导致同组的三个图标明暗不一致。
@@ -1054,7 +1047,7 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
                     {showReconnectAction ? (
                       isReconnectPending ? (
                         <ReconnectingRemoteWorkspaceLogTooltip logs={reconnectRuntimeLogs}>
-                          {/* Bugfix: SSH workspace 重连中时，右侧原本只有 spinning 图标，
+                          {/* SSH workspace 重连中时，右侧原本只有 spinning 图标，
                               用户无法在聊天页任务列表里确认连接卡在哪一步。这里复用 SSH dialog 的连接日志 tooltip，
                               保持行内布局稳定，同时把诊断信息放到 hover 浮层里。 */}
                           <div
@@ -1134,7 +1127,6 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
             showFooter={false}
             loading={taskListLoading}
             hasMore={taskListHasMore}
-            mobileActiveTaskKey={mobileActiveTaskKey}
             onShowMore={onShowMoreTasks}
             onRenameTask={handleRenameTask}
             onSetTaskPinned={handleSetTaskPinned}
@@ -1160,8 +1152,8 @@ export const WorkspaceSidebarItem = memo(function WorkspaceSidebarItem({
         remoteMcpSyncService={services.mcpSyncService}
         localPluginSyncService={baseServices.pluginSyncService}
         remotePluginSyncService={services.pluginSyncService}
-        localZCodeAgentService={baseServices.zcodeAgentService}
-        remoteZCodeAgentService={services.zcodeAgentService}
+        localXCodeAgentService={baseServices.zcodeAgentService}
+        remoteXCodeAgentService={services.zcodeAgentService}
         remoteTarget={tab.remoteTarget}
         skillWorkspacePath={tab.workspacePath}
         mcpWorkspacePath={tab.workspacePath}

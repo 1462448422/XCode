@@ -1,4 +1,4 @@
-// ZCode Protocol v4 —— 数据模型草稿（未冻结，schema 定型以黄金测试为准）。
+// XCode Protocol v4 —— 数据模型草稿（未冻结，schema 定型以黄金测试为准）。
 // 本包纪律：只放 schema 类型 + 纯函数，禁止任何运行时/IO/传输逻辑。
 import { z } from "zod";
 import { VIDEO_INPUT_MAX_BYTES } from "../zcode-media-policy.js";
@@ -18,6 +18,15 @@ export type ConversationRowTarget = z.infer<typeof conversationRowTargetSchema>;
 // 时钟规则：Unix ms，一律 CLI 时钟；客户端禁止拿本地时钟与协议 Timestamp 相减。
 export const timestampSchema = z.number();
 export type Timestamp = z.infer<typeof timestampSchema>;
+
+/** godmode Parseltongue 输入混淆设置为 turn 级随提交传递（镜像 modelSelection）。 */
+export const turnObfuscationSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    tier: z.enum(["light", "standard", "heavy"]),
+  })
+  .strict();
+export type TurnObfuscationSettings = z.infer<typeof turnObfuscationSettingsSchema>;
 
 // delivery profile：只存在于 CLI flush 管线的参数表，客户端代码禁止出现 profile 变量。
 export const streamablePathSchema = z.enum(["text", "inputText", "output.text", "summaryText"]);

@@ -6,8 +6,8 @@ import type {
   CodingPlanUsageSnapshot,
   UsageStatsRange,
   UsageStatsSnapshot,
-  ZCodeAccountAccess,
-  ZCodeProviderAccountAccess,
+  XCodeAccountAccess,
+  XCodeProviderAccountAccess,
 } from "@zcode/shared";
 import { logger } from "@/logger.js";
 import { useServices } from "@/hooks/useServices.js";
@@ -40,7 +40,7 @@ interface CodingPlanUsageCacheEntry {
 
 const codingPlanUsageAccessCache = new WeakMap<object, Map<string, CodingPlanUsageCacheEntry>>();
 
-export function shouldRefreshCodingPlanUsageOnAccess(params: {
+function shouldRefreshCodingPlanUsageOnAccess(params: {
   lastUpdatedAt: number | null;
   now: number;
 }): boolean {
@@ -75,7 +75,7 @@ export function useUsageStats(
     dataSource?: "local" | "monitor";
     enabled?: boolean;
     preferredProviderId?: string;
-    accountAccess?: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+    accountAccess?: XCodeProviderAccountAccess | XCodeAccountAccess;
     requirePreferredProvider?: boolean;
     allowEnvApiKey?: boolean;
   } = {},
@@ -245,7 +245,7 @@ export function useCodingPlanUsageStats(
   options: {
     enabled?: boolean;
     preferredProviderId?: string;
-    accountAccess?: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+    accountAccess?: XCodeProviderAccountAccess | XCodeAccountAccess;
     customStartDate?: string | null;
     customEndDate?: string | null;
   },

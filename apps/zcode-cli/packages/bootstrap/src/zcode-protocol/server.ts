@@ -1,6 +1,4 @@
 import { querySessionDebug } from "./session-debug.js";
-import { createNodeNetworkCapture } from "@zcode/shared/node";
-import { networkCaptureControlSchema, zcodeProtocolNotifications } from "@zcode/shared";
 import {
   zcodePluginsCancelOperationParamsSchema,
   zcodeProtocolMethods,
@@ -8,12 +6,6 @@ import {
   zcodeWorkspaceHookTrustGrantParamsSchema,
 } from "@zcode/shared";
 import type { BrowserControlPort } from "@zcode/contracts";
-import type {
-  McpElicitationRequest,
-  McpElicitationResult,
-  McpServerNotification,
-} from "@zcode/contracts";
-import { requestMcpElicitation } from "./interaction-broker.js";
 import { InMemoryWorkspaceHookPolicyProvider } from "@zcode/core";
 import {
   V4_METHODS,
@@ -23,13 +15,13 @@ import {
   parseWorkspaceConfigTopic,
 } from "@zcode/shared/zcode-protocol-v4";
 import type {
-  ZCodeProtocolError,
-  ZCodeProtocolMessage,
-  ZCodeProtocolMethod,
-  ZCodeProtocolNotification,
-  ZCodeProtocolRequest,
-  ZCodeProtocolRequestId,
-  ZCodeProtocolResponse,
+  XCodeProtocolError,
+  XCodeProtocolMessage,
+  XCodeProtocolMethod,
+  XCodeProtocolNotification,
+  XCodeProtocolRequest,
+  XCodeProtocolRequestId,
+  XCodeProtocolResponse,
 } from "@zcode/shared";
 import {
   cancelBackgroundTask,
@@ -89,26 +81,7 @@ import {
   moveSavedWorkflowOp,
   updateSavedWorkflowMetaOp,
 } from "./saved-workflows.js";
-import { findSavedWorkflowForRunOp, saveSavedWorkflowFromRunOp } from "./saved-workflows-run.js";
 import { listMcpServers } from "./mcp.js";
-import {
-  callMcpUiTool,
-  sampleMcpUi,
-  cancelMcpUiSampling,
-  cancelMcpUiToolCall,
-  listMcpUiResourceTemplates,
-  listMcpUiResources,
-  claimMcpUiAppToolCall,
-  registerMcpUiAppTools,
-  resolveMcpUiAppToolCall,
-  unregisterMcpUiAppTools,
-  readMcpUiResource,
-  readMcpUiResourceForUi,
-  routeMcpServerNotification,
-  subscribeMcpUiResource,
-  unsubscribeMcpUiResource,
-} from "./mcp-ui/index.js";
-import { listPluginUiSurfaces } from "./plugin-ui-surfaces.js";
 import { updateInteractionPreferences } from "./interaction-preferences.js";
 import { updateAccountProviderConfig } from "./account-provider-config.js";
 import { updateModelIoPreferences } from "./model-io-preferences.js";
@@ -132,24 +105,22 @@ import {
   isNotification,
   isRequest,
   isResponse,
-  PROTOCOL_CLIENT_REQUEST_ERROR_CODES,
   ProtocolRequestError,
   type ParamsSchema,
   parseParams,
   toProtocolError,
-  type ZCodeProtocolClientRequestOptions,
-  type ZCodeProtocolAgentDependencies,
-  type ZCodeProtocolAgentServerContext,
-  type ZCodeProtocolSessionRecord,
+  type XCodeProtocolClientRequestOptions,
+  type XCodeProtocolAgentDependencies,
+  type XCodeProtocolAgentServerContext,
+  type XCodeProtocolSessionRecord,
 } from "./server-types.js";
 import { createInMemorySessionEventStore } from "@zcode/contracts";
 
-export type { ZCodeProtocolAgentDependencies, ZCodeProtocolSessionRecord };
+export type { XCodeProtocolAgentDependencies, XCodeProtocolSessionRecord };
 
-import { closeMcpUiInstance, openMcpUiInstance, validateMcpUiInstance } from "./mcp-ui/index.js";
 const MAX_CLIENT_REQUEST_REANNOUNCE_INTERVAL_MS = 10_000;
 
-type ZCodeProtocolOutboundMessage = ZCodeProtocolNotification | ZCodeProtocolRequest;
+type XCodeProtocolOutboundMessage = XCodeProtocolNotification | XCodeProtocolRequest;
 
 /**
  * Trust store 落盘后各 session 的 coordinator
@@ -157,9 +128,9 @@ type ZCodeProtocolOutboundMessage = ZCodeProtocolNotification | ZCodeProtocolReq
  * 停留旧值。pretrust 授权成功后按 workspaceKey 通知所有匹配的活跃 session 重载。
  * 独立导出为纯调度函数（不触网、不发事件），便于回归测试直接构造 sessions Map。
  */
-export async function notifyWorkspaceHookTrustGrantSessions(input: {
+async function notifyWorkspaceHookTrustGrantSessions(input: {
   grantedWorkspaceKey?: string;
-  sessions: Map<string, ZCodeProtocolSessionRecord>;
+  sessions: Map<string, XCodeProtocolSessionRecord>;
 }): Promise<void> {
   if (!input.grantedWorkspaceKey) return;
   await Promise.all(
@@ -212,8 +183,8 @@ function getOperationId(params: unknown): string | undefined {
     : undefined;
 }
 
-export interface ZCodeProtocolPostResponseBatch {
-  readonly messages: readonly ZCodeProtocolOutboundMessage[];
+interface XCodeProtocolPostResponseBatch {
+  readonly messages: readonly XCodeProtocolOutboundMessage[];
   commit(): boolean;
 }
 
@@ -229,13 +200,7 @@ interface PendingClientRequest<T> {
   abortHandler?: () => void;
 }
 
-export class ZCodeProtocolAgentServer {
-  private readonly networkCapture = createNodeNetworkCapture("cli", (batch) => {
-    this.messageSink?.({
-      method: zcodeProtocolNotifications.processNetworkRequests,
-      params: batch,
-    });
-  });
+export class XCodeProtocolAgentServer {
   private readonly runtimeResources: ProtocolRuntimeResources;
   private shutdownPromise?: Promise<void>;
   readonly browserControlPort: BrowserControlPort;
@@ -244,26 +209,13 @@ export class ZCodeProtocolAgentServer {
    * MCP 连接池的构造早于 server，需要在 server 就绪后回填闭包持有的引用——
    * 与 v4Gateway 同样的构造顺序收口方式。只暴露 requestClient，不外泄整个 context。
    */
-  /** MCP server 发起的 elicitation/create → 用户提问。 */
-  requestMcpElicitation(
-    request: McpElicitationRequest,
-    options?: { signal?: AbortSignal },
-  ): Promise<McpElicitationResult> {
-    return requestMcpElicitation(this.context, request, options);
-  }
-
-  /** MCP server 通知 → 会话 live 事件 / agent 日志。 */
-  handleMcpNotification(notification: McpServerNotification): void {
-    routeMcpServerNotification(this.context, notification);
-  }
-
-  get officialMcpAuthRequestContext(): Pick<ZCodeProtocolAgentServerContext, "requestClient"> {
+  get officialMcpAuthRequestContext(): Pick<XCodeProtocolAgentServerContext, "requestClient"> {
     return this.context;
   }
 
-  private messageSink?: (message: ZCodeProtocolOutboundMessage) => void;
+  private messageSink?: (message: XCodeProtocolOutboundMessage) => void;
   private clientDisconnectError?: Error;
-  private readonly context: ZCodeProtocolAgentServerContext;
+  private readonly context: XCodeProtocolAgentServerContext;
   private readonly logger;
   private readonly pendingClientRequests = new Map<string, PendingClientRequest<unknown>>();
   private readonly pluginOperationControllers = new Map<string, AbortController>();
@@ -273,16 +225,16 @@ export class ZCodeProtocolAgentServer {
    * 再写 response line，最后按数组顺序写 notification，不能靠 microtask 猜时序。
    */
   private readonly postResponseOutbox = new Map<
-    ZCodeProtocolRequestId,
-    ZCodeProtocolPostResponseBatch
+    XCodeProtocolRequestId,
+    XCodeProtocolPostResponseBatch
   >();
   private nextClientRequestId = 1;
 
-  constructor(deps: ZCodeProtocolAgentDependencies) {
-    this.runtimeResources = new ProtocolRuntimeResources(deps.createZCodeApp);
+  constructor(deps: XCodeProtocolAgentDependencies) {
+    this.runtimeResources = new ProtocolRuntimeResources(deps.createXCodeApp);
     const resolvedDeps = {
       ...deps,
-      createZCodeApp: this.runtimeResources.create,
+      createXCodeApp: this.runtimeResources.create,
       // 默认 turn 窗口保留策略。
       createSessionEventStore:
         deps.createSessionEventStore ?? (() => createInMemorySessionEventStore()),
@@ -305,7 +257,7 @@ export class ZCodeProtocolAgentServer {
       notify: (notification) => this.messageSink?.(notification),
       requestClient: (method, params, resultSchema, options) =>
         this.requestClient(method, params, resultSchema, options),
-      sessions: new Map<string, ZCodeProtocolSessionRecord>(),
+      sessions: new Map<string, XCodeProtocolSessionRecord>(),
       // 交互应答登记表（broker 反向请求 × v4 resolveInteraction 命令的汇合点）。
       v4Interactions: new V4InteractionRegistry(
         resolveV4InteractionRegistryOptionsFromEnv(deps.env ?? process.env),
@@ -385,14 +337,13 @@ export class ZCodeProtocolAgentServer {
     return counters;
   }
 
-  setNotificationSink(sink: (message: ZCodeProtocolOutboundMessage) => void): void {
+  setNotificationSink(sink: (message: XCodeProtocolOutboundMessage) => void): void {
     this.runtimeResources.assertServing();
     this.clientDisconnectError = undefined;
     this.messageSink = sink;
   }
 
   disconnectClient(error: Error): void {
-    this.networkCapture.setCaptureId(null);
     this.clientDisconnectError = error;
     // 连接关闭后反向请求已不可能收到响应，必须先结束 pending，
     // 否则正在物化 Session 的 handler 会阻塞 connection 的关闭流程。
@@ -407,7 +358,7 @@ export class ZCodeProtocolAgentServer {
   shutdown(): Promise<void> {
     if (this.shutdownPromise) return this.shutdownPromise;
     this.shutdownPromise = this.runtimeResources.close();
-    const error = new Error("ZCode Protocol runtime stopping");
+    const error = new Error("XCode Protocol runtime stopping");
     this.disconnectClient(error);
     this.messageSink = undefined;
     this.clearPostResponseMessages();
@@ -434,14 +385,14 @@ export class ZCodeProtocolAgentServer {
   }
 
   /** 一次性取走某 request 的 post-response messages；重复 take 返回空数组。 */
-  takePostResponseMessages(requestId: ZCodeProtocolRequestId): ZCodeProtocolOutboundMessage[] {
+  takePostResponseMessages(requestId: XCodeProtocolRequestId): XCodeProtocolOutboundMessage[] {
     const batch = this.takePostResponseBatch(requestId);
     batch?.commit();
     return [...(batch?.messages ?? [])];
   }
 
   /** production NDJSON 取完整 batch；只有全部 write 成功后才调 commit。 */
-  takePostResponseBatch(requestId: ZCodeProtocolRequestId): ZCodeProtocolPostResponseBatch | null {
+  takePostResponseBatch(requestId: XCodeProtocolRequestId): XCodeProtocolPostResponseBatch | null {
     const batch = this.postResponseOutbox.get(requestId) ?? null;
     this.postResponseOutbox.delete(requestId);
     return batch;
@@ -453,8 +404,8 @@ export class ZCodeProtocolAgentServer {
   }
 
   async handleMessage(
-    message: ZCodeProtocolMessage,
-  ): Promise<ZCodeProtocolError | ZCodeProtocolResponse | undefined> {
+    message: XCodeProtocolMessage,
+  ): Promise<XCodeProtocolError | XCodeProtocolResponse | undefined> {
     this.runtimeResources.assertServing();
     if (isResponse(message)) {
       this.resolveClientRequest(message.id, message.result);
@@ -471,12 +422,7 @@ export class ZCodeProtocolAgentServer {
       return await this.handleRequest(message);
     }
     if (isNotification(message)) {
-      if (message.method === zcodeProtocolMethods.processNetworkCapture) {
-        const control = networkCaptureControlSchema.safeParse(message.params);
-        if (control.success) this.networkCapture.setCaptureId(control.data.captureId);
-        return undefined;
-      }
-      this.logger?.debug("ZCode Protocol notification ignored", {
+      this.logger?.debug("XCode Protocol notification ignored", {
         event: "zcode_protocol.notification.ignored",
         method: message.method,
         module: "bootstrap.zcode_protocol",
@@ -486,8 +432,8 @@ export class ZCodeProtocolAgentServer {
   }
 
   private async handleRequest(
-    request: ZCodeProtocolRequest,
-  ): Promise<ZCodeProtocolError | ZCodeProtocolResponse> {
+    request: XCodeProtocolRequest,
+  ): Promise<XCodeProtocolError | XCodeProtocolResponse> {
     // request id 可在前一请求完成后复用；新请求不能继承未消费的旧 outbox。
     this.postResponseOutbox.delete(request.id);
     let releaseResidencyOperation: (() => void) | undefined;
@@ -509,7 +455,7 @@ export class ZCodeProtocolAgentServer {
     }
   }
 
-  private async dispatchRequest(request: ZCodeProtocolRequest) {
+  private async dispatchRequest(request: XCodeProtocolRequest) {
     switch (request.method) {
       // ── v4 conversation 通道（竖切，与旧 session/* 并存）──
       case V4_METHODS.connectionFlow: {
@@ -697,48 +643,12 @@ export class ZCodeProtocolAgentServer {
         return await testProviderModelConnectivity(this.context, request.params);
       case zcodeProtocolMethods.mcpList:
         return await listMcpServers(this.context, request.params);
-      case zcodeProtocolMethods.mcpReadResource:
-        return await readMcpUiResource(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiOpenInstance:
-        return openMcpUiInstance(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiValidateInstance:
-        return validateMcpUiInstance(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiCloseInstance:
-        return closeMcpUiInstance(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiSampling:
-        return sampleMcpUi(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiCancelSampling:
-        return cancelMcpUiSampling(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiCallTool:
-        return await callMcpUiTool(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiCancelCall:
-        return await cancelMcpUiToolCall(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiReadResource:
-        return await readMcpUiResourceForUi(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiListResources:
-        return await listMcpUiResources(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiListResourceTemplates:
-        return await listMcpUiResourceTemplates(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiSubscribeResource:
-        return await subscribeMcpUiResource(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiUnsubscribeResource:
-        return await unsubscribeMcpUiResource(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiRegisterAppTools:
-        return await registerMcpUiAppTools(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiUnregisterAppTools:
-        return await unregisterMcpUiAppTools(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiClaimAppToolCall:
-        return await claimMcpUiAppToolCall(this.context, request.params);
-      case zcodeProtocolMethods.mcpUiResolveAppToolCall:
-        return await resolveMcpUiAppToolCall(this.context, request.params);
       case zcodeProtocolMethods.pluginsList:
         return await listPlugins(this.context, request.params);
       case zcodeProtocolMethods.pluginsReferenceCatalogWithCategory:
         return await getPluginReferenceCatalog(this.context, request.params, true);
       case zcodeProtocolMethods.pluginsReferenceCatalog:
         return await getPluginReferenceCatalog(this.context, request.params);
-      case zcodeProtocolMethods.pluginsListUiSurfaces:
-        return await listPluginUiSurfaces(this.context, request.params);
       case zcodeProtocolMethods.skillsReferenceCatalog:
         return await getSkillReferenceCatalog(this.context, request.params);
       case zcodeProtocolMethods.workflowsList:
@@ -753,10 +663,6 @@ export class ZCodeProtocolAgentServer {
         return await listSavedWorkflowRunsOp(this.context, request.params);
       case zcodeProtocolMethods.workflowsMove:
         return await moveSavedWorkflowOp(this.context, request.params);
-      case zcodeProtocolMethods.workflowsSave:
-        return await saveSavedWorkflowFromRunOp(this.context, request.params);
-      case zcodeProtocolMethods.workflowsForRun:
-        return await findSavedWorkflowForRunOp(this.context, request.params);
       case zcodeProtocolMethods.pluginsResolveSuggestedReference:
         return await this.withPluginOperationSignal(request, (signal) =>
           resolveSuggestedPluginReference(this.context, request.params, signal),
@@ -820,7 +726,7 @@ export class ZCodeProtocolAgentServer {
   }
 
   private async withPluginOperationSignal<T>(
-    request: ZCodeProtocolRequest,
+    request: XCodeProtocolRequest,
     run: (signal?: AbortSignal) => Promise<T>,
   ): Promise<T> {
     const operationId = getPluginOperationId(request.params);
@@ -848,7 +754,7 @@ export class ZCodeProtocolAgentServer {
   }
 
   private async withWorkspaceGenerateTextSignal<T>(
-    request: ZCodeProtocolRequest,
+    request: XCodeProtocolRequest,
     run: (signal?: AbortSignal) => Promise<T>,
   ): Promise<T> {
     const operationId = getOperationId(request.params);
@@ -883,33 +789,30 @@ export class ZCodeProtocolAgentServer {
     return { operationId: params.operationId, cancelled: true };
   }
 
-  private ok(id: ZCodeProtocolRequestId, result: unknown): ZCodeProtocolResponse {
+  private ok(id: XCodeProtocolRequestId, result: unknown): XCodeProtocolResponse {
     return { id, result };
   }
 
   private fail(
-    id: ZCodeProtocolRequestId,
+    id: XCodeProtocolRequestId,
     code: number,
     message: string,
     data?: unknown,
-  ): ZCodeProtocolError {
+  ): XCodeProtocolError {
     return { error: { code, data, message }, id };
   }
 
   private requestClient<T>(
-    method: ZCodeProtocolMethod,
+    method: XCodeProtocolMethod,
     params: unknown,
     resultSchema: ParamsSchema<T>,
-    options?: ZCodeProtocolClientRequestOptions,
+    options?: XCodeProtocolClientRequestOptions,
   ): Promise<T> {
     if (this.clientDisconnectError) {
       throw this.clientDisconnectError;
     }
     if (!this.messageSink) {
-      throw new ProtocolRequestError(
-        PROTOCOL_CLIENT_REQUEST_ERROR_CODES.noClientAttached,
-        `No ZCode Protocol client is attached for ${method}`,
-      );
+      throw new ProtocolRequestError(-32020, `No XCode Protocol client is attached for ${method}`);
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -928,12 +831,7 @@ export class ZCodeProtocolAgentServer {
       };
       pending.abortHandler = () => {
         cleanup();
-        reject(
-          new ProtocolRequestError(
-            PROTOCOL_CLIENT_REQUEST_ERROR_CODES.cancelled,
-            `Client request cancelled: ${method}`,
-          ),
-        );
+        reject(new ProtocolRequestError(-32021, `Client request cancelled: ${method}`));
       };
       if (options?.signal?.aborted) {
         pending.abortHandler();
@@ -943,13 +841,9 @@ export class ZCodeProtocolAgentServer {
         pending.timeout = setTimeout(() => {
           cleanup();
           reject(
-            new ProtocolRequestError(
-              PROTOCOL_CLIENT_REQUEST_ERROR_CODES.timedOut,
-              `Client request timed out: ${method}`,
-              {
-                timeoutMs: options.timeoutMs,
-              },
-            ),
+            new ProtocolRequestError(-32022, `Client request timed out: ${method}`, {
+              timeoutMs: options.timeoutMs,
+            }),
           );
         }, options.timeoutMs);
       }
@@ -996,7 +890,7 @@ export class ZCodeProtocolAgentServer {
     });
   }
 
-  private resolveClientRequest(id: ZCodeProtocolRequestId, result: unknown): void {
+  private resolveClientRequest(id: XCodeProtocolRequestId, result: unknown): void {
     const key = String(id);
     const pending = this.pendingClientRequests.get(key);
     if (!pending) {
@@ -1012,7 +906,7 @@ export class ZCodeProtocolAgentServer {
     }
   }
 
-  private rejectClientRequest(id: ZCodeProtocolRequestId, error: Error): void {
+  private rejectClientRequest(id: XCodeProtocolRequestId, error: Error): void {
     const key = String(id);
     const pending = this.pendingClientRequests.get(key);
     if (!pending) {

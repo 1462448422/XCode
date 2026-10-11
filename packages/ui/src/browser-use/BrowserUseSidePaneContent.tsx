@@ -5,9 +5,8 @@ import { cn } from "@/components/lib/utils.js";
 import { TabsContent } from "@/components/ui/tabs.js";
 import type { BrowserSidePaneMetadata, BrowserUseSidePaneTab } from "@/lib/workspaceSidePane.js";
 
-export interface BrowserUseSidePaneContentProps {
+interface BrowserUseSidePaneContentProps {
   tab: BrowserUseSidePaneTab;
-  onOpenPermissionSettings?: (origin: string) => void;
   isPanelVisible: boolean;
   isSelected: boolean;
   isCurrentTask: boolean;
@@ -23,7 +22,6 @@ export interface BrowserUseSidePaneContentProps {
 /** browser-use 专用 TabsContent：非活动 tab 仅在截图准备期间保留真实合成布局。 */
 export function BrowserUseSidePaneContent({
   tab,
-  onOpenPermissionSettings,
   isPanelVisible,
   isSelected,
   isCurrentTask,
@@ -77,7 +75,6 @@ export function BrowserUseSidePaneContent({
     >
       <UnifiedBrowserView
         browserKey={tab.tabId}
-        onOpenPermissionSettings={onOpenPermissionSettings}
         isResidencyRestore={tab.residency === "restoring"}
         isVisible={isPanelVisible && isSelected}
         isSelected={isSelected}

@@ -1,11 +1,11 @@
 import { resolveWorkspaceKey } from "@zcode/shared";
 
-export interface HostWorkspaceTaskContext {
+interface HostWorkspaceTaskContext {
   workspacePath: string;
   workspaceIdentity?: string;
 }
 
-export interface HostWorkspaceTaskCountEvent extends HostWorkspaceTaskContext {
+interface HostWorkspaceTaskCountEvent extends HostWorkspaceTaskContext {
   runningTaskCount: number;
 }
 

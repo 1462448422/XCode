@@ -1,9 +1,9 @@
 import { Event as RpcEvent } from "@zcode/rpc";
-import type { IConversationShareService, IZCodeAgentService } from "@zcode/services";
+import type { IConversationShareService, IXCodeAgentService } from "@zcode/services";
 import { conversationShareConnectionScopeFactory } from "@zcode/services/node";
 
 type ConversationShareAgentService = Pick<
-  IZCodeAgentService,
+  IXCodeAgentService,
   | "conversationRowsRangeV4"
   | "conversationFileChangesV4"
   | "conversationAttachmentReadV4"

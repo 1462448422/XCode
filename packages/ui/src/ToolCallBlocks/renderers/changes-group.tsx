@@ -1,6 +1,6 @@
 import { PencilIcon } from "lucide-react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { getFileDisplayPath } from "@/lib/fileDisplay.js";
 import { ToolCallBlock } from "@/ToolCallBlocks.js";
 import { ToolLayout } from "@/ToolCallBlocks/ToolLayout.js";
@@ -20,7 +20,7 @@ const CHANGES_GROUP_ICON = <PencilIcon className="size-4 shrink-0 text-foregroun
 const FILE_CHIP_GAP_PX = 8;
 const FILE_CHIP_TRAILING_SPACE_PX = 24;
 
-export function resolveFileChipAvailableWidth({
+function resolveFileChipAvailableWidth({
   boundaryRight,
   listLeft,
   trailingWidth,
@@ -32,7 +32,7 @@ export function resolveFileChipAvailableWidth({
   return Math.max(0, boundaryRight - listLeft - trailingWidth);
 }
 
-export function resolveResponsiveFileChipCount({
+function resolveResponsiveFileChipCount({
   availableWidth,
   chipWidths,
   overflowWidth,
@@ -158,7 +158,7 @@ function ResponsiveFileChipList({
 }
 
 export function ChangesGroupToolCallBlock(context: ToolCallBlockRenderContext) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { toolCall, childToolCalls } = context.toolCallNode;
   const childSummaries = useMemo(
     () =>

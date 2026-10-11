@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import type { IServiceAccessor } from "@zcode/services";
-import type { ZCodeConfigOption } from "@zcode/shared";
+import type { XCodeConfigOption } from "@zcode/shared";
 import {
   buildTaskContextUsageFromUsageUpdate,
   recordTaskContextUsageUpdate,
 } from "@/lib/zcodeTaskUsageFallback.js";
-import { normalizeZCodeUiError } from "@/lib/zcodeUiError.js";
-import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { normalizeXCodeUiError } from "@/lib/zcodeUiError.js";
+import { useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import type { useTabStoreApi } from "@/store/TabStoreProvider.js";
 import {
   resolveBotTaskBroadcastRefresh,
@@ -20,13 +20,13 @@ import {
 
 export function syncBotTaskConfigOptionsToStore(params: {
   zcodeSessionStore: Pick<
-    ReturnType<typeof useZCodeSessionStore.getState>,
+    ReturnType<typeof useXCodeSessionStore.getState>,
     "setTaskConfigOptions"
   >;
   workspacePath: string;
   workspaceIdentity?: string;
   taskId: string;
-  configOptions: ZCodeConfigOption[];
+  configOptions: XCodeConfigOption[];
 }) {
   // Bugfix: Bot /mode 不经过 ChatInputToolbar/useTaskStreamEvents。
   // setTaskConfigOptions 会按 activeTaskId 决定是否同步到 workspace configOptions，
@@ -64,7 +64,7 @@ export function shouldMirrorBotTaskStreamToStore(params: {
     return true;
   }
 
-  // Bugfix: 远端 Bot task 的 stream 来自 bot runtime host，不一定会被当前 ChatView 的 ZCode Agent stream 订阅收到。
+  // Bugfix: 远端 Bot task 的 stream 来自 bot runtime host，不一定会被当前 ChatView 的 XCode Agent stream 订阅收到。
   // 之前 active task 直接跳过 bot broadcast，导致消息内容要切换任务重新拉 snapshot 后才显示。
   return Boolean(params.workspaceIdentity?.trim());
 }
@@ -80,7 +80,7 @@ export function useBotBroadcastEffects(
         tabStoreApi.getState().tabs,
       );
       if (stream) {
-        const zcodeSessionStore = useZCodeSessionStore.getState();
+        const zcodeSessionStore = useXCodeSessionStore.getState();
         const workspaceState = zcodeSessionStore.getWorkspaceState(
           stream.workspacePath,
           stream.workspaceIdentity,
@@ -134,7 +134,7 @@ export function useBotBroadcastEffects(
             zcodeSessionStore.setTaskError(stream.workspacePath, stream.taskId, null, stream.workspaceIdentity);
             break;
           case "task_error": {
-            const normalizedError = normalizeZCodeUiError(
+            const normalizedError = normalizeXCodeUiError(
               {
                 message: event.error,
                 detail: event.detail,
@@ -161,7 +161,7 @@ export function useBotBroadcastEffects(
             zcodeSessionStore.setTaskError(
               stream.workspacePath,
               stream.taskId,
-              normalizeZCodeUiError(
+              normalizeXCodeUiError(
                 {
                   message: event.warning,
                   detail: event.detail,
@@ -241,7 +241,7 @@ export function useBotBroadcastEffects(
       }
       // Bots 在 host 侧创建/推进 task，不会挂载聊天视图里的 stream 订阅。
       // 因此除了刷新列表，还要同步 task 运行态；否则 sidebar 能看到新 task，却不会显示进行中状态。
-      const zcodeSessionStore = useZCodeSessionStore.getState();
+      const zcodeSessionStore = useXCodeSessionStore.getState();
       const workspaceState = zcodeSessionStore.getWorkspaceState(
         refresh.workspacePath,
         refresh.workspaceIdentity,
@@ -249,7 +249,7 @@ export function useBotBroadcastEffects(
       const provider = refresh.task?.provider ?? refresh.provider;
       const shouldSyncVisibleTaskConfig = workspaceState.activeTaskId === refresh.taskId;
       if (provider && shouldSyncVisibleTaskConfig) {
-        // Bugfix: /model、/mode 可以从第三方 Bot 修改当前 task 的真实 ZCode Agent 状态。
+        // Bugfix: /model、/mode 可以从第三方 Bot 修改当前 task 的真实 XCode Agent 状态。
         // 这些操作不经过 ChatInputToolbar，本地 store 以前不会同步 provider/configOptions，
         // 导致 Bot 回复已切换但 UI 下拉仍显示旧状态。
         zcodeSessionStore.bindRuntimeProvider(
@@ -315,7 +315,7 @@ export function useBotBroadcastEffects(
         );
       } else if (refresh.event === "elicitation_request" && refresh.elicitationRequest) {
         // Bugfix: Bot channel 消费 AskUserQuestion 后，下一题只会先到 Bot runtime。
-        // 当前 UI 窗口不一定有同一条 ZCode Agent stream 订阅，必须把新的 elicitation_request 显式写回 store。
+        // 当前 UI 窗口不一定有同一条 XCode Agent stream 订阅，必须把新的 elicitation_request 显式写回 store。
         zcodeSessionStore.setTaskElicitationRequest(
           refresh.workspacePath,
           refresh.taskId,
@@ -323,7 +323,7 @@ export function useBotBroadcastEffects(
           refresh.workspaceIdentity,
         );
       } else if (refresh.event === "elicitation_resolved" && refresh.requestId) {
-        // Bugfix: Bot 代用户提交 AskUserQuestion 时，当前 UI 窗口不一定能收到 ZCode Agent stream 的
+        // Bugfix: Bot 代用户提交 AskUserQuestion 时，当前 UI 窗口不一定能收到 XCode Agent stream 的
         // elicitation_response。通过 bots:task 明确同步 requestId 出队，避免问答弹窗一直挂着。
         zcodeSessionStore.removeTaskElicitationRequest(
           refresh.workspacePath,

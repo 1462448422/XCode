@@ -18,10 +18,6 @@ import type { AgentRuntimeInternal } from "../internal.js";
 import { ensureMemoryDirectoryExists } from "../../memory/directory.js";
 import { formatProjectMemoryIndexContent } from "../../memory/index-content.js";
 import {
-  ACTIVE_PROJECT_MEMORY_RETRIEVAL_BRANCH,
-  type ProjectMemoryRetrievalBranch,
-} from "../../memory/project-memory-retrieval-branch.js";
-import {
   createReadFileStateKey,
   normalizeReadFileStateMtimeMs,
 } from "../../tool/read-file-state.js";
@@ -29,10 +25,6 @@ import { resolveEnabledProjectMemoryRoot } from "../helpers/project-memory.js";
 import { buildContextHistoryEntries } from "./context-history-entries.js";
 import { resolveRuntimeEmbeddedSearchEnabled } from "./embedded-search-branch.js";
 import { getContextSourceShellDisplayName } from "./session-shell-environment.js";
-import {
-  ensureGenUiOutputDirectory,
-  resolveGenUiOutputDirectory,
-} from "../helpers/gen-ui-output.js";
 
 export { buildContextHistoryEntries };
 
@@ -72,12 +64,7 @@ export async function ensureContextInitialized(
   this.startMcpStartup(traceContext);
   this.skillLoadOutcome = await this.discoverSkillsForContext(traceContext);
   this.memoryRoot = await this.loadProjectMemoryRoot(traceContext);
-  this.memoryIndexContent = await loadProjectMemoryIndexContent(
-    this,
-    this.memoryRoot,
-    ACTIVE_PROJECT_MEMORY_RETRIEVAL_BRANCH,
-  );
-  await ensureGenUiOutputDirectory(this);
+  this.memoryIndexContent = await loadProjectMemoryIndexContent(this, this.memoryRoot);
   this.contextBuilder = this.createContextBuilderFromSnapshot(snapshot, this.memoryRoot, {
     memoryIndexContent: this.memoryIndexContent,
     model,
@@ -137,7 +124,6 @@ export function createContextBuilderFromSnapshot(
     envInfo,
     model: options.model,
     presentationSurface: this.config.presentationSurface,
-    genUiOutputDirectory: resolveGenUiOutputDirectory(this),
     currentDate: snapshot.currentDate,
     userInstructions: snapshot.userInstructions,
     projectContext: snapshot.projectContext,
@@ -148,6 +134,11 @@ export function createContextBuilderFromSnapshot(
     embeddedSearchEnabled: resolveRuntimeEmbeddedSearchEnabled(this),
     skillMetadataBudget: this.config.skillMetadataBudget,
     customSystemPrompt: this.config.systemPrompt,
+    systemPromptOverrides: this.config.systemPromptOverrides,
+    // start-plan 账号：zai 端点对 system 逐字校验，必须官方 ZCode 提示词。
+    officialSystemPrompt:
+      options.model?.providerId === "account:zai-start-plan" ||
+      options.model?.providerId === "account:bigmodel-start-plan",
     workflowActor: this.config.workflowActor,
     language: this.config.language,
     outputStyle: this.config.outputStyle,
@@ -179,12 +170,10 @@ export async function loadProjectMemoryRoot(
   return memoryRoot;
 }
 
-export async function loadProjectMemoryIndexContent(
+async function loadProjectMemoryIndexContent(
   runtime: AgentRuntimeInternal,
   memoryRoot: string | undefined,
-  retrievalBranch: ProjectMemoryRetrievalBranch,
 ): Promise<string | undefined> {
-  if (retrievalBranch !== "default-index") return undefined;
   const fileSystemPort = runtime.fileSystemPort;
   if (!fileSystemPort || !memoryRoot) return undefined;
   const indexPath = join(memoryRoot, "MEMORY.md");
@@ -293,7 +282,17 @@ export function initializeMessageHistoryFromContext(
 ): void {
   const contextResult = contextBuilder.build();
   this.latestContextBuildResult = contextResult;
-  this.messageHistory.init(buildContextHistoryEntries(contextResult));
+  const contextEntries = buildContextHistoryEntries(contextResult);
+  // godmode prefill：把 priming 对话轮拼到 system 之后、首个真实 user 之前。
+  const jailbreakPrefill = this.config.systemPromptOverrides?.prefill;
+  if (jailbreakPrefill?.enabled && jailbreakPrefill.messages?.length) {
+    contextEntries.push(
+      ...jailbreakPrefill.messages.map((p) => ({
+        message: { role: p.role, content: p.content },
+      })),
+    );
+  }
+  this.messageHistory.init(contextEntries);
 
   this.logger?.debug("Context built", {
     ...traceContextToLogContext(traceContext),

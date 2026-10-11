@@ -3,7 +3,7 @@ import type { Logger, McpConnectionSnapshot, McpPort, McpServerStatus } from "@z
 import {
   zcodeMcpListParamsSchema,
   zcodeMcpListResultSchema,
-  type ZCodeMcpListResult,
+  type XCodeMcpListResult,
 } from "@zcode/shared";
 import {
   listMcpServerStatuses,
@@ -14,7 +14,7 @@ import { StartupTimer, startupNow } from "../startup-logging.js";
 import { getCliStorageRoot } from "../app/paths.js";
 import { resolveStartupPlugins } from "../app/startup-marks.js";
 import { protocolMcpServersToRuntimeMcpConfig } from "./protocol-mcp-config.js";
-import { parseParams, type ZCodeProtocolAgentServerContext } from "./server-types.js";
+import { parseParams, type XCodeProtocolAgentServerContext } from "./server-types.js";
 
 const noopLogger: Logger = {
   debug: () => undefined,
@@ -28,9 +28,9 @@ const MCP_OAUTH_AUTHORIZATION_STATUS_WAIT_MS = 5_000;
 const MCP_OAUTH_AUTHORIZATION_STATUS_POLL_MS = 100;
 
 export async function listMcpServers(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodeMcpListResult> {
+): Promise<XCodeMcpListResult> {
   const params = parseParams(zcodeMcpListParamsSchema, rawParams);
   const workingDirectory = params.workspace.workspacePath;
   const configResult = createConfig({
@@ -60,7 +60,7 @@ export async function listMcpServers(
   const explicitRuntimeMcp = protocolMcpServersToRuntimeMcpConfig(params.mcpServers);
   const configuredMcpServers = {
     ...pluginOutcome.mcpServers,
-    // 设置页的本地 MCP 列表由 desktop main 解析 `.zcode` / `.agents` fallback，
+    // 设置页的本地 MCP 列表由 desktop main 解析 `.xcode` / `.agents` fallback，
     // session runtime 也使用这批 params.mcpServers。mcp/list 不能再只靠 agent createConfig，
     // 否则 `.agents` fallback 行会缺少 status snapshot 并被 UI 误标红。
     ...(explicitMcpServersProvided

@@ -8,11 +8,10 @@ import {
   type TraceContext,
 } from "@zcode/contracts";
 import type { ToolExecutionContext } from "../types.js";
-import { stripClaudeCodeHintLines } from "./bash-semantics.js";
 
 const MAX_IMAGE_FILE_BYTES = 20 * 1024 * 1024;
 
-export interface BashImageSource {
+interface BashImageSource {
   artifactPath?: string;
   artifactSize?: number;
   inline: string;
@@ -22,7 +21,7 @@ export async function prepareBashImageOutput(
   stdout: BashImageSource,
   context: ToolExecutionContext,
 ): Promise<{ stdout: string } | undefined> {
-  const source = stripClaudeCodeHintLines(await readBashImageSource(stdout));
+  const source = await readBashImageSource(stdout);
   const parsed = parseImageDataUrl(source);
   if (!parsed) return undefined;
   if (!context.imageProcessorPort) return { stdout: parsed.dataUrl };

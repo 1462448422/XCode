@@ -1,27 +1,27 @@
 import {
-  normalizeZCodeApiRetryStatus,
-  isZCodeModelRetryRecoveryProgressPayload,
+  normalizeXCodeApiRetryStatus,
+  isXCodeModelRetryRecoveryProgressPayload,
   resolveWorkspaceKey,
-  type ZCodeSessionApiRetryStatus,
-  type ZCodeSessionStateSnapshot,
+  type XCodeSessionApiRetryStatus,
+  type XCodeSessionStateSnapshot,
   zcodeApiRetryFromModelNetworkStatusPayload,
   zcodeApiRetryFromStreamRecoveryPayload,
 } from "@zcode/shared";
-import type { ZCodeSessionServiceEvent, ZCodeTaskTarget } from "#src/zcode-session/zcodeSession.js";
+import type { XCodeSessionServiceEvent, XCodeTaskTarget } from "#src/zcode-session/zcodeSession.js";
 
-export function createZCodeSessionApiRetryRuntimeTracker(): {
+export function createXCodeSessionApiRetryRuntimeTracker(): {
   trackApiRetryFromSessionEvent: (
-    params: ZCodeTaskTarget,
-    event: ZCodeSessionServiceEvent,
-  ) => ZCodeSessionServiceEvent;
-  withApiRetryRuntime: (snapshot: ZCodeSessionStateSnapshot) => ZCodeSessionStateSnapshot;
+    params: XCodeTaskTarget,
+    event: XCodeSessionServiceEvent,
+  ) => XCodeSessionServiceEvent;
+  withApiRetryRuntime: (snapshot: XCodeSessionStateSnapshot) => XCodeSessionStateSnapshot;
 } {
-  const apiRetryBySessionKey = new Map<string, ZCodeSessionApiRetryStatus | null>();
+  const apiRetryBySessionKey = new Map<string, XCodeSessionApiRetryStatus | null>();
 
   function trackApiRetryFromSessionEvent(
-    params: ZCodeTaskTarget,
-    event: ZCodeSessionServiceEvent,
-  ): ZCodeSessionServiceEvent {
+    params: XCodeTaskTarget,
+    event: XCodeSessionServiceEvent,
+  ): XCodeSessionServiceEvent {
     if (
       event.type === "session.event" &&
       (event.event.type === "session.updated" || event.event.type === "streamRecovery.updated")
@@ -38,7 +38,7 @@ export function createZCodeSessionApiRetryRuntimeTracker(): {
         apiRetryBySessionKey.set(key, apiRetry);
       } else if (
         apiRetryBySessionKey.get(key) != null &&
-        isZCodeModelRetryRecoveryProgressPayload(asRecord(event.event.payload))
+        isXCodeModelRetryRecoveryProgressPayload(asRecord(event.event.payload))
       ) {
         // snapshot runtime 和 live UI 要使用同一个恢复成功边界；
         // retry attempt 开始不清，等首个模型进展到达才清，避免重连时状态闪烁或切回 task 后残留。
@@ -55,7 +55,7 @@ export function createZCodeSessionApiRetryRuntimeTracker(): {
     return event;
   }
 
-  function withApiRetryRuntime(snapshot: ZCodeSessionStateSnapshot): ZCodeSessionStateSnapshot {
+  function withApiRetryRuntime(snapshot: XCodeSessionStateSnapshot): XCodeSessionStateSnapshot {
     const sessionId = snapshot.session?.sessionId;
     const workspacePath = snapshot.session?.workspace?.workspacePath;
     if (!sessionId || !workspacePath) {
@@ -94,7 +94,7 @@ export function createZCodeSessionApiRetryRuntimeTracker(): {
     };
   }
 
-  function sessionKey(params: ZCodeTaskTarget): string {
+  function sessionKey(params: XCodeTaskTarget): string {
     return `${resolveWorkspaceKey(params)}\u0000${params.sessionId}`;
   }
 
@@ -106,15 +106,15 @@ export function createZCodeSessionApiRetryRuntimeTracker(): {
 
 function apiRetryFromSessionPayload(
   payload: Record<string, unknown>,
-): ZCodeSessionApiRetryStatus | null | undefined {
+): XCodeSessionApiRetryStatus | null | undefined {
   if ("apiRetry" in payload) {
-    return normalizeZCodeApiRetryStatus(payload.apiRetry);
+    return normalizeXCodeApiRetryStatus(payload.apiRetry);
   }
-  const runtimeRetry = normalizeZCodeApiRetryStatus(asRecord(payload.runtime).apiRetry);
+  const runtimeRetry = normalizeXCodeApiRetryStatus(asRecord(payload.runtime).apiRetry);
   if (runtimeRetry !== undefined) {
     return runtimeRetry;
   }
-  const metaRetry = normalizeZCodeApiRetryStatus(asRecord(asRecord(payload._meta).zcode).apiRetry);
+  const metaRetry = normalizeXCodeApiRetryStatus(asRecord(asRecord(payload._meta).zcode).apiRetry);
   if (metaRetry !== undefined) {
     return metaRetry;
   }

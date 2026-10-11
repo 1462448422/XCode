@@ -4,7 +4,7 @@ import { APP_USAGE_RANGES } from "@zcode/shared";
 import type { AppUsageRange, AppUsageSnapshot } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { useAppUsageStats } from "@/hooks/useUsageStats.js";
 import { UsageChartLoadBoundary } from "@/settings/usage-stats/UsageChartLoadBoundary.js";
 import { UsageHeatmap } from "@/settings/usage-stats/UsageHeatmap.js";
@@ -32,7 +32,7 @@ const AppUsageModelUsagePieChart = lazy(() =>
 );
 
 export function AppUsagePanel() {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const [range, setRange] = useState<AppUsageRange>("7d");
   const { snapshot: lifetimeSnapshot, refresh: refreshLifetime } = useAppUsageStats("all");
   const { snapshot, loading, error, refresh } = useAppUsageStats(range);
@@ -47,7 +47,7 @@ export function AppUsagePanel() {
           </div>
           <AppUsageRangeTabs range={range} onRangeChange={setRange} />
         </div>
-        {/* Bugfix: App Usage 只聚合本地 session 历史，不能复用 Coding Plan 的 monitor API 加载说明。 */}
+        {/* App Usage 只聚合本地 session 历史，不能复用 Coding Plan 的 monitor API 加载说明。*/}
         <UsageEmptyState
           title={intl.formatMessage({ id: "settings.usage.loadingTitle" })}
           description={intl.formatMessage({
@@ -130,14 +130,12 @@ export function AppUsagePanel() {
   );
 }
 
-export function AppUsageLifetimeSummaryStrip({ snapshot }: { snapshot: AppUsageSnapshot | null }) {
-  const { intl, locale } = useZCodeIntl();
+function AppUsageLifetimeSummaryStrip({ snapshot }: { snapshot: AppUsageSnapshot | null }) {
+  const { intl, locale } = useXCodeIntl();
   const items = [
     {
       label: intl.formatMessage({ id: "settings.usage.lifetimeTotalTokens" }),
-      value: snapshot
-        ? formatSummaryCompactTokenUsage(locale, snapshot.summary.totalTokens)
-        : "--",
+      value: snapshot ? formatSummaryCompactTokenUsage(locale, snapshot.summary.totalTokens) : "--",
     },
     {
       label: intl.formatMessage({ id: "settings.usage.lifetimePeakTokens" }),
@@ -178,7 +176,7 @@ export function AppUsageLifetimeSummaryStrip({ snapshot }: { snapshot: AppUsageS
 
 function formatAppUsageDays(
   days: number,
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useXCodeIntl>["intl"],
   locale: string,
 ): string {
   return `${formatCompactNumber(locale, days)} ${intl.formatMessage({
@@ -188,7 +186,7 @@ function formatAppUsageDays(
 
 export function formatAppUsageDuration(
   durationMs: number,
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useXCodeIntl>["intl"],
 ): string {
   const totalMinutes = Math.max(0, Math.floor(durationMs / 60_000));
   const days = Math.floor(totalMinutes / (24 * 60));
@@ -214,7 +212,7 @@ function AppUsageRangeTabs({
   range: AppUsageRange;
   onRangeChange: (range: AppUsageRange) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   return (
     <Tabs
       value={range}

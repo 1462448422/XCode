@@ -1,8 +1,8 @@
 /* eslint-disable max-lines -- Coding Plan 用量视图集中维护来源选择、额度投影和重置入口；本阶段只迁移 Account Access，不拆分既有 UI 结构。 */
 import type {
   UsageEntitlementSnapshot,
-  ZCodeAccountAccess,
-  ZCodeProviderAccountAccess,
+  XCodeAccountAccess,
+  XCodeProviderAccountAccess,
 } from "@zcode/shared";
 import {
   BIGMODEL_PROVIDER_ID,
@@ -13,7 +13,7 @@ import {
 import { ChevronRightIcon, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   findCodingPlanQuotaLimit,
   formatQuotaRemainingPercentage,
@@ -29,7 +29,7 @@ import type {
 export interface CodingPlanUsageRemainingEntitlement {
   sourceId?: SidebarUsageCodingPlanSourceId;
   providerId: SidebarUsageCodingPlanProviderId;
-  accountAccess: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+  accountAccess: XCodeProviderAccountAccess | XCodeAccountAccess;
   label?: string;
   snapshot: UsageEntitlementSnapshot | null;
   loading: boolean;
@@ -38,7 +38,7 @@ export interface CodingPlanUsageRemainingEntitlement {
 
 export interface CodingPlanUsageAvailableProvider {
   providerId: SidebarUsageCodingPlanProviderId;
-  accountAccess: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+  accountAccess: XCodeProviderAccountAccess | XCodeAccountAccess;
   label: string;
 }
 
@@ -210,15 +210,6 @@ export function resolveCodingPlanUsageRemainingState(params: {
   };
 }
 
-export function hasCodingPlanUsageRemainingPanel(params: {
-  availableProviders: CodingPlanUsageAvailableProvider[];
-  entitlements: CodingPlanUsageRemainingEntitlement[];
-  modelProvidersLoading: boolean;
-  selectedProviderId?: SidebarUsageCodingPlanSourceId;
-}): boolean {
-  return Boolean(resolveCodingPlanUsageRemainingState(params));
-}
-
 export function CodingPlanUsageRemainingPanel({
   availableProviders,
   audience,
@@ -238,7 +229,7 @@ export function CodingPlanUsageRemainingPanel({
   onUsageClick?: () => void;
   selectedProviderId?: SidebarUsageCodingPlanSourceId;
 }) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const state = useMemo(
     () =>
       resolveCodingPlanUsageRemainingState({
@@ -327,7 +318,7 @@ export function CodingPlanUsageRemainingPanel({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            {/* 修复原因：同一份 Usage Remaining 展示会出现在 sidebar 和输入框上下文菜单。
+            {/* 同一份 Usage Remaining 展示会出现在 sidebar 和输入框上下文菜单。
                 详情入口必须由调用方传入，避免共享展示组件直接依赖 tab/store 导航。 */}
             {onUsageClick ? (
               <UsageDetailsButton

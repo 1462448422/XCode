@@ -1,13 +1,5 @@
-import { createHash } from "node:crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { access, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import type { Logger, SkillRoot } from "@zcode/contracts";
 import { DYNAMIC_WORKFLOW_SKILL_NAME } from "@zcode/contracts";
@@ -17,9 +9,7 @@ import { candidateBaseDirs } from "./bundled-plugins.js";
  * 随 CLI 内置的技能包（apps/zcode-cli/packages/bundled-skills）。
  *
  * 它不是插件：不进官方市场目录、没有启停开关、不能卸载，也不出现在设置页与 `$` 引用面板。
- * 产品功能的工具由 runtime 注册，教模型使用这些工具的技能必须同样不可移除——
- * 2026-09-19 的「/workflow 消失」事故根因就是 dynamic-workflows 技能与命令都住在
- * 用户可卸载的 zcode-guide 插件里（docs/dynamic-workflow/authoring.md「The `/workflow` command and the skill」）。
+ * 产品功能的工具由 runtime 注册，配套技能随 CLI 分发，避免卸载插件后缺少工具使用说明。
  *
  * 三种运行形态解析到同一个 skills 目录：
  * - 开发态 / Electron 桌面：沿官方插件同款候选目录在入口旁找到 `packages/bundled-skills`，原地读取，不拷贝。
@@ -50,11 +40,11 @@ const BUNDLED_SKILL_PACK_ROOT_CANDIDATES = [
 
 export const SEA_BUNDLED_SKILL_ASSET_PREFIX = "zcode-bundled-skills/";
 const SEA_BUNDLED_SKILL_MANIFEST_ASSET_KEY = `${SEA_BUNDLED_SKILL_ASSET_PREFIX}manifest.json`;
-const SEED_MARKER_FILE = ".zcode-bundled-skills-seed.json";
+const SEED_MARKER_FILE = ".xcode-bundled-skills-seed.json";
 
 /**
  * 排在所有插件根之后（adapters 的插件根从 FIRST_PLUGIN_PRIORITY 起步进）：同名技能按发现顺序取先者，
- * 用户/项目/插件里的同名技能都应压过内置包，与 skill.md「优先级」第 7 档 bundled/system 一致。
+ * 用户/项目/插件里的同名技能都应压过内置包。
  */
 const BUNDLED_SKILL_ROOT_PRIORITY = 1_000_000;
 
@@ -72,12 +62,14 @@ export interface ResolveBundledSkillRootsOptions {
   logger?: Logger;
 }
 
-export function resolveBundledSkillRoots(options: ResolveBundledSkillRootsOptions): SkillRoot[] {
+export async function resolveBundledSkillRoots(
+  options: ResolveBundledSkillRootsOptions,
+): Promise<SkillRoot[]> {
   const packRoot =
-    materializeSeaBundledSkillPack(options) ?? resolveFilesystemBundledSkillPackRoot();
+    (await materializeSeaBundledSkillPack(options)) ??
+    (await resolveFilesystemBundledSkillPackRoot());
   if (!packRoot) {
-    // 内置技能包缺席意味着 /workflow 展开后模型加载不到技能。这不是致命错误（工具描述仍带完整 API），
-    // 但必须留下诊断，否则症状只是「模型写的脚本质量变差」。
+    // 内置技能包缺席会让脚本编写被技能门拒绝；记录诊断，便于定位不完整的分发资产。
     options.logger?.warn("Bundled skill pack unavailable", {
       module: "bootstrap.bundled_skills",
       requiredPaths: [...BUNDLED_SKILL_PACK_REQUIRED_PATHS],
@@ -94,19 +86,31 @@ export function resolveBundledSkillRoots(options: ResolveBundledSkillRootsOption
   ];
 }
 
-export function findMissingBundledSkillPackPaths(packRoot: string): string[] {
-  return BUNDLED_SKILL_PACK_REQUIRED_PATHS.filter(
-    (requiredPath) => !existsSync(join(packRoot, ...requiredPath.split("/"))),
+export async function findMissingBundledSkillPackPaths(packRoot: string): Promise<string[]> {
+  const present = await Promise.all(
+    BUNDLED_SKILL_PACK_REQUIRED_PATHS.map((requiredPath) =>
+      pathExists(join(packRoot, ...requiredPath.split("/"))),
+    ),
   );
+  return BUNDLED_SKILL_PACK_REQUIRED_PATHS.filter((_, index) => !present[index]);
 }
 
-function resolveFilesystemBundledSkillPackRoot(): string | undefined {
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveFilesystemBundledSkillPackRoot(): Promise<string | undefined> {
   for (const baseDir of candidateBaseDirs()) {
     for (const relativePath of BUNDLED_SKILL_PACK_ROOT_CANDIDATES) {
       const packRoot = resolve(baseDir, relativePath);
       if (
-        existsSync(join(packRoot, BUNDLED_SKILL_PACK_SKILLS_DIRECTORY)) &&
-        findMissingBundledSkillPackPaths(packRoot).length === 0
+        (await pathExists(join(packRoot, BUNDLED_SKILL_PACK_SKILLS_DIRECTORY))) &&
+        (await findMissingBundledSkillPackPaths(packRoot)).length === 0
       ) {
         return packRoot;
       }
@@ -115,9 +119,9 @@ function resolveFilesystemBundledSkillPackRoot(): string | undefined {
   return undefined;
 }
 
-function materializeSeaBundledSkillPack(
+async function materializeSeaBundledSkillPack(
   options: ResolveBundledSkillRootsOptions,
-): string | undefined {
+): Promise<string | undefined> {
   const sea = getSeaModule();
   if (!sea?.isSea()) return undefined;
   const manifest = readSeaManifest(sea);
@@ -125,33 +129,33 @@ function materializeSeaBundledSkillPack(
 
   const packsRoot = join(options.cliStorageRoot, BUNDLED_SKILL_PACK_DIRECTORY_NAME);
   const targetRoot = join(packsRoot, manifest.hash);
-  if (isSeedComplete(targetRoot, manifest.hash)) return targetRoot;
+  if (await isSeedComplete(targetRoot, manifest.hash)) return targetRoot;
 
   // 目录名就是内容 hash：写进唯一临时目录再 rename，rename 失败且目标已完整即并发赢家先到，
   // 直接复用；其他失败回退到任一已完整的旧包（升级中途掉盘仍有技能可用）。
-  const temporaryRoot = `${targetRoot}.tmp-${process.pid}-${Date.now()}`;
+  const temporaryRoot = `${targetRoot}.tmp-${process.pid}-${randomUUID()}`;
   try {
-    mkdirSync(temporaryRoot, { recursive: true });
+    await mkdir(temporaryRoot, { recursive: true });
     for (const file of manifest.files) {
       const bytes = Buffer.from(sea.getRawAsset(`${SEA_BUNDLED_SKILL_ASSET_PREFIX}${file.path}`));
       if (hashBytes(bytes) !== file.sha256) {
         throw new Error(`Bundled skill asset hash mismatch: ${file.path}`);
       }
       const outputPath = join(temporaryRoot, ...file.path.split("/"));
-      mkdirSync(dirname(outputPath), { recursive: true });
-      writeFileSync(outputPath, bytes, { mode: file.mode ?? 0o644 });
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, bytes, { mode: file.mode ?? 0o644 });
     }
-    writeFileSync(
+    await writeFile(
       join(temporaryRoot, SEED_MARKER_FILE),
       JSON.stringify({ hash: manifest.hash, version: 1 }, null, 2),
     );
-    mkdirSync(packsRoot, { recursive: true });
-    renameSync(temporaryRoot, targetRoot);
+    await mkdir(packsRoot, { recursive: true });
+    await rename(temporaryRoot, targetRoot);
     return targetRoot;
   } catch (error) {
-    rmSync(temporaryRoot, { force: true, recursive: true });
-    if (isSeedComplete(targetRoot, manifest.hash)) return targetRoot;
-    const fallbackRoot = findUsableSeededPack(packsRoot);
+    await rm(temporaryRoot, { force: true, recursive: true });
+    if (await isSeedComplete(targetRoot, manifest.hash)) return targetRoot;
+    const fallbackRoot = await findUsableSeededPack(packsRoot);
     options.logger?.warn("Bundled skill pack seed degraded", {
       error: error instanceof Error ? error.message : String(error),
       fallbackRoot,
@@ -162,38 +166,40 @@ function materializeSeaBundledSkillPack(
   }
 }
 
-function isSeedComplete(targetRoot: string, expectedHash: string): boolean {
+async function isSeedComplete(targetRoot: string, expectedHash: string): Promise<boolean> {
   try {
-    const marker = JSON.parse(readFileSync(join(targetRoot, SEED_MARKER_FILE), "utf8")) as {
+    const marker = JSON.parse(await readFile(join(targetRoot, SEED_MARKER_FILE), "utf8")) as {
       hash?: unknown;
     };
     if (marker.hash !== expectedHash) return false;
   } catch {
     return false;
   }
-  return findMissingBundledSkillPackPaths(targetRoot).length === 0;
+  return (await findMissingBundledSkillPackPaths(targetRoot)).length === 0;
 }
 
-function findUsableSeededPack(packsRoot: string): string | undefined {
+async function findUsableSeededPack(packsRoot: string): Promise<string | undefined> {
   let entries;
   try {
-    entries = readdirSync(packsRoot, { withFileTypes: true });
+    entries = await readdir(packsRoot, { withFileTypes: true });
   } catch {
     return undefined;
   }
-  return entries
-    .filter((entry) => entry.isDirectory() && !entry.name.includes(".tmp-"))
-    .map((entry) => join(packsRoot, entry.name))
-    .find((packRoot) => {
-      try {
-        const marker = JSON.parse(readFileSync(join(packRoot, SEED_MARKER_FILE), "utf8")) as {
-          hash?: unknown;
-        };
-        return typeof marker.hash === "string" && isSeedComplete(packRoot, marker.hash);
-      } catch {
-        return false;
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.includes(".tmp-")) continue;
+    const packRoot = join(packsRoot, entry.name);
+    try {
+      const marker = JSON.parse(await readFile(join(packRoot, SEED_MARKER_FILE), "utf8")) as {
+        hash?: unknown;
+      };
+      if (typeof marker.hash === "string" && (await isSeedComplete(packRoot, marker.hash))) {
+        return packRoot;
       }
-    });
+    } catch {
+      // 损坏的旧缓存不参与降级，继续查找完整的技能包。
+    }
+  }
+  return undefined;
 }
 
 function readSeaManifest(sea: SeaModule): SeaBundledSkillManifest | undefined {

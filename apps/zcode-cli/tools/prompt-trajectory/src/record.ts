@@ -16,9 +16,9 @@ import {
 import { MessageLedger } from "./message-ledger.js";
 import { startOpenAiProviderProxy } from "./openai-provider-proxy.js";
 
-interface ZCodeBootstrapModule {
+interface XCodeBootstrapModule {
   createModelAdapter(input: unknown): unknown;
-  createZCodeApp(input: unknown): Promise<{
+  createXCodeApp(input: unknown): Promise<{
     close?: () => Promise<void>;
     submitPrompt(prompt: RecorderPromptInput): Promise<unknown>;
   }>;
@@ -31,7 +31,7 @@ type RecorderPromptInput =
       text: string;
     };
 
-interface ZCodeContractsModule {
+interface XCodeContractsModule {
   parseModelSelection(input: string): unknown;
 }
 
@@ -43,7 +43,7 @@ interface ProviderRegistryConstructor {
   new (providers?: readonly unknown[]): unknown;
 }
 
-interface ZCodeProviderModule {
+interface XCodeProviderModule {
   ApiKeyAccessConfig: ConfigConstructor;
   ModelConfig: ConfigConstructor;
   ModelOptionSpecsConfig: ConfigConstructor;
@@ -65,19 +65,19 @@ interface RuntimeEventObserver {
 }
 
 export async function recordPromptTrajectory(input: {
-  ccRequestPath?: string;
+  referenceRequestPath?: string;
   fixturePath: string;
   outDir: string;
 }): Promise<void> {
   await recordPromptTrajectoryFromFixture({
-    ccRequestPath: input.ccRequestPath,
+    referenceRequestPath: input.referenceRequestPath,
     fixture: await loadFixture(input.fixturePath),
     outDir: input.outDir,
   });
 }
 
 export async function recordPromptTrajectoryFromFixture(input: {
-  ccRequestPath?: string;
+  referenceRequestPath?: string;
   fixture: PromptTrajectoryFixture;
   outDir: string;
 }): Promise<void> {
@@ -89,7 +89,7 @@ export async function recordPromptTrajectoryFromFixture(input: {
   let closeApp: (() => Promise<void>) | undefined;
 
   try {
-    const { bootstrap, contracts, provider } = await loadZCodeModules();
+    const { bootstrap, contracts, provider } = await loadXCodeModules();
     const proxy = await startOpenAiProviderProxy({
       ledger,
       mockResponses: fixture.mockResponses,
@@ -112,7 +112,7 @@ export async function recordPromptTrajectoryFromFixture(input: {
     const modelSelection = contracts.parseModelSelection(resolveModelSelection(fixture));
     const eventObserver = createRuntimeEventObserver();
     const providerRegistry = createRecorderProviderRegistry(provider, modelConfig, fixture);
-    const app = await bootstrap.createZCodeApp({
+    const app = await bootstrap.createXCodeApp({
       eventSink: eventObserver.sink,
       env: process.env,
       modelAdapter: recorderModelAdapter,
@@ -136,7 +136,7 @@ export async function recordPromptTrajectoryFromFixture(input: {
   }
 
   await writeDerivedTrajectories({
-    ccRequestPath: input.ccRequestPath,
+    referenceRequestPath: input.referenceRequestPath,
     inputPath: jsonlPath,
     outDir: input.outDir,
   });
@@ -173,7 +173,7 @@ function wrapModelAdapterConnectionForFixture(
   });
 }
 
-export async function executeFixtureSteps(input: {
+async function executeFixtureSteps(input: {
   app: {
     submitPrompt(prompt: RecorderPromptInput): Promise<unknown>;
   };
@@ -256,10 +256,10 @@ function assertNever(value: never): never {
   throw new Error(`Unsupported fixture step: ${JSON.stringify(value)}`);
 }
 
-async function loadZCodeModules(): Promise<{
-  bootstrap: ZCodeBootstrapModule;
-  contracts: ZCodeContractsModule;
-  provider: ZCodeProviderModule;
+async function loadXCodeModules(): Promise<{
+  bootstrap: XCodeBootstrapModule;
+  contracts: XCodeContractsModule;
+  provider: XCodeProviderModule;
 }> {
   const bootstrapPath = pathToFileURL(
     join(import.meta.dirname, "../../../packages/bootstrap/dist/index.js"),
@@ -275,10 +275,10 @@ async function loadZCodeModules(): Promise<{
   ).href;
   try {
     const [bootstrap, contracts, providerConfig, providerRegistry] = await Promise.all([
-      import(bootstrapPath) as Promise<ZCodeBootstrapModule>,
-      import(contractsPath) as Promise<ZCodeContractsModule>,
-      import(providerConfigPath) as Promise<Omit<ZCodeProviderModule, "ProviderRegistry">>,
-      import(providerRegistryPath) as Promise<Pick<ZCodeProviderModule, "ProviderRegistry">>,
+      import(bootstrapPath) as Promise<XCodeBootstrapModule>,
+      import(contractsPath) as Promise<XCodeContractsModule>,
+      import(providerConfigPath) as Promise<Omit<XCodeProviderModule, "ProviderRegistry">>,
+      import(providerRegistryPath) as Promise<Pick<XCodeProviderModule, "ProviderRegistry">>,
     ]);
     return {
       bootstrap,
@@ -294,7 +294,7 @@ async function loadZCodeModules(): Promise<{
 }
 
 function createRecorderProviderRegistry(
-  provider: ZCodeProviderModule,
+  provider: XCodeProviderModule,
   modelConfig: RuntimeModelConfig,
   fixture: PromptTrajectoryFixture,
 ): unknown {
@@ -350,7 +350,7 @@ function createRecorderProviderRegistry(
   ]);
 }
 
-export function buildRecorderRuntimeConfig(input: {
+function buildRecorderRuntimeConfig(input: {
   fixture: PromptTrajectoryFixture;
   modelSelection: unknown;
   workingDirectory: string;

@@ -1,5 +1,5 @@
 import type { IPluginManagementService } from "@zcode/services";
-import type { ZCodePluginScope } from "@zcode/shared";
+import type { XCodePluginScope } from "@zcode/shared";
 import { logger } from "@/logger.js";
 import type { PluginManagementState } from "@/store/pluginManagementStore.js";
 
@@ -7,7 +7,7 @@ function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function buildWorkspaceKey(workspacePath: string, workspaceIdentity: string | null): string {
+function buildWorkspaceKey(workspacePath: string, workspaceIdentity: string | null): string {
   return workspaceIdentity?.trim() || workspacePath;
 }
 
@@ -74,7 +74,7 @@ export async function loadInto(
   params: {
     workspacePath: string;
     workspaceIdentity: string | null;
-    configScope: ZCodePluginScope | null;
+    configScope: XCodePluginScope | null;
     pluginService: IPluginManagementService;
   },
 ): Promise<void> {
@@ -106,7 +106,7 @@ async function runLoadInto(
   params: {
     workspacePath: string;
     workspaceIdentity: string | null;
-    configScope: ZCodePluginScope | null;
+    configScope: XCodePluginScope | null;
     workspaceKey: string;
     pluginService: IPluginManagementService;
   },

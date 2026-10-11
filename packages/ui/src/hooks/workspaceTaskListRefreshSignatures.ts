@@ -1,8 +1,8 @@
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { XCodeTaskMeta } from "@zcode/shared";
 
-export type WorkspaceTaskListVersionEntry = readonly [workspaceKey: string, version: number];
+type WorkspaceTaskListVersionEntry = readonly [workspaceKey: string, version: number];
 
-export interface WorkspaceRemoteSessionSignatureEntry {
+interface WorkspaceRemoteSessionSignatureEntry {
   workspaceKey: string;
   remoteSessionId?: string;
   ready: boolean;
@@ -26,7 +26,7 @@ export function buildWorkspaceRemoteSessionSignature(
     .join("|");
 }
 
-export function areTaskListItemsEquivalent(left: ZCodeTaskMeta[], right: ZCodeTaskMeta[]): boolean {
+export function areTaskListItemsEquivalent(left: XCodeTaskMeta[], right: XCodeTaskMeta[]): boolean {
   if (left.length !== right.length) {
     return false;
   }

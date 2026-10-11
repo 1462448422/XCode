@@ -10,7 +10,7 @@ interface EmbeddedBrowserDialogRequest {
   message: string;
 }
 
-export interface EmbeddedBrowserDialogResponse {
+interface EmbeddedBrowserDialogResponse {
   handled: boolean;
   value?: boolean;
 }
@@ -39,10 +39,7 @@ function parseEmbeddedBrowserDialogRequest(value: unknown): EmbeddedBrowserDialo
   return { type: candidate.type, message: candidate.message };
 }
 
-export function resolveEmbeddedBrowserDialogSource(
-  frameUrl: string,
-  guestUrl?: string,
-): string {
+function resolveEmbeddedBrowserDialogSource(frameUrl: string, guestUrl?: string): string {
   for (const candidate of [frameUrl, guestUrl]) {
     if (!candidate) continue;
     try {
@@ -64,7 +61,7 @@ export function resolveEmbeddedBrowserDialogSource(
   return "This page says";
 }
 
-export function resolveEmbeddedBrowserDialogButtons(
+function resolveEmbeddedBrowserDialogButtons(
   locale: Locale,
   type: EmbeddedBrowserDialogRequest["type"],
 ): string[] {

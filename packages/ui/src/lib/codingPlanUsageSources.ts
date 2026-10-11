@@ -4,8 +4,8 @@ import {
   resolveModelProviderFamilySpecByProviderId,
   type ProviderFamilyConnectionSelectionSettings,
   type ProviderFamilyDomain,
-  type ZCodeAccountAccess,
-  type ZCodeProviderAccountAccess,
+  type XCodeAccountAccess,
+  type XCodeProviderAccountAccess,
 } from "@zcode/shared";
 import {
   resolveEnterpriseCodingPlanProductFamily,
@@ -21,7 +21,7 @@ export interface CodingPlanUsageSource {
   id: SidebarUsageCodingPlanSourceId;
   providerId: SidebarUsageCodingPlanProviderId;
   label: string;
-  accountAccess: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+  accountAccess: XCodeProviderAccountAccess | XCodeAccountAccess;
 }
 
 export function buildPersonalCodingPlanUsageSource({
@@ -30,7 +30,7 @@ export function buildPersonalCodingPlanUsageSource({
   label,
 }: {
   providerId: SidebarUsageCodingPlanProviderId;
-  accountAccess: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+  accountAccess: XCodeProviderAccountAccess | XCodeAccountAccess;
   label?: string | null;
 }): CodingPlanUsageSource {
   const normalizedLabel = label?.trim();
@@ -46,12 +46,12 @@ export function buildPersonalCodingPlanUsageSource({
   };
 }
 
-export type CurrentSidebarCodingPlanUsageSource =
+type CurrentSidebarCodingPlanUsageSource =
   | {
       audience: "individual";
       providerId: SidebarUsageCodingPlanProviderId;
       sourceId: SidebarUsageCodingPlanSourceId;
-      accountAccess: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+      accountAccess: XCodeProviderAccountAccess | XCodeAccountAccess;
       teamSource?: never;
     }
   | {
@@ -68,7 +68,7 @@ export function buildCodingPlanUsageSources({
   accountAccesses,
   subscribedTeamProducts,
 }: {
-  accountAccesses: Partial<Record<ProviderFamilyDomain, ZCodeProviderAccountAccess>>;
+  accountAccesses: Partial<Record<ProviderFamilyDomain, XCodeProviderAccountAccess>>;
   subscribedTeamProducts: EnterpriseCodingPlanProductDisplay[];
 }): CodingPlanUsageSource[] {
   return buildTeamCodingPlanUsageSources(subscribedTeamProducts, accountAccesses);
@@ -76,7 +76,7 @@ export function buildCodingPlanUsageSources({
 
 function buildTeamCodingPlanUsageSources(
   subscribedTeamProducts: EnterpriseCodingPlanProductDisplay[],
-  accountAccesses: Partial<Record<ProviderFamilyDomain, ZCodeProviderAccountAccess>>,
+  accountAccesses: Partial<Record<ProviderFamilyDomain, XCodeProviderAccountAccess>>,
 ): CodingPlanUsageSource[] {
   const seen = new Set<string>();
   return subscribedTeamProducts.flatMap((product) => {
@@ -154,7 +154,7 @@ export function resolveSidebarCurrentCodingPlanUsageSource({
 }: {
   selections?: ProviderFamilyConnectionSelectionSettings | null;
   selectedProviderId: string | null;
-  accountAccesses: Partial<Record<ProviderFamilyDomain, ZCodeProviderAccountAccess>>;
+  accountAccesses: Partial<Record<ProviderFamilyDomain, XCodeProviderAccountAccess>>;
   teamSources: CodingPlanUsageSource[];
 }): CurrentSidebarCodingPlanUsageSource | null {
   const family = selectedProviderId
@@ -186,10 +186,6 @@ export function resolveSidebarCurrentCodingPlanUsageSource({
   if (!accountAccess || accountAccess.mode !== "individual-coding-plan") return null;
   const providerId = getModelProviderFamilySpec(family).individualCodingPlanProviderId;
   return { audience: "individual", providerId, sourceId: providerId, accountAccess };
-}
-
-export function matchesTeamPlanUsageSourceKey(sourceId: string, selectedKey: string): boolean {
-  return sourceId === selectedKey;
 }
 
 function formatTeamUsageSourceLabel({

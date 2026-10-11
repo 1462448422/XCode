@@ -58,13 +58,13 @@ export async function applyDesktopChromiumNetworkPolicies(
       name: "default-session",
       session: sessionProvider.defaultSession,
       allowInsecure: false,
-      // ZCode 自身对后端与模型 API 的出口，收敛到设置页的显式配置，不被本机系统代理左右。
+      // XCode 自身对后端与模型 API 的出口，收敛到设置页的显式配置，不被本机系统代理左右。
       fallbackProxyMode: "direct" as const,
     },
     {
       name: "embedded-browser",
       session: sessionProvider.fromPartition(EMBEDDED_BROWSER_PARTITION),
-      // 自签名放行只开在内置浏览器出口：defaultSession 承载 renderer 对 ZCode 后端与模型 API
+      // 自签名放行只开在内置浏览器出口：defaultSession 承载 renderer 对 XCode 后端与模型 API
       // 的流量，在那里放行等于整个应用失去 TLS 保护，与「访问内网测试站点」的诉求不成比例。
       allowInsecure: settings.embeddedBrowserAllowInsecureCertificates === true,
       // 内置浏览器是用户自己的浏览出口，留空时跟随系统代理，与本机浏览器保持一致；
@@ -89,7 +89,7 @@ export async function applyDesktopChromiumNetworkPolicies(
   );
 }
 
-export async function applyDesktopSessionNetworkPolicy(
+async function applyDesktopSessionNetworkPolicy(
   targetSession: Session,
   settings: DesktopNetworkPolicySettings,
   logger: DesktopNetworkPolicyLogger,
@@ -122,13 +122,13 @@ export async function applyDesktopSessionNetworkPolicy(
  * 仅供内置浏览器 partition 使用：自签名证书的内网测试站点在 Electron `<webview>` 里
  * 拿不到 Chrome 的安全插页，被拒后只剩一张空的 chrome-error 页，用户无从放行。
  */
-export function createInsecureCertificateVerifyProc(): CertificateVerifyProc {
+function createInsecureCertificateVerifyProc(): CertificateVerifyProc {
   return (_request, callback) => {
     callback(ACCEPT_CERTIFICATE);
   };
 }
 
-export function buildElectronProxyConfig(
+function buildElectronProxyConfig(
   httpProxy: string | undefined,
   noProxy?: string | undefined,
   fallbackMode: ProxyFallbackMode = "direct",
@@ -150,7 +150,7 @@ export function buildElectronProxyConfig(
   return proxyConfig;
 }
 
-export function createCustomCaCertificateVerifyProcFromFile(
+function createCustomCaCertificateVerifyProcFromFile(
   caCertPath: string | undefined,
   logger: Pick<DesktopNetworkPolicyLogger, "warn">,
 ): CertificateVerifyProc | null {
@@ -160,9 +160,7 @@ export function createCustomCaCertificateVerifyProcFromFile(
   }
 
   try {
-    const trustedFingerprints = readCustomCaFingerprintsFromPem(
-      readFileSync(trimmed, "utf8"),
-    );
+    const trustedFingerprints = readCustomCaFingerprintsFromPem(readFileSync(trimmed, "utf8"));
     if (trustedFingerprints.size === 0) {
       logger.warn(`[desktop-network] custom CA file contains no certificates: ${trimmed}`);
       return null;
@@ -174,7 +172,7 @@ export function createCustomCaCertificateVerifyProcFromFile(
   }
 }
 
-export function createCustomCaCertificateVerifyProc(
+function createCustomCaCertificateVerifyProc(
   trustedFingerprints: ReadonlySet<string>,
 ): CertificateVerifyProc | null {
   if (trustedFingerprints.size === 0) {
@@ -201,9 +199,10 @@ export function createCustomCaCertificateVerifyProc(
   };
 }
 
-export function readCustomCaFingerprintsFromPem(pem: string): Set<string> {
+function readCustomCaFingerprintsFromPem(pem: string): Set<string> {
   const fingerprints = new Set<string>();
-  const certBlocks = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [];
+  const certBlocks =
+    pem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [];
 
   for (const block of certBlocks) {
     fingerprints.add(normalizeFingerprint(new X509Certificate(block).fingerprint256));
@@ -211,7 +210,7 @@ export function readCustomCaFingerprintsFromPem(pem: string): Set<string> {
   return fingerprints;
 }
 
-export function certificateChainMatchesCustomCa(
+function certificateChainMatchesCustomCa(
   certificate: CertificateLike,
   trustedFingerprints: ReadonlySet<string>,
 ): boolean {
@@ -243,9 +242,7 @@ function normalizeProxyRules(value: string | undefined): string | undefined {
   const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
   try {
     const url = new URL(candidate);
-    const auth = url.username
-      ? `${url.username}${url.password ? `:${url.password}` : ""}@`
-      : "";
+    const auth = url.username ? `${url.username}${url.password ? `:${url.password}` : ""}@` : "";
     return `${url.protocol}//${auth}${url.host}`;
   } catch {
     return undefined;

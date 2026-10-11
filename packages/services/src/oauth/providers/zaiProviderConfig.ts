@@ -7,12 +7,12 @@ import {
 import type { OAuthProviderRuntimeConfig } from "../runtimeConfig.js";
 import {
   buildDesktopOAuthRedirectUriFromEnv,
-  buildZCodeApiUrlFromEnv,
+  buildXCodeApiUrlFromEnv,
   readBoolean,
   readEnv,
 } from "./configUtils.js";
 
-export const ZAI_OAUTH_PROVIDER_CONFIG: Omit<OAuthProviderRuntimeConfig, "appSecret"> = {
+const ZAI_OAUTH_PROVIDER_CONFIG: Omit<OAuthProviderRuntimeConfig, "appSecret"> = {
   id: ZAI_PROVIDER_ID,
   displayName: "Z.ai",
   enabled: true,
@@ -35,7 +35,7 @@ export function createZaiProviderRuntimeConfig(env: NodeJS.ProcessEnv): OAuthPro
       readEnv(env, "ZAI_OAUTH_AUTHORIZE_URL") ??
       buildRuntimeZaiOAuthUrl(env, "/api/oauth/authorize"),
     tokenUrl:
-      readEnv(env, "ZAI_OAUTH_TOKEN_URL") ?? buildZCodeApiUrlFromEnv(env, "/api/v1/oauth/token"),
+      readEnv(env, "ZAI_OAUTH_TOKEN_URL") ?? buildXCodeApiUrlFromEnv(env, "/api/v1/oauth/token"),
     userinfoUrl: resolveZaiUserinfoUrl(env),
     businessLoginUrl:
       readEnv(env, "ZAI_BUSINESS_LOGIN_URL") ??

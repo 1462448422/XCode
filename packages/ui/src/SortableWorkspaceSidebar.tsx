@@ -4,7 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { WorkspaceSidebarItem, type SortableBindings } from "./WorkspaceSidebarItem.js";
 import type { WorkspaceTabState } from "@/store/tabStore.js";
 import type { RemoteConnectionLogEntry } from "@/hooks/useRemoteConnectionLogs.js";
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { XCodeTaskMeta } from "@zcode/shared";
 
 export type { SortableBindings };
 
@@ -25,8 +25,6 @@ export const SortableWorkspaceSidebarItem = memo(function SortableWorkspaceSideb
   taskListHasMore,
   taskListHasUnread = false,
   taskListLiveWorkflowCount = 0,
-  mobileActiveTaskKey,
-  isWebRemoteControl = false,
   workspaceKey,
   onShowMoreWorkspaceTasks,
   reconnectingRemoteWorkspaceKeys,
@@ -47,13 +45,11 @@ export const SortableWorkspaceSidebarItem = memo(function SortableWorkspaceSideb
     targetWorkspaceIdentity?: string,
   ) => void;
   onStartDraftInWorkspace: (targetWorkspacePath: string, targetWorkspaceIdentity?: string) => void;
-  taskItems: ZCodeTaskMeta[];
+  taskItems: XCodeTaskMeta[];
   taskListLoading: boolean;
   taskListHasMore: boolean;
   taskListHasUnread?: boolean;
   taskListLiveWorkflowCount?: number;
-  mobileActiveTaskKey?: string | null;
-  isWebRemoteControl?: boolean;
   workspaceKey: string;
   onShowMoreWorkspaceTasks: (workspaceKey: string) => void;
   reconnectingRemoteWorkspaceKeys: string[];
@@ -123,8 +119,6 @@ export const SortableWorkspaceSidebarItem = memo(function SortableWorkspaceSideb
       taskListHasMore={taskListHasMore}
       taskListHasUnread={taskListHasUnread}
       taskListLiveWorkflowCount={taskListLiveWorkflowCount}
-      mobileActiveTaskKey={mobileActiveTaskKey}
-      isWebRemoteControl={isWebRemoteControl}
       onShowMoreTasks={handleShowMoreTasks}
       reconnectingRemoteWorkspaceKeys={reconnectingRemoteWorkspaceKeys}
       remoteWorkspaceErrorByWorkspaceKey={remoteWorkspaceErrorByWorkspaceKey}

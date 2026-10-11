@@ -1,4 +1,3 @@
-import { IGenUiService } from "@zcode/services";
 import { ProxyChannel, type IChannelClient } from "@zcode/rpc";
 import {
   IFileService,
@@ -11,9 +10,9 @@ import {
   IOnboardingRecordService,
   ICredentialService,
   IBroadcastService,
-  IZCodeTaskService,
-  IZCodeAgentService,
-  IZCodeSessionService,
+  IXCodeTaskService,
+  IXCodeAgentService,
+  IXCodeSessionService,
   ICuaPermissionService,
   IConversationShareService,
   IBotsService,
@@ -26,16 +25,11 @@ import {
   ICodingPlanSubscriptionService,
   IClientConfigService,
   IClientScenesService,
-  ICloudContentService,
   IMarketingTouchService,
   IOffPeakTaskService,
-  IHighspeedCardService,
   ISkillsService,
   ISkillSyncService,
   IMcpSyncService,
-  IPluginUiAppToolsService,
-  IPluginUiSamplingService,
-  IPluginUiBridgeService,
   IPluginSyncService,
   IPluginsService,
   IPluginManagementService,
@@ -43,7 +37,6 @@ import {
   ICommandsService,
   IHooksService,
   IMemoryService,
-  IOutputStyleService,
   ISettingsSyncService,
   IFeedbackService,
   IPromptAttachmentTransferService,
@@ -67,10 +60,10 @@ export class RemoteServiceAccess implements IServiceAccessor {
   readonly onboardingRecordService: IOnboardingRecordService;
   readonly credentialService: ICredentialService;
   readonly broadcastService: IBroadcastService;
-  readonly zcodeTaskService: IZCodeTaskService;
+  readonly zcodeTaskService: IXCodeTaskService;
   readonly windowControllerService: IWindowControllerService;
-  readonly zcodeAgentService: IZCodeAgentService;
-  readonly zcodeSessionService: IZCodeSessionService;
+  readonly zcodeAgentService: IXCodeAgentService;
+  readonly zcodeSessionService: IXCodeSessionService;
   // cuaPermissionService 在 IServiceAccessor 上是可选（远端/bots host 不提供），但桌面 renderer
   // 经 RPC 一定能拿到（main host 始终注册此 descriptor；非 macOS / 未启用时方法返回 available:false）。
   readonly cuaPermissionService: ICuaPermissionService;
@@ -86,17 +79,11 @@ export class RemoteServiceAccess implements IServiceAccessor {
   readonly codingPlanSubscriptionService: ICodingPlanSubscriptionService;
   readonly clientConfigService: IClientConfigService;
   readonly clientScenesService: IClientScenesService;
-  readonly cloudContentService: ICloudContentService;
   readonly marketingTouchService: IMarketingTouchService;
   readonly offPeakTaskService: IOffPeakTaskService;
-  readonly highspeedCardService: IHighspeedCardService;
   readonly skillsService: ISkillsService;
   readonly skillSyncService: ISkillSyncService;
   readonly mcpSyncService: IMcpSyncService;
-  readonly genUiService: IGenUiService;
-  readonly pluginUiBridgeService: IPluginUiBridgeService;
-  readonly pluginUiSamplingService: IPluginUiSamplingService;
-  readonly pluginUiAppToolsService: IPluginUiAppToolsService;
   readonly pluginSyncService: IPluginSyncService;
   readonly pluginsService: IPluginsService;
   readonly pluginManagementService: IPluginManagementService;
@@ -104,7 +91,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
   readonly commandsService: ICommandsService;
   readonly hooksService: IHooksService;
   readonly memoryService: IMemoryService;
-  readonly outputStyleService: IOutputStyleService;
   readonly settingsSyncService: ISettingsSyncService;
   readonly feedbackService: IFeedbackService;
   readonly promptAttachmentTransferService: IPromptAttachmentTransferService;
@@ -142,17 +128,17 @@ export class RemoteServiceAccess implements IServiceAccessor {
     this.broadcastService = ProxyChannel.toService<IBroadcastService>(
       channelClient.getChannel(IBroadcastService.channelName),
     );
-    this.zcodeTaskService = ProxyChannel.toService<IZCodeTaskService>(
-      channelClient.getChannel(IZCodeTaskService.channelName),
+    this.zcodeTaskService = ProxyChannel.toService<IXCodeTaskService>(
+      channelClient.getChannel(IXCodeTaskService.channelName),
     );
     this.windowControllerService = ProxyChannel.toService<IWindowControllerService>(
       channelClient.getChannel(IWindowControllerService.channelName),
     );
-    this.zcodeAgentService = ProxyChannel.toService<IZCodeAgentService>(
-      channelClient.getChannel(IZCodeAgentService.channelName),
+    this.zcodeAgentService = ProxyChannel.toService<IXCodeAgentService>(
+      channelClient.getChannel(IXCodeAgentService.channelName),
     );
-    this.zcodeSessionService = ProxyChannel.toService<IZCodeSessionService>(
-      channelClient.getChannel(IZCodeSessionService.channelName),
+    this.zcodeSessionService = ProxyChannel.toService<IXCodeSessionService>(
+      channelClient.getChannel(IXCodeSessionService.channelName),
     );
     this.cuaPermissionService = ProxyChannel.toService<ICuaPermissionService>(
       channelClient.getChannel(ICuaPermissionService.channelName),
@@ -193,17 +179,11 @@ export class RemoteServiceAccess implements IServiceAccessor {
     this.clientScenesService = ProxyChannel.toService<IClientScenesService>(
       channelClient.getChannel(IClientScenesService.channelName),
     );
-    this.cloudContentService = ProxyChannel.toService<ICloudContentService>(
-      channelClient.getChannel(ICloudContentService.channelName),
-    );
     this.marketingTouchService = ProxyChannel.toService<IMarketingTouchService>(
       channelClient.getChannel(IMarketingTouchService.channelName),
     );
     this.offPeakTaskService = ProxyChannel.toService<IOffPeakTaskService>(
       channelClient.getChannel(IOffPeakTaskService.channelName),
-    );
-    this.highspeedCardService = ProxyChannel.toService<IHighspeedCardService>(
-      channelClient.getChannel(IHighspeedCardService.channelName),
     );
     this.skillsService = ProxyChannel.toService<ISkillsService>(
       channelClient.getChannel(ISkillsService.channelName),
@@ -213,18 +193,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
     );
     this.mcpSyncService = ProxyChannel.toService<IMcpSyncService>(
       channelClient.getChannel(IMcpSyncService.channelName),
-    );
-    this.genUiService = ProxyChannel.toService<IGenUiService>(
-      channelClient.getChannel(IGenUiService.channelName),
-    );
-    this.pluginUiBridgeService = ProxyChannel.toService<IPluginUiBridgeService>(
-      channelClient.getChannel(IPluginUiBridgeService.channelName),
-    );
-    this.pluginUiSamplingService = ProxyChannel.toService<IPluginUiSamplingService>(
-      channelClient.getChannel(IPluginUiSamplingService.channelName),
-    );
-    this.pluginUiAppToolsService = ProxyChannel.toService<IPluginUiAppToolsService>(
-      channelClient.getChannel(IPluginUiAppToolsService.channelName),
     );
     this.pluginSyncService = ProxyChannel.toService<IPluginSyncService>(
       channelClient.getChannel(IPluginSyncService.channelName),
@@ -246,9 +214,6 @@ export class RemoteServiceAccess implements IServiceAccessor {
     );
     this.memoryService = ProxyChannel.toService<IMemoryService>(
       channelClient.getChannel(IMemoryService.channelName),
-    );
-    this.outputStyleService = ProxyChannel.toService<IOutputStyleService>(
-      channelClient.getChannel(IOutputStyleService.channelName),
     );
     this.settingsSyncService = ProxyChannel.toService<ISettingsSyncService>(
       channelClient.getChannel(ISettingsSyncService.channelName),

@@ -2,9 +2,9 @@
 //
 // 分层纪律（不做桥接）：
 // - 本目录是命令的原生实现：决策逻辑（steer 分流 / draft 提升 / abort 生命周期 /
-//   goal-pause barrier）在 handler 里直驱 core（ZCodeApp / runtime），不经旧协议 op。
+//   goal-pause barrier）在 handler 里直驱 core（XCodeApp / runtime），不经旧协议 op。
 // - 会话注册表仍归宿主：通过 V4CommandCoreHost 以「结构化窄视图」透传旧
-//   ZCodeProtocolSessionRecord（同一对象引用，字段变更双向可见，不产生第二份注册表）。
+//   XCodeProtocolSessionRecord（同一对象引用，字段变更双向可见，不产生第二份注册表）。
 // - 环境能力（模型就绪 / legacy 广播 / shell 解析）是注入钩子：旧协议 binder 在过渡期
 //   提供实现，与旧协议同生命周期——每个钩子都标注过渡归宿，新增钩子必须标注。
 import type {
@@ -12,7 +12,7 @@ import type {
   StableForkGoalBoundaryMetadata,
   TraceContext,
 } from "@zcode/contracts";
-import type { DynamicWorkflowMode, ZCodeAutomationBotDeliveryTarget } from "@zcode/shared";
+import type { XCodeAutomationBotDeliveryTarget } from "@zcode/shared";
 import type {
   CommandAck,
   CommandEnvelope,
@@ -23,7 +23,7 @@ import type {
   StableForkTargetResolution,
   ConversationRowTarget,
 } from "@zcode/shared/zcode-protocol-v4";
-import type { ZCodeApp } from "../../app/types.js";
+import type { XCodeApp } from "../../app/types.js";
 import type { V4InteractionRegistry } from "../interaction-registry.js";
 import type {
   ConversationEditTarget,
@@ -39,12 +39,6 @@ export interface V4CommandLogger {
 
 export type V4QueueItemCommand = QueueItem;
 
-/**
- * 队列项的单轮执行材料（协议原形）。加速卡的 Selection 已随 QueueItem.modelSelection
- * 进入投影，这里只暂存不可投影的动态凭据，提升时再冻结成 ModelExecutionContext。
- */
-export type V4QueuedTurnExecution = NonNullable<CommandPayloadMap["sendText"]["modelExecution"]>;
-
 export type V4StableForkTargetResolution =
   | {
       ok: true;
@@ -54,11 +48,11 @@ export type V4StableForkTargetResolution =
   | Extract<StableForkTargetResolution, { ok: false }>;
 
 /**
- * 旧 ZCodeProtocolSessionRecord 的结构化窄视图（只声明命令层需要的字段）。
+ * 旧 XCodeProtocolSessionRecord 的结构化窄视图（只声明命令层需要的字段）。
  * 结构兼容：binder 直接把旧 record 对象透传进来；v4 自持会话注册表后由其提供同形对象。
  */
 export interface V4SessionRecordView {
-  app: ZCodeApp;
+  app: XCodeApp;
   /**
    * 会话根 traceContext（traceId 位于 sessionId 之上，对应整条任务链）。
    * 命令层调 runtime 方法/补发 core 事件时透传沿用，不得中途另起 trace。
@@ -77,7 +71,7 @@ export interface V4SessionRecordView {
   /** 当前正在执行的闲时派发 turn；只在 turn 运行期间存在。 */
   activeOffPeakTaskId?: string;
   /** 当前 Bot 入站 turn 的稳定回推地址；turn 结束后必须恢复。 */
-  activeBotDeliveryTarget?: ZCodeAutomationBotDeliveryTarget;
+  activeBotDeliveryTarget?: XCodeAutomationBotDeliveryTarget;
   /** 恢复失败告警：存在时拒绝新 turn（历史损坏不能静默续写）。 */
   restoreWarning?: { message: string; type: string };
   taskType?: SessionTaskType;
@@ -96,18 +90,6 @@ export interface V4CommandCoreHost {
   /** guide eligibility：只阻止已有 ordinary queue；已有 guide 仍允许继续按 FIFO admission。 */
   hasQueuedDelivery?(sessionId: string, delivery: "guide" | "queue"): boolean;
   getQueueLength?(sessionId: string): number;
-  /** Highspeed queue 的执行材料含凭据，只允许驻留内存，禁止进入 queue event/snapshot。 */
-  retainQueuedTurnExecution?(
-    sessionId: string,
-    sourceCommandId: string,
-    execution: V4QueuedTurnExecution,
-  ): void;
-  readQueuedTurnExecution?(
-    sessionId: string,
-    sourceCommandId: string,
-  ): V4QueuedTurnExecution | undefined;
-  deleteQueuedTurnExecution?(sessionId: string, sourceCommandId: string): void;
-  clearQueuedTurnExecutions?(sessionId: string): void;
   /** timeline/child 这类无 user message 的成功副作用持久化查重事实。 */
   recordPersistentCommandFact?(
     sessionId: string,
@@ -206,22 +188,13 @@ export interface V4CommandCoreHost {
       feedback: "like" | "dislike" | null;
     },
   ): Promise<void>;
-  /** Highspeed 完成态统计先更新 user transcript metadata，再发布同一 entity 的投影事件。 */
-  setHighspeedMetrics?(
+  /** XCode fork：助手消息原地编辑——transcript part 改写 + runtime history 重建 + 投影事件。 */
+  editAssistantMessage?(
     sessionId: string,
     input: {
       entityId: string;
       messageId: string;
-      metrics: {
-        regularTps: number;
-        outputTokens: number;
-        durationMs: number;
-        highspeedTps: number;
-        savedDurationMs: number;
-        modelDurationMs?: number;
-        toolDurationMs?: number;
-        otherDurationMs?: number;
-      };
+      newText: string;
     },
   ): Promise<void>;
   /**
@@ -267,7 +240,6 @@ export interface V4CommandCoreHost {
    */
   createSessionRecord?(params: {
     workspaceId: string;
-    permissionScope?: "session";
     mcpServers?: CommandPayloadMap["createSession"]["mcpServers"];
     /** host 判定的 Off-Peak 工具面门禁；缺省不注册工具。 */
     offPeakToolEnabled?: boolean;
@@ -276,8 +248,6 @@ export interface V4CommandCoreHost {
      * 缺省回落到进程级 workspace 结论，仍是 fail-closed。
      */
     dynamicWorkflowEnabled?: boolean;
-    /** 与布尔同行的灰度 mode（launch.md「On demand: activation」）；缺省按 alwaysOn。 */
-    dynamicWorkflowMode?: DynamicWorkflowMode;
   }): Promise<{ sessionId: string }>;
   /** 从父会话稳定落盘边界创建隐藏 selection_side_chat child。 */
   createSelectionSideSession?(

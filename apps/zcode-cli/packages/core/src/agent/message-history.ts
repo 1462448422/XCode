@@ -12,7 +12,6 @@ import {
   type ModelReasoningContentBlock,
   type TokenUsageInfo,
 } from "@zcode/contracts";
-import { parseAgentListingDelta, type AgentListingDelta } from "./agent-listing-metadata.js";
 import { SYSTEM_REMINDER_SOURCES, type SystemReminderSource } from "../system-reminder/source.js";
 
 // Tool call from model (simple type, no brand)
@@ -44,7 +43,6 @@ export type RuntimeMessageSource =
 
 export interface RuntimeMessageMetadata {
   source: RuntimeMessageSource;
-  agentListingDelta?: AgentListingDelta;
   inputPresentation?: RuntimeInputPresentation;
 }
 
@@ -450,13 +448,10 @@ function cloneTokenUsageInfo(tokens: TokenUsageInfo): TokenUsageInfo {
   };
 }
 
-export function cloneRuntimeMessageMetadata(
+function cloneRuntimeMessageMetadata(
   metadata: RuntimeMessageMetadata | undefined,
 ): RuntimeMessageMetadata | undefined {
-  if (!metadata) return undefined;
-  const { agentListingDelta, ...rest } = metadata;
-  const delta = parseAgentListingDelta(agentListingDelta);
-  return { ...rest, ...(delta ? { agentListingDelta: delta } : {}) };
+  return metadata ? { ...metadata } : undefined;
 }
 
 function messageFromEntryInput(input: ModelInputMessage | RuntimeMessageEntry): ModelInputMessage {

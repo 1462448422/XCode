@@ -10,18 +10,26 @@ import {
   unregisterRecommendedPromptPane,
 } from "@/v4/featureSuggestedPromptRotation.js";
 /* oxlint-disable eslint(max-lines) -- 推荐 Prompt 同时收口 latest-wins、取消、可信解析、操作反馈和 Composer 收尾，拆分会打散这条状态机。 */
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID } from "@zcode/shared";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { XCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID } from "@zcode/shared";
 import { cn } from "@/components/lib/utils.js";
 import { toast } from "@/components/ui/toast.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 import type { AutomationsNavigationTab } from "@/lib/taskNavigationHistory.js";
 import { reportPromptTemplateClick } from "@/lib/promptTemplateTelemetry.js";
 import { invalidateDeferredDraftSessionForSkillChange } from "@/lib/zcodeDraftSkillInvalidation.js";
-import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import {
   ConversationDraftSuggestedPrompts,
   type DraftSuggestedPromptItem,
@@ -34,7 +42,6 @@ import {
 } from "@/v4/draftSuggestedPromptItems.js";
 import {
   resolveDraftSuggestedPluginFlowStage,
-  resolveSuggestedPluginClientBoundary,
   type ConversationDraftSuggestedPromptsContainerProps,
   type DraftSuggestedPluginFlow,
   type DraftSuggestedPluginOperation,
@@ -79,9 +86,8 @@ export function ConversationDraftSuggestedPromptsContainer({
   remoteSessionId,
   onOpenAutomations,
   isDesktop = false,
-  isWebRemoteControl = false,
 }: Props) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const platform = usePlatform();
   const isOfficeMode = useIsOfficeMode();
   const { update } = useSettings();
@@ -216,7 +222,7 @@ export function ConversationDraftSuggestedPromptsContainer({
       // 推荐流程的状态与展示图标都由目标 Host 的同一次可信解析返回；当前不存在
       // workspace 级 Plugin，再读取 referenceCatalog 会重复校验并引入额外 RPC。
       const mention = buildDraftSuggestedPluginMention(plugin, icon);
-      return useZCodeSessionStore
+      return useXCodeSessionStore
         .getState()
         .requestComposerTextInsert(
           workspacePath,
@@ -238,7 +244,7 @@ export function ConversationDraftSuggestedPromptsContainer({
       ) {
         return null;
       }
-      return useZCodeSessionStore
+      return useXCodeSessionStore
         .getState()
         .requestComposerTextInsert(workspacePath, prompt, workspaceIdentity);
     },
@@ -266,13 +272,13 @@ export function ConversationDraftSuggestedPromptsContainer({
         const text = hasTarget
           ? prompt
           : `${buildDraftSuggestedPluginMention(plugin, icon).markdown} ${prompt}`;
-        return useZCodeSessionStore
+        return useXCodeSessionStore
           .getState()
           .requestComposerTextInsert(workspacePath, text, workspaceIdentity);
       }
       const mention = buildDraftSuggestedPluginMention(plugin, icon);
       const text = prompt.trim() ? `${mention.markdown} ${prompt.trim()}` : mention.markdown;
-      return useZCodeSessionStore
+      return useXCodeSessionStore
         .getState()
         .requestComposerTextInsert(workspacePath, text, workspaceIdentity, mention);
     },
@@ -291,7 +297,8 @@ export function ConversationDraftSuggestedPromptsContainer({
       const resolved =
         await resolution.services.pluginManagementService.resolveSuggestedPluginReference({
           ...targetParams(),
-          ...resolveSuggestedPluginClientBoundary(isWebRemoteControl),
+          clientMode: "desktop-continuous" as const,
+          deliveryKind: "desktop-continuous" as const,
           stableId: current.plugin.stableId,
           operationId: current.operationId,
         });
@@ -300,7 +307,6 @@ export function ConversationDraftSuggestedPromptsContainer({
       return prependResolvedPlugin(current.plugin, requestVersion, resolved.icon);
     },
     [
-      isWebRemoteControl,
       prependResolvedPlugin,
       resolution.services.pluginManagementService,
       resolution.services.zcodeSessionService,
@@ -371,7 +377,7 @@ export function ConversationDraftSuggestedPromptsContainer({
         requestVersion !== requestVersionRef.current ||
         (kind === "install" &&
           (!flow.result?.pluginName ||
-            flow.result.marketplace !== ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID ||
+            flow.result.marketplace !== XCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID ||
             flow.result.sourceTrust !== "official"))
       ) {
         return;
@@ -610,7 +616,8 @@ export function ConversationDraftSuggestedPromptsContainer({
           operation,
           resolution.services.pluginManagementService.resolveSuggestedPluginReference({
             ...targetParams(),
-            ...resolveSuggestedPluginClientBoundary(isWebRemoteControl),
+            clientMode: "desktop-continuous" as const,
+            deliveryKind: "desktop-continuous" as const,
             stableId: plugin.stableId,
             operationId: operation.operationId,
           }),
@@ -699,8 +706,6 @@ export function ConversationDraftSuggestedPromptsContainer({
     [
       cancelOperation,
       clearOperationFeedback,
-      isDesktop,
-      isWebRemoteControl,
       locale,
       onOpenAutomations,
       platform,
@@ -709,6 +714,7 @@ export function ConversationDraftSuggestedPromptsContainer({
       resolution.rpcReady,
       resolution.services.pluginManagementService,
       handleMutation,
+      isDesktop,
       showMutationConfirmation,
       showPluginActionPopover,
       targetParams,
@@ -720,7 +726,11 @@ export function ConversationDraftSuggestedPromptsContainer({
   );
 
   return (
-    <div data-v4-draft-suggested-prompts-slot="true" className={cn(!proactive && "h-8", className)}>
+    <div
+      data-v4-draft-suggested-prompts-slot="true"
+      data-ds-part="home"
+      className={cn(!proactive && "h-8", className)}
+    >
       <ConversationDraftSuggestedPrompts
         // 绝对定位让推荐区脱离 Composer 的正常结构，调试和间距语义都不直观。
         // 旧场景推荐保留固定槽位；主动推荐列表必须由内容撑高，否则多行会溢出并覆盖下方内容。

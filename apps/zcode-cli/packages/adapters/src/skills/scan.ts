@@ -20,14 +20,14 @@
 // 文件接触点都要记得校验（文件级链接、跨盘符 relative 谓词、manifest 失败回退均成
 // 缺口）。收敛为单一规则：插件扫描一律不跟随符号链接——根自身、子目录候选、
 // SKILL.md 文件三个粒度全部拒绝链接（拒绝即无逃逸，无需判定链接指向何处）。
-// 用户级技能根（~/.zcode/skills 的 symlink 导入是受支持功能）保持默认跟随。
+// 用户级技能根（~/.xcode/skills 的 symlink 导入是受支持功能）保持默认跟随。
 
 import { lstatSync, readdirSync, statSync } from "node:fs";
 import { lstat, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { SKILL_FILE_NAME, shouldWalkSkillDirectoryEntry } from "@zcode/shared";
 
-export interface ScanSkillFilesOptions {
+interface ScanSkillFilesOptions {
   /**
    * 是否跟随符号链接（目录级与文件级），默认 true（用户级技能根的 symlink 导入
    * 是受支持功能）。plugin-scope 扫描必须传 false：链接可指向插件根外，拒绝

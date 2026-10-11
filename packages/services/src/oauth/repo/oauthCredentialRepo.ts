@@ -11,10 +11,48 @@ import type { ICredentialService } from "../../credential/credential.js";
 import { createServiceLogger } from "../../logger/serviceLogger.js";
 
 const ACTIVE_PROVIDER_KEY = "oauth:active_provider";
+const ACTIVE_ACCOUNT_KEY = "oauth:active_account";
+const ACCOUNT_LIST_KEY = "oauth:account_list";
 const LOGIN_ATTRIBUTION_KEY = "oauth:login_attribution";
-const ZCODE_JWT_TOKEN_KEY = "zcodejwttoken";
+const XCODE_JWT_TOKEN_KEY = "zcodejwttoken";
 const KNOWN_OAUTH_PROVIDER_IDS = [BIGMODEL_PROVIDER_ID, ZAI_PROVIDER_ID] as const;
 const log = createServiceLogger("oauthCredentialRepo");
+
+/** 账号引用：`{provider}:{identity}`。identity 用于 per-account 凭证命名空间，需可安全进 key。 */
+function encodeIdentity(identity: string): string {
+  return encodeURIComponent(identity);
+}
+
+function accountRefFromParts(provider: OAuthProviderId, identity: string): string {
+  return `${provider}:${identity}`;
+}
+
+function accountRefProvider(accountRef: string): OAuthProviderId | null {
+  const sep = accountRef.indexOf(":");
+  if (sep <= 0) return null;
+  const provider = accountRef.slice(0, sep);
+  return provider === ZAI_PROVIDER_ID || provider === BIGMODEL_PROVIDER_ID ? provider : null;
+}
+
+function accountAccessTokenKey(accountRef: string): string {
+  return `oauth:account:${accountRef}:access_token`;
+}
+
+function accountRefreshTokenKey(accountRef: string): string {
+  return `oauth:account:${accountRef}:refresh_token`;
+}
+
+function accountUserInfoKey(accountRef: string): string {
+  return `oauth:account:${accountRef}:user_info`;
+}
+
+function accountZcodeJwtKey(accountRef: string): string {
+  return `zcodejwt:${accountRef}`;
+}
+
+function accountRefFromProviderProfile(provider: OAuthProviderId, identity: string): string {
+  return accountRefFromParts(provider, identity);
+}
 
 interface OAuthCredentialRepoOptions {
   providerIds?: readonly OAuthProviderId[];
@@ -132,6 +170,15 @@ function toOAuthUserProfileFromRawZaiUser(raw: Record<string, unknown>): OAuthUs
   };
 }
 
+/** 账号列表条目（多账号）。identity = user_info.id。 */
+export interface OAuthAccountEntry {
+  provider: OAuthProviderId;
+  identity: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
 /** OAuth 凭据仓储：统一 provider 命名空间 */
 export class OAuthCredentialRepo {
   private readonly knownProviderIds: OAuthProviderId[];
@@ -223,6 +270,201 @@ export class OAuthCredentialRepo {
     await this.saveUserProfile(provider, profile);
   }
 
+  // ------------------------------------------------------------------
+  // 多账号支持：账号列表 + 激活账号指针 + per-account 凭证。
+  // 保留旧的 provider 单值 key（oauth:active_provider / oauth:{provider}:* / zcodejwttoken）
+  // 作为「当前激活账号」的镜像，切换账号时同步刷新，避免破坏既有消费方。
+  // ------------------------------------------------------------------
+
+  async listAccounts(): Promise<OAuthAccountEntry[]> {
+    try {
+      const raw = await this.credentialService.load(ACCOUNT_LIST_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (entry): entry is OAuthAccountEntry =>
+          typeof entry === "object" &&
+          entry !== null &&
+          typeof (entry as OAuthAccountEntry).provider === "string" &&
+          typeof (entry as OAuthAccountEntry).identity === "string" &&
+          typeof (entry as OAuthAccountEntry).username === "string" &&
+          typeof (entry as OAuthAccountEntry).displayName === "string",
+      );
+    } catch (error) {
+      if (!isCredentialDecryptError(error)) throw error;
+      return [];
+    }
+  }
+
+  async saveAccounts(accounts: OAuthAccountEntry[]): Promise<void> {
+    await this.credentialService.save(ACCOUNT_LIST_KEY, JSON.stringify(accounts));
+  }
+
+  async loadActiveAccountRef(): Promise<string | null> {
+    try {
+      return await this.credentialService.load(ACTIVE_ACCOUNT_KEY);
+    } catch (error) {
+      if (!isCredentialDecryptError(error)) throw error;
+      return null;
+    }
+  }
+
+  async saveActiveAccountRef(accountRef: string | null): Promise<void> {
+    if (!accountRef) {
+      await this.credentialService.delete(ACTIVE_ACCOUNT_KEY);
+    } else {
+      await this.credentialService.save(ACTIVE_ACCOUNT_KEY, accountRef);
+    }
+  }
+
+  async loadAccountEntry(accountRef: string): Promise<OAuthAccountEntry | null> {
+    const accounts = await this.listAccounts();
+    return (
+      accounts.find((account) => accountRefFromParts(account.provider, account.identity) === accountRef) ??
+      null
+    );
+  }
+
+  async loadTokenSetForAccount(accountRef: string): Promise<OAuthTokenSet | null> {
+    const accessToken = await this.safeLoad(accountAccessTokenKey(accountRef));
+    if (!accessToken) return null;
+    const refreshToken = await this.safeLoad(accountRefreshTokenKey(accountRef));
+    const zcodeJwtToken = await this.safeLoad(accountZcodeJwtKey(accountRef));
+    return {
+      accessToken,
+      ...(refreshToken ? { refreshToken } : {}),
+      ...(zcodeJwtToken ? { zcodeJwtToken } : {}),
+    };
+  }
+
+  async saveTokenSetForAccount(accountRef: string, tokenSet: OAuthTokenSet): Promise<void> {
+    await this.credentialService.save(accountAccessTokenKey(accountRef), tokenSet.accessToken);
+    if (tokenSet.refreshToken) {
+      await this.credentialService.save(accountRefreshTokenKey(accountRef), tokenSet.refreshToken);
+    } else {
+      await this.credentialService.delete(accountRefreshTokenKey(accountRef));
+    }
+    if (tokenSet.zcodeJwtToken) {
+      await this.credentialService.save(accountZcodeJwtKey(accountRef), tokenSet.zcodeJwtToken);
+    } else {
+      await this.credentialService.delete(accountZcodeJwtKey(accountRef));
+    }
+    if ((await this.loadActiveAccountRef()) === accountRef) {
+      await this.mirrorActiveAccount(accountRef);
+    }
+  }
+
+  async loadUserProfileForAccount(accountRef: string): Promise<OAuthUserProfile | null> {
+    const provider = accountRefProvider(accountRef);
+    return this.loadUserProfileFromKey(accountUserInfoKey(accountRef), provider ?? undefined);
+  }
+
+  async saveUserProfileForAccount(accountRef: string, profile: OAuthUserProfile): Promise<void> {
+    const provider = accountRefProvider(accountRef);
+    const persist =
+      provider === ZAI_PROVIDER_ID && profile.rawProfile ? profile.rawProfile : profile;
+    await this.credentialService.save(accountUserInfoKey(accountRef), JSON.stringify(persist));
+  }
+
+  /** 仅清除该账号的登录态凭证（保留 user_info 与 account_list；登出=不删账号）。 */
+  async clearAccountCredentials(accountRef: string): Promise<void> {
+    await this.credentialService.delete(accountAccessTokenKey(accountRef));
+    await this.credentialService.delete(accountRefreshTokenKey(accountRef));
+    await this.credentialService.delete(accountZcodeJwtKey(accountRef));
+    if ((await this.loadActiveAccountRef()) === accountRef) {
+      await this.clearActiveSession();
+    }
+  }
+
+  async clearAccount(accountRef: string): Promise<void> {
+    await this.credentialService.delete(accountAccessTokenKey(accountRef));
+    await this.credentialService.delete(accountRefreshTokenKey(accountRef));
+    await this.credentialService.delete(accountUserInfoKey(accountRef));
+    await this.credentialService.delete(accountZcodeJwtKey(accountRef));
+    if ((await this.loadActiveAccountRef()) === accountRef) {
+      await this.clearActiveSession();
+    }
+    const accounts = await this.listAccounts();
+    await this.saveAccounts(
+      accounts.filter((account) => accountRefFromParts(account.provider, account.identity) !== accountRef),
+    );
+  }
+
+  /** 激活账号切换：更新激活指针并把 per-account 凭证镜像到旧 provider 单值 key。 */
+  async activateAccount(accountRef: string): Promise<void> {
+    await this.saveActiveAccountRef(accountRef);
+    await this.mirrorActiveAccount(accountRef);
+  }
+
+  private async safeLoad(key: string): Promise<string | null> {
+    try {
+      return await this.credentialService.load(key);
+    } catch (error) {
+      if (!isCredentialDecryptError(error)) throw error;
+      return null;
+    }
+  }
+
+  private async mirrorActiveAccount(accountRef: string): Promise<void> {
+    const provider = accountRefProvider(accountRef);
+    if (!provider) return;
+    // 无 tokenSet 也推进（写 active_provider / 清镜像），避免 active_account 已改而 active_provider 未改的半程状态。
+    const tokenSet = await this.loadTokenSetForAccount(accountRef);
+    if (tokenSet) {
+      await this.credentialService.save(accessTokenKey(provider), tokenSet.accessToken);
+      if (tokenSet.refreshToken) {
+        await this.credentialService.save(refreshTokenKey(provider), tokenSet.refreshToken);
+      } else {
+        await this.credentialService.delete(refreshTokenKey(provider));
+      }
+      if (tokenSet.zcodeJwtToken) {
+        await this.credentialService.save(XCODE_JWT_TOKEN_KEY, tokenSet.zcodeJwtToken);
+      } else {
+        await this.credentialService.delete(XCODE_JWT_TOKEN_KEY);
+      }
+    } else {
+      await this.credentialService.delete(accessTokenKey(provider));
+      await this.credentialService.delete(refreshTokenKey(provider));
+      await this.credentialService.delete(XCODE_JWT_TOKEN_KEY);
+    }
+    // 关键：登录态/账号身份/套餐都读单值 oauth:{provider}:user_info，必须与激活账号镜像同步。
+    const profile = await this.loadUserProfileForAccount(accountRef);
+    if (profile) {
+      const persist =
+        provider === ZAI_PROVIDER_ID && profile.rawProfile ? profile.rawProfile : profile;
+      await this.credentialService.save(userInfoKey(provider), JSON.stringify(persist));
+    } else {
+      await this.credentialService.delete(userInfoKey(provider));
+    }
+    await this.credentialService.save(ACTIVE_PROVIDER_KEY, provider);
+  }
+
+  /** 迁移旧的单账号数据（active_provider + provider 单值 token + 全局 zcodejwt）为首条账号记录。 */
+  async migrateLegacySingleAccount(): Promise<string | null> {
+    const accounts = await this.listAccounts();
+    if (accounts.length > 0) return null;
+    const provider = await this.loadActiveProvider();
+    if (!provider) return null;
+    const tokenSet = await this.loadTokenSet(provider);
+    const profile = await this.loadUserProfile(provider);
+    if (!profile?.id) return null;
+    const accountRef = accountRefFromParts(provider, profile.id);
+    if (tokenSet) await this.saveTokenSetForAccount(accountRef, tokenSet);
+    await this.saveUserProfileForAccount(accountRef, profile);
+    await this.saveAccounts([
+      {
+        provider,
+        identity: profile.id,
+        username: profile.username,
+        displayName: profile.displayName,
+        ...(profile.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
+      },
+    ]);
+    await this.activateAccount(accountRef);
+    return accountRef;
+  }
+
   async saveLoginAttribution(attribution: OAuthLoginAttribution): Promise<void> {
     const persistAttribution = Object.fromEntries(
       Object.entries(attribution).flatMap(([key, value]) => {
@@ -287,6 +529,8 @@ export class OAuthCredentialRepo {
       await this.clearProvider(activeProvider);
     }
     await this.credentialService.delete(ACTIVE_PROVIDER_KEY);
+    // 登出后清激活账号指针，避免 loadActiveAccountRef 悬空指向已登出账号。
+    await this.credentialService.delete(ACTIVE_ACCOUNT_KEY);
   }
 
   async loadTokenSet(provider: OAuthProviderId): Promise<OAuthTokenSet | null> {
@@ -300,7 +544,7 @@ export class OAuthCredentialRepo {
 
       const zcodeJwtToken =
         provider === ZAI_PROVIDER_ID || provider === BIGMODEL_PROVIDER_ID
-          ? await this.credentialService.load(ZCODE_JWT_TOKEN_KEY)
+          ? await this.credentialService.load(XCODE_JWT_TOKEN_KEY)
           : null;
 
       return {
@@ -332,9 +576,9 @@ export class OAuthCredentialRepo {
         // BigModel Start Plan 与 Z.ai Start Plan 一样消费 zcode JWT。
         // JWT 必须在 OAuth callback 阶段随 tokenSet 落盘，后续 balance/runtime 只读取它，
         // 不能再拿 BigModel access token 拼另一个 /oauth/token body 临时兑换。
-        await this.credentialService.save(ZCODE_JWT_TOKEN_KEY, tokenSet.zcodeJwtToken);
+        await this.credentialService.save(XCODE_JWT_TOKEN_KEY, tokenSet.zcodeJwtToken);
       } else {
-        await this.credentialService.delete(ZCODE_JWT_TOKEN_KEY);
+        await this.credentialService.delete(XCODE_JWT_TOKEN_KEY);
       }
     }
   }
@@ -416,8 +660,8 @@ export class OAuthCredentialRepo {
     await this.credentialService.delete(accessTokenKey(provider));
     await this.credentialService.delete(refreshTokenKey(provider));
     await this.credentialService.delete(userInfoKey(provider));
-    if (shouldClearZcodeJwtOnLogout(provider)) {
-      await this.credentialService.delete(ZCODE_JWT_TOKEN_KEY);
+    if (shouldClearXcodeJwtOnLogout(provider)) {
+      await this.credentialService.delete(XCODE_JWT_TOKEN_KEY);
     }
   }
 
@@ -447,6 +691,6 @@ export class OAuthCredentialRepo {
   }
 }
 
-function shouldClearZcodeJwtOnLogout(provider: OAuthProviderId): boolean {
+function shouldClearXcodeJwtOnLogout(provider: OAuthProviderId): boolean {
   return provider === ZAI_PROVIDER_ID || provider === BIGMODEL_PROVIDER_ID;
 }

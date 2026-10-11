@@ -12,7 +12,7 @@ import {
 import { roundMetric } from "./resourceMetricsStats.js";
 
 /** getAppMetrics 能覆盖的七个角色；cli_* 与 mcp 由 CLI 样本贡献，不在这里出现。 */
-export const CHROMIUM_PROCESS_RESOURCE_ROLES = [
+const CHROMIUM_PROCESS_RESOURCE_ROLES = [
   "main",
   "renderer_main",
   "renderer_guest",
@@ -22,7 +22,7 @@ export const CHROMIUM_PROCESS_RESOURCE_ROLES = [
   "scheduler",
 ] as const satisfies readonly ProcessResourceRole[];
 
-export type ChromiumProcessResourceRole = (typeof CHROMIUM_PROCESS_RESOURCE_ROLES)[number];
+type ChromiumProcessResourceRole = (typeof CHROMIUM_PROCESS_RESOURCE_ROLES)[number];
 
 /** 规整后的单进程采样：CPU 已归一化到整机口径，内存单位 KB。 */
 export interface ChromiumProcessMetricSample {
@@ -75,7 +75,7 @@ export function sumChromiumRoleAggregates(
   return totals;
 }
 
-export function classifyChromiumProcessRole(
+function classifyChromiumProcessRole(
   sample: Pick<ChromiumProcessMetricSample, "pid" | "type">,
   pids: ChromiumProcessRolePids,
 ): ChromiumProcessResourceRole {

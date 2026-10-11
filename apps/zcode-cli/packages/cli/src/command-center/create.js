@@ -14,8 +14,7 @@ import { handleTargetCommand } from "./handlers/goal.js";
 import { recordSlashCommandInHistory } from "./history.js";
 import { attachCurrentSessionMetadata, normalizeTuiPromptInput } from "./metadata.js";
 import { buildCheckpointSelection, buildSessionSelection } from "./selections.js";
-import { buildManualSkillPrompt, formatSlashCommandHelp, listAvailableCommandNames, parseSlashCommand, } from "./slash-commands.js";
-import { isWorkflowModeEnabled, WORKFLOW_DISABLED_NOTICE } from "../workflow-mode.js";
+import { AVAILABLE_COMMANDS, buildManualSkillPrompt, formatSlashCommandHelp, parseSlashCommand, } from "./slash-commands.js";
 import { buildLoginSelection, emitLoginAuthorizeMessage, formatLoginResult, formatProviderSetupResult, loginSetupResponse, parseApiKeyLoginArgs, } from "./login-flow.js";
 import { loginRequiredResponse } from "../tui-login-state.js";
 export function createCommandCenter(deps) {
@@ -49,7 +48,7 @@ export function createCommandCenter(deps) {
             const customCommands = await listCustomCommandsForHelp(deps);
             return {
                 mode: deps.getMode?.(),
-                response: `Unknown command: /${command.rawName}. Available commands: ${formatAvailableCommandNames(listAvailableCommandNames(deps), customCommands)}.`,
+                response: `Unknown command: /${command.rawName}. Available commands: ${formatAvailableCommandNames(AVAILABLE_COMMANDS, customCommands)}.`,
             };
         }
         const result = await (async () => {
@@ -57,7 +56,7 @@ export function createCommandCenter(deps) {
                 const customCommands = await listCustomCommandsForHelp(deps);
                 return {
                     mode: deps.getMode?.(),
-                    response: formatSlashCommandHelp(command.args, customCommands, deps),
+                    response: formatSlashCommandHelp(command.args, customCommands),
                 };
             }
             if (command.name === "login") {
@@ -167,11 +166,6 @@ export function createCommandCenter(deps) {
                 return attachCurrentSessionMetadata(await app.submitPrompt(prompt, options), deps, app);
             }
             if (command.name === "workflow") {
-                // disabled 下 builtin resolver 不展开 `/workflow`，照常提交会把原文当普通文本发给模型；
-                // 在本地拦下，不建 app、不发模型（launch.md「The standalone CLI: `--workflow-mode`」）。
-                if (!isWorkflowModeEnabled(deps.workflowMode)) {
-                    return { mode: deps.getMode?.(), response: WORKFLOW_DISABLED_NOTICE };
-                }
                 const app = await deps.getApp();
                 const prompt = command.args ? `/workflow ${command.args}` : "/workflow";
                 // 与 /init 同款：原文交给 app.submitPrompt，由 bootstrap 的 builtin resolver 展开成

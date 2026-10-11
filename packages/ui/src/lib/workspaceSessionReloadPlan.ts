@@ -1,38 +1,17 @@
-import type { ZCodeProvider, ZCodeError } from "@zcode/shared";
+import type { XCodeProvider, XCodeError } from "@zcode/shared";
 import { buildWorkspacePrepareUiError } from "@/lib/chatPrepareError.js";
 
-export const WORKSPACE_SESSION_RELOAD_DEBOUNCE_MS = 1200;
-
-interface WorkspaceSessionReloadPlan {
-  resumeTaskId: string | undefined;
-  shouldPrepareWorkspace: boolean;
-}
+const WORKSPACE_SESSION_RELOAD_DEBOUNCE_MS = 1200;
 
 interface WorkspaceSessionReloadDraftErrorContext {
   workspacePath: string;
-  provider: ZCodeProvider;
-}
-
-export function buildWorkspaceSessionReloadPlan(activeTaskId: string | null): WorkspaceSessionReloadPlan {
-  const resumeTaskId = activeTaskId?.trim();
-
-  if (!resumeTaskId) {
-    return {
-      resumeTaskId: undefined,
-      shouldPrepareWorkspace: true,
-    };
-  }
-
-  return {
-    resumeTaskId,
-    shouldPrepareWorkspace: false,
-  };
+  provider: XCodeProvider;
 }
 
 export function buildWorkspaceSessionReloadDraftError(
   err: unknown,
   context: WorkspaceSessionReloadDraftErrorContext,
-): ZCodeError & { detail?: string } {
+): XCodeError & { detail?: string } {
   return buildWorkspacePrepareUiError(err, {
     workspacePath: context.workspacePath,
     provider: context.provider,

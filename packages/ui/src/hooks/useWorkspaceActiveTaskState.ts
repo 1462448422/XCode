@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import type { ZCodeProvider, ZCodeTaskMeta } from "@zcode/shared";
+import type { XCodeProvider, XCodeTaskMeta } from "@zcode/shared";
 import { useActiveTaskSnapshotMeta } from "@/hooks/useActiveTaskSnapshotMeta.js";
 import { useTaskNativeSessionLogFile } from "@/hooks/useTaskNativeSessionLogFile.js";
 import { useTaskSessionFilePath } from "@/hooks/useTaskSessionFilePath.js";
@@ -8,8 +8,8 @@ import { mergeTaskMetaCandidates } from "@/lib/zcodeTaskMetaMerge.js";
 import { resolveWorkspaceHeaderProvider } from "@/lib/workspaceHeaderProvider.js";
 import {
   getTaskMeta,
-  selectWorkspaceZCodeState,
-  useZCodeSessionStore,
+  selectWorkspaceXCodeState,
+  useXCodeSessionStore,
 } from "@/store/zcodeSessionStore.js";
 import { useTaskQueryCacheStore } from "@/store/taskQueryCacheStore.js";
 
@@ -18,7 +18,7 @@ interface UseWorkspaceActiveTaskStateParams {
   activeTaskId: string | null;
   workspaceRemoteSessionId?: string | null;
   workspaceIdentity?: string;
-  selectedProvider: ZCodeProvider;
+  selectedProvider: XCodeProvider;
   intl: {
     formatMessage(descriptor: { id: string }): string;
   };
@@ -28,10 +28,7 @@ function areTaskMetaJsonFieldsEqual(left: unknown, right: unknown) {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
-function areResolvedTaskMetasEqual(
-  left: ZCodeTaskMeta | null,
-  right: ZCodeTaskMeta | null,
-) {
+function areResolvedTaskMetasEqual(left: XCodeTaskMeta | null, right: XCodeTaskMeta | null) {
   if (left === right) {
     return true;
   }
@@ -59,16 +56,13 @@ function areResolvedTaskMetasEqual(
     left.unreadAt === right.unreadAt &&
     left.status === right.status &&
     areTaskMetaJsonFieldsEqual(left.lastError, right.lastError) &&
-    areTaskMetaJsonFieldsEqual(left.repairState, right.repairState) &&
     areTaskMetaJsonFieldsEqual(left.changeSummary, right.changeSummary) &&
     areTaskMetaJsonFieldsEqual(left.target, right.target)
   );
 }
 
-export function useStableResolvedActiveTaskMeta(
-  taskMeta: ZCodeTaskMeta | null,
-) {
-  const stableTaskMetaRef = useRef<ZCodeTaskMeta | null>(null);
+function useStableResolvedActiveTaskMeta(taskMeta: XCodeTaskMeta | null) {
+  const stableTaskMetaRef = useRef<XCodeTaskMeta | null>(null);
   const stableTaskMeta = stableTaskMetaRef.current;
   // stream chunk 只更新消息流时，active task meta 经列表/乐观层重新合成后可能字段相同但引用变了。
   // Header/Shell 依赖 memo props；这里复用等价 meta 的旧引用，避免连续流式更新拖动标题栏重渲。
@@ -86,20 +80,22 @@ export function useWorkspaceActiveTaskState({
   selectedProvider,
   intl,
 }: UseWorkspaceActiveTaskStateParams) {
-  const workspaceState = useZCodeSessionStore((state) =>
-    selectWorkspaceZCodeState(state, workspaceAbsPath, workspaceIdentity),
+  const workspaceState = useXCodeSessionStore((state) =>
+    selectWorkspaceXCodeState(state, workspaceAbsPath, workspaceIdentity),
   );
   const activeTaskQueryMeta = useTaskQueryCacheStore((state) => {
     if (!activeTaskId) {
       return null;
     }
-    return state.taskMetaByEntityKey[
-      buildTaskEntityKey({
-        taskId: activeTaskId,
-        workspacePath: workspaceAbsPath,
-        workspaceIdentity,
-      })
-    ] ?? null;
+    return (
+      state.taskMetaByEntityKey[
+        buildTaskEntityKey({
+          taskId: activeTaskId,
+          workspacePath: workspaceAbsPath,
+          workspaceIdentity,
+        })
+      ] ?? null
+    );
   });
   const activeTaskMeta = useMemo(() => {
     if (!activeTaskId) {
@@ -113,10 +109,10 @@ export function useWorkspaceActiveTaskState({
     // 重启恢复后 raw snapshot meta 可能先进入 workspace store，而 sqlite/list
     // query cache 里保留着 titleOverridden 的手动标题。Header 必须按同一套 title authority
     // 合并两边，否则当前 task 会看起来被还原成生成标题或首条 query。
-    return mergeTaskMetaCandidates(
-      getTaskMeta(workspaceState, activeTaskId),
-      activeTaskQueryMeta,
-    ) ?? null;
+    return (
+      mergeTaskMetaCandidates(getTaskMeta(workspaceState, activeTaskId), activeTaskQueryMeta) ??
+      null
+    );
   }, [activeTaskId, activeTaskQueryMeta, workspaceState]);
 
   const activeTaskSnapshotMeta = useActiveTaskSnapshotMeta(
@@ -153,11 +149,7 @@ export function useWorkspaceActiveTaskState({
     activeTaskProvider,
     workspaceIdentity,
   );
-  const taskSessionFile = useTaskSessionFilePath(
-    workspaceAbsPath,
-    activeTaskId,
-    workspaceIdentity,
-  );
+  const taskSessionFile = useTaskSessionFilePath(workspaceAbsPath, activeTaskId, workspaceIdentity);
 
   return {
     activeTaskMeta,

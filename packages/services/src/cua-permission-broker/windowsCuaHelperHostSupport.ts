@@ -12,7 +12,7 @@ import { HELPER_ADDON_ENV, WINDOWS_DEV_CONTROL_PROTOCOL } from "@zcode/zcode-cua
 import type { ServiceLogger } from "#src/logger/serviceLogger.js";
 import type { WindowsCuaRuntime } from "#src/cua-permission-broker/windowsCuaDevRuntime.js";
 
-export const CONTROL_PROTOCOL = WINDOWS_DEV_CONTROL_PROTOCOL;
+const CONTROL_PROTOCOL = WINDOWS_DEV_CONTROL_PROTOCOL;
 export const ADDON_ENV = HELPER_ADDON_ENV;
 
 export interface WindowsCuaChild {
@@ -61,10 +61,8 @@ export const defaultChildProcess: WindowsCuaChildProcessAdapter = {
 };
 
 export const defaultSocketPathFactory = mintBrokerSocketPath;
-export const defaultHealthProbe = (
-  socketPath: string,
-  timeoutMs: number,
-): Promise<HelperHealth> => probeHelperHealth(socketPath, { timeoutMs });
+export const defaultHealthProbe = (socketPath: string, timeoutMs: number): Promise<HelperHealth> =>
+  probeHelperHealth(socketPath, { timeoutMs });
 
 export class WindowsCuaChildLifecycle {
   constructor(private readonly logger: ServiceLogger) {}
@@ -184,7 +182,7 @@ export class WindowsCuaChildLifecycle {
   }
 }
 
-export type WindowsDevHelperControlMessage =
+type WindowsDevHelperControlMessage =
   | { protocol: typeof CONTROL_PROTOCOL; type: "transport_ready"; socketPath: string; pid: number }
   | { protocol: typeof CONTROL_PROTOCOL; type: "ready"; socketPath: string; pid: number }
   | { protocol: typeof CONTROL_PROTOCOL; type: "error"; message: string };

@@ -15,13 +15,10 @@ import { phaseDisplayName } from "@/components/workflow-graph/phase-name.js";
 import { WorkflowRunStatus } from "@/components/workflow-timeline/WorkflowCardChrome.js";
 import { useRunningBackgroundTaskElapsedClock } from "@/hooks/useRunningBackgroundTaskElapsedClock.js";
 import { useWorkflowRunWorkspace } from "@/hooks/useWorkflowRunWorkspace.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type { CodeViewerSource } from "@/lib/codeViewer.js";
 import type { WorkflowWorkspaceSidePaneTab } from "@/lib/workspaceSidePane.js";
-import {
-  buildWorkflowFillGraphByRunId,
-  buildWorkflowGraphByToolCallId,
-} from "@/v4/workflowRunCardJoin.js";
+import { buildWorkflowGraphByToolCallId } from "@/v4/workflowRunCardJoin.js";
 import { WorkflowWorkspaceCard } from "@/app-shell/WorkflowWorkspaceCard.js";
 import {
   buildWorkspaceChapters,
@@ -50,7 +47,7 @@ interface WorkflowWorkspaceSidePaneProps {
 
 /** 整个 run 还没碰过工作区：占位（与 actor 的「尚未启动」同一形态，措辞换成工作区的）。 */
 function WorkspaceNotStarted() {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   return (
     <div
       className="wf-arrive flex h-full flex-col items-center justify-center gap-1.5 px-8 py-16 text-center"
@@ -83,7 +80,7 @@ function WorkspaceNotice({ text, testId }: { text: string; testId: string }) {
 
 /** `1 step` / `3 steps`——词典没有复数语法，单数另配一条。 */
 function countLabel(
-  format: ReturnType<typeof useZCodeIntl>["intl"]["formatMessage"],
+  format: ReturnType<typeof useXCodeIntl>["intl"]["formatMessage"],
   noun: "steps" | "phases",
   count: number,
 ): string {
@@ -94,7 +91,7 @@ function countLabel(
 
 /** 章头：阶段名 · ⟳n · 横线 · `3 steps · 2m 06s`。没有阶段的章不画头。 */
 function ChapterHeader({ chapter }: { chapter: WorkspaceChapter }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const format = intl.formatMessage.bind(intl);
   if (chapter.phase === undefined) return null;
   return (
@@ -127,7 +124,7 @@ const WorkflowWorkspaceContent = memo(function WorkflowWorkspaceContent({
   tab,
   onOpenCodeViewer,
 }: WorkflowWorkspaceSidePaneProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const format = intl.formatMessage.bind(intl);
   const { layer } = useV4Conversation();
 
@@ -140,13 +137,9 @@ const WorkflowWorkspaceContent = memo(function WorkflowWorkspaceContent({
     () => snapshot?.workflowRuns?.runs.find((candidate) => candidate.runId === tab.runId),
     [snapshot?.workflowRuns, tab.runId],
   );
-  // 补全过的 run 取最新补全行的有效脚本图（docs/dynamic-workflow/presentation.md「Holes on the timeline」）：
-  // 脚本 transcript 的落点按站，站必须是补全之后的那一张表。
   const graph = useMemo(
-    () =>
-      buildWorkflowFillGraphByRunId(snapshot?.rows.window).get(tab.runId)?.graph ??
-      buildWorkflowGraphByToolCallId(snapshot?.rows.window).get(tab.toolCallId),
-    [snapshot?.rows.window, tab.runId, tab.toolCallId],
+    () => buildWorkflowGraphByToolCallId(snapshot?.rows.window).get(tab.toolCallId),
+    [snapshot?.rows.window, tab.toolCallId],
   );
 
   const workspace = useWorkflowRunWorkspace({

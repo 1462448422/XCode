@@ -19,7 +19,7 @@ type HostProxyRoute =
   | { kind: "proxy"; proxyUrl: string }
   | { kind: "invalid"; reason: string };
 
-export function mergeHostApiCaCertificates(
+function mergeHostApiCaCertificates(
   customCa: string,
   defaultCa: readonly string[] = rootCertificates,
 ): string[] {

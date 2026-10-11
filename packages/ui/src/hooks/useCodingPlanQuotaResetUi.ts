@@ -5,13 +5,13 @@ import type {
   CodingPlanResetScopeRequest,
   CodingPlanResetStatusSnapshot,
   CodingPlanResetType,
-  ZCodeAccountAccess,
-  ZCodeProviderAccountAccess,
+  XCodeAccountAccess,
+  XCodeProviderAccountAccess,
 } from "@zcode/shared";
 import { toast } from "@/components/ui/toast.js";
 import { useOptionalBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useStableAccountAccess } from "@/hooks/useStableAccountAccess.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 import {
   requestCodingPlanResetOpportunityWhenDue,
@@ -23,7 +23,6 @@ import {
   applyCodingPlanQuotaResetStatus,
   completeCodingPlanQuotaResetEntitlementRefresh,
   failCodingPlanQuotaResetManualUse,
-  hasUsableCodingPlanQuotaResetOpportunity,
   resolveCodingPlanQuotaResetStatusVisible,
   startCodingPlanQuotaResetManualUse,
   type CodingPlanQuotaResetUiEntries,
@@ -35,7 +34,7 @@ import type {
   CodingPlanQuotaResetAutoPlayReservationAttempt,
   CodingPlanQuotaResetAutoPlayedSlot,
 } from "@/store/codingPlanQuotaResetState.js";
-import { useZCodeStoreWithDefault } from "@/store/StoreProvider.js";
+import { useXCodeStoreWithDefault } from "@/store/StoreProvider.js";
 
 const STATUS_FRESHNESS_MS = 1_500;
 const USE_STATUS_RETRY_DELAYS_MS = [0, 250, 750, 1_500] as const;
@@ -330,7 +329,7 @@ function toErrorMessage(error: unknown): string {
 
 export interface CodingPlanQuotaResetTypeController {
   entry: CodingPlanQuotaResetUiEntry | null;
-  /** 仍有可核销的手动重置机会（available，或 completed 携带的同类型余下机会）。 */
+  /** 服务端下发的手动重置机会可见。 */
   opportunityVisible: boolean;
   /** 手动 use + status 对账中。 */
   processing: boolean;
@@ -367,11 +366,11 @@ export function useCodingPlanQuotaResetUi({
 }: {
   sourceKey: string | null | undefined;
   preferredProviderId?: string | null;
-  accountAccess?: ZCodeProviderAccountAccess | ZCodeAccountAccess | null;
+  accountAccess?: XCodeProviderAccountAccess | XCodeAccountAccess | null;
   enabled?: boolean;
   onEntitlementRefresh?: () => void | Promise<void>;
 }): CodingPlanQuotaResetUiController {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const services = useOptionalBaseWorkspaceServices();
   const usageStatsService = services?.usageStatsService;
   const stableAccountAccess = useStableAccountAccess(accountAccess);
@@ -386,35 +385,35 @@ export function useCodingPlanQuotaResetUi({
     };
   }, [preferredProviderId, stableAccountAccess]);
   const enabled = Boolean(requestedEnabled && sourceKey?.trim() && usageStatsService && scope);
-  const entriesBySource = useZCodeStoreWithDefault(
+  const entriesBySource = useXCodeStoreWithDefault(
     (state) => state.codingPlanQuotaResetUiBySource,
     EMPTY_ENTRIES,
   );
-  const setEntry = useZCodeStoreWithDefault(
+  const setEntry = useXCodeStoreWithDefault(
     (state) => state.setCodingPlanQuotaResetUiEntry,
     NOOP_SET_ENTRY,
   );
-  const reserveAutoPlay = useZCodeStoreWithDefault(
+  const reserveAutoPlay = useXCodeStoreWithDefault(
     (state) => state.reserveCodingPlanQuotaResetAutoPlay,
     NOOP_RESERVE_AUTO_PLAY,
   );
-  const commitAutoPlay = useZCodeStoreWithDefault(
+  const commitAutoPlay = useXCodeStoreWithDefault(
     (state) => state.commitCodingPlanQuotaResetAutoPlay,
     NOOP_COMMIT_AUTO_PLAY,
   );
-  const releaseAutoPlay = useZCodeStoreWithDefault(
+  const releaseAutoPlay = useXCodeStoreWithDefault(
     (state) => state.releaseCodingPlanQuotaResetAutoPlay,
     NOOP_RELEASE_AUTO_PLAY,
   );
-  const observationsBySource = useZCodeStoreWithDefault(
+  const observationsBySource = useXCodeStoreWithDefault(
     (state) => state.codingPlanQuotaResetAutomaticObservationsBySource,
     EMPTY_AUTOMATIC_OBSERVATIONS,
   );
-  const playedBySource = useZCodeStoreWithDefault(
+  const playedBySource = useXCodeStoreWithDefault(
     (state) => state.codingPlanQuotaResetAutoPlayedBySource,
     EMPTY_PLAYED,
   );
-  const authSessionSeq = useZCodeStoreWithDefault((state) => state.authSessionSeq, 0);
+  const authSessionSeq = useXCodeStoreWithDefault((state) => state.authSessionSeq, 0);
   const authSessionSeqRef = useRef(authSessionSeq);
   authSessionSeqRef.current = authSessionSeq;
   const storedEntries = sourceKey ? entriesBySource[sourceKey] : undefined;
@@ -694,18 +693,14 @@ export function useCodingPlanQuotaResetUi({
     });
   }, [authSessionSeq, enabled, refreshStatus, scope, usageStatsService]);
 
-  // 可核销倒计时：任一类型仍有可核销机会（含 completed 携带的余下机会）时启动 1 秒 ticker；
-  // 入口变化时刷新 now 保证倒计时/窗口基于最新时间。
+  // available 倒计时：任一类型可用时启动 1 秒 ticker；入口变化时刷新 now 保证倒计时/窗口基于最新时间。
   useEffect(() => {
     if (!enabled) {
       return;
     }
-    const nowMs = Date.now();
-    setNow(nowMs);
-    const anyUsable =
-      hasUsableCodingPlanQuotaResetOpportunity(fiveHourEntry, nowMs) ||
-      hasUsableCodingPlanQuotaResetOpportunity(weekEntry, nowMs);
-    if (!anyUsable) {
+    setNow(Date.now());
+    const anyAvailable = fiveHourEntry?.status === "available" || weekEntry?.status === "available";
+    if (!anyAvailable) {
       return;
     }
     const ticker = window.setInterval(() => setNow(Date.now()), 1_000);
@@ -742,36 +737,29 @@ export function useCodingPlanQuotaResetUi({
         return;
       }
       const key = entryKeyForType(resetType);
-      // Bugfix：放行条件曾是 status === "available"。completed 携带同类型余下机会时，
-      // 弹框里再次点击会在这里被静默忽略（弹框仍播放成功反馈，实际没有 /use）。
-      // 统一按「是否仍可核销」判定，与弹框行、徽标、标题旁「重置」同一口径。
-      if (!hasUsableCodingPlanQuotaResetOpportunity(entriesRef.current[key], Date.now())) {
+      if (entriesRef.current[key]?.status !== "available") {
         return;
       }
-      // 跨入口防双核销：同 scope + 类型已有手动核销轨迹（本窗口其他入口发起，或本入口刚核销
-      // 完一张）时，本入口可能基于过期轮询仍显示可核销。先强制对账：对方 /use 仍在进行、或
-      // 对账后本入口已无可核销机会（额度已被核销），都不得再次 /use——第二次点击会携带新
-      // 幂等键重复核销。对账后仍可核销说明轨迹属于更早的核销，余下或新发放的机会放行为新的
-      // 一次核销。多窗口 / remote 入口不共享该轨迹，跨窗口并发由服务端按机会核销兜底。
+      // 跨入口防双核销：同 scope + 类型已有手动核销轨迹（本窗口其他入口发起）时，本入口
+      // 可能基于过期轮询仍显示 available。先强制对账：对方 /use 仍在进行、或对账后本入口
+      // 不再 available（额度已被核销），都不得再次 /use——第二次点击会携带新幂等键重复核销。
+      // 对账后仍 available 说明轨迹属于更早的核销且新机会已发放，放行为新的一次核销。
+      // 多窗口 / remote 入口不共享该轨迹，跨窗口并发由服务端按机会核销兜底。
       const priorAttempt = manualResetAttemptByService
         .get(usageStatsService)
         ?.get(buildManualAttemptKey(scope, resetType));
       if (priorAttempt) {
         const reconciled = await refreshStatus(true);
-        if (
-          priorAttempt.completedAt === null ||
-          !hasUsableCodingPlanQuotaResetOpportunity(reconciled[key], Date.now())
-        ) {
+        if (priorAttempt.completedAt === null || reconciled[key]?.status !== "available") {
           return;
         }
       }
       const current = entriesRef.current[key];
-      // 放行判定与 processing 起点共用同一时刻，避免机会恰好在两次取时之间到期。
-      const startedAt = Date.now();
-      if (!current || !hasUsableCodingPlanQuotaResetOpportunity(current, startedAt)) {
+      if (!current || current.status !== "available") {
         return;
       }
       const idempotencyKey = current.idempotencyKey ?? createIdempotencyKey();
+      const startedAt = Date.now();
       const processing = startCodingPlanQuotaResetManualUse(current, idempotencyKey, startedAt);
       if (!processing) {
         return;
@@ -878,9 +866,10 @@ export function useCodingPlanQuotaResetUi({
     resetFn: () => Promise<void>,
   ): CodingPlanQuotaResetTypeController => ({
     entry,
-    // Bugfix：曾只认 status === "available"，completed 携带的同类型余下机会不可见，
-    // 徽标少计、标题显示「已重置」。改用与 reset() 放行同一判定。
-    opportunityVisible: hasUsableCodingPlanQuotaResetOpportunity(entry, now),
+    opportunityVisible:
+      entry?.status === "available" &&
+      entry.opportunityCount > 0 &&
+      (entry.opportunityExpiresAt ?? 0) > now,
     processing: entry?.status === "processing",
     done: entry?.status === "completed",
     statusVisible: enabled && resolveCodingPlanQuotaResetStatusVisible(entry, now),

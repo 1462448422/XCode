@@ -45,7 +45,7 @@ export function resolveProviderSettingsFormProviders(params: {
   return params.view ? projectProviderSettingsViewToFormProviders(params.view) : [];
 }
 
-export function resolvePersonalProviderIds(view: ProviderSettingsView): string[] {
+function resolvePersonalProviderIds(view: ProviderSettingsView): string[] {
   return view.providers
     .filter((provider) => provider.effectiveConfig.group === "standard-personal")
     .map((provider) => provider.providerId);

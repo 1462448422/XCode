@@ -1,18 +1,15 @@
 import {
-  getZCodeToolFamilyForName,
+  getXCodeToolFamilyForName,
   isTodoPlanToolName,
-  isZCodeFileContentWriteToolName,
-  normalizeZCodeToolName,
-  type ZCodeKnownToolName,
-  type ZCodeToolFamily,
+  isXCodeFileContentWriteToolName,
+  normalizeXCodeToolName,
+  type XCodeKnownToolName,
+  type XCodeToolFamily,
 } from "@zcode/shared";
-import {
-  normalizeAskUserQuestionInput,
-  readAskUserQuestionInput,
-} from "@/lib/askUserQuestion.js";
+import { normalizeAskUserQuestionInput, readAskUserQuestionInput } from "@/lib/askUserQuestion.js";
 
 export type ToolCallPresentationFamily =
-  | ZCodeToolFamily
+  | XCodeToolFamily
   | "plan-guidance"
   | "switch-mode"
   | "explore"
@@ -24,14 +21,13 @@ export type ToolCallIdentitySource =
   | "title"
   | "raw"
   | "raw-zcode-meta"
-  | "raw-claude-meta"
   | "legacy-kind"
   | "legacy-title"
   | "legacy-payload"
   | "unknown";
 
 export interface ToolCallIdentity {
-  toolName: ZCodeKnownToolName | string | null;
+  toolName: XCodeKnownToolName | string | null;
   family: ToolCallPresentationFamily;
   source: ToolCallIdentitySource;
   isLegacy: boolean;
@@ -57,15 +53,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function readString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : undefined;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function readNestedString(
-  value: unknown,
-  path: readonly string[],
-): string | undefined {
+function readNestedString(value: unknown, path: readonly string[]): string | undefined {
   let current: unknown = value;
   for (const key of path) {
     if (!isRecord(current)) {
@@ -89,11 +80,11 @@ function identityFromKnownToolName(
   value: string | null | undefined,
   source: ToolCallIdentitySource,
 ): ToolCallIdentity | null {
-  const toolName = normalizeZCodeToolName(value);
+  const toolName = normalizeXCodeToolName(value);
   if (!toolName) {
     return null;
   }
-  const family = getZCodeToolFamilyForName(toolName);
+  const family = getXCodeToolFamilyForName(toolName);
   if (!family) {
     return null;
   }
@@ -125,7 +116,6 @@ function readRawToolNameCandidates(raw: unknown) {
       readNestedString(raw, ["tool_name"]) ??
       readNestedString(raw, ["name"]),
     zcode: readNestedString(raw, ["_meta", "zcode", "toolName"]),
-    claudeCode: readNestedString(raw, ["_meta", "claudeCode", "toolName"]),
     rawKind: readNestedString(raw, ["kind"]),
     rawTitle: readNestedString(raw, ["title"]),
   };
@@ -138,18 +128,12 @@ function isLegacyAgentTool(
   const kind = normalizeLegacyToken(toolCall.kind);
   const title = normalizeLegacyToken(toolCall.title);
   const rawDirect = normalizeLegacyToken(rawNames.direct);
-  const rawZCode = normalizeLegacyToken(rawNames.zcode);
-  const rawClaude = normalizeLegacyToken(rawNames.claudeCode);
+  const rawXCode = normalizeLegacyToken(rawNames.zcode);
 
   return (
-    rawClaude === "agent" ||
-    rawClaude === "task" ||
-    rawZCode === "agent" ||
-    rawZCode === "spawn_agent" ||
+    rawXCode === "agent" ||
     rawDirect === "agent" ||
-    rawDirect === "spawn_agent" ||
     kind === "agent" ||
-    kind === "spawn_agent" ||
     (kind === "think" && (title === "agent" || title === "task")) ||
     (kind === "think" &&
       isRecord(toolCall.input) &&
@@ -157,37 +141,25 @@ function isLegacyAgentTool(
   );
 }
 
-function isLegacySkillTool(
-  toolCall: ToolIdentityLike,
-  rawNames: ReturnType<typeof readRawToolNameCandidates>,
-) {
+function isLegacySkillTool(toolCall: ToolIdentityLike) {
   const kind = normalizeLegacyToken(toolCall.kind);
   const title = normalizeLegacyToken(toolCall.title);
-  const rawClaude = normalizeLegacyToken(rawNames.claudeCode);
   return (
-    rawClaude === "skill" ||
     title === "skill" ||
     kind === "skill" ||
-    (kind === "other" &&
-      isRecord(toolCall.input) &&
-      typeof toolCall.input.skill === "string")
+    (kind === "other" && isRecord(toolCall.input) && typeof toolCall.input.skill === "string")
   );
 }
 
 function hasAskUserQuestionPayload(toolCall: ToolIdentityLike): boolean {
-  return (
-    normalizeAskUserQuestionInput(readAskUserQuestionInput(toolCall)).questions
-      .length > 0
-  );
+  return normalizeAskUserQuestionInput(readAskUserQuestionInput(toolCall)).questions.length > 0;
 }
 
 function isLegacyGoalToolToken(value: string): boolean {
   return value === "goalcreate" || value === "goalupdate";
 }
 
-function resolveLegacyKindFamily(
-  kind: string,
-): ToolCallPresentationFamily | null {
+function resolveLegacyKindFamily(kind: string): ToolCallPresentationFamily | null {
   if (/^(?:read|view|open|cat|head|tail|read_file)(?:_|$)/i.test(kind)) {
     return "file-read";
   }
@@ -225,9 +197,7 @@ function isPlanModeExitToken(value: string): boolean {
   );
 }
 
-export function resolveToolCallIdentity(
-  toolCall: ToolIdentityLike,
-): ToolCallIdentity {
+export function resolveToolCallIdentity(toolCall: ToolIdentityLike): ToolCallIdentity {
   const rawNames = readRawToolNameCandidates(toolCall.raw);
   const normalizedKind = normalizeLegacyToken(toolCall.kind);
   const normalizedTitle = normalizeLegacyToken(toolCall.title);
@@ -242,10 +212,7 @@ export function resolveToolCallIdentity(
     { value: rawNames.direct, source: "raw" as const },
     { value: rawNames.zcode, source: "raw-zcode-meta" as const },
   ]) {
-    const identity = identityFromKnownToolName(
-      candidate.value,
-      candidate.source,
-    );
+    const identity = identityFromKnownToolName(candidate.value, candidate.source);
     if (identity) {
       return identity;
     }
@@ -253,13 +220,13 @@ export function resolveToolCallIdentity(
 
   if (isLegacyAgentTool(toolCall, rawNames)) {
     return identityFromLegacyFamily(
-      rawNames.direct ?? rawNames.zcode ?? rawNames.claudeCode ?? "Agent",
+      rawNames.direct ?? rawNames.zcode ?? "Agent",
       "agent",
       "legacy-payload",
     );
   }
 
-  // `Task` 现在是现役 Claude 兼容工具名，但历史 ZCode Agent 投影会用
+  // `Task` 现在是现役 Claude 兼容工具名，但历史 XCode Agent 投影会用
   // kind="think" + title="Task" 表示子 agent 活动。title 只是展示名，必须放在
   // legacy payload 判断之后，避免把旧会话误升级成非 legacy 工具身份。
   const titleIdentity = identityFromKnownToolName(toolCall.title, "title");
@@ -304,19 +271,12 @@ export function resolveToolCallIdentity(
     );
   }
 
-  if (
-    normalizedTitle === "enterplanmode" ||
-    normalizeLegacyToken(rawNames.claudeCode) === "enterplanmode"
-  ) {
-    return identityFromLegacyFamily(
-      "EnterPlanMode",
-      "plan-guidance",
-      "legacy-title",
-    );
+  if (normalizedTitle === "enterplanmode") {
+    return identityFromLegacyFamily("EnterPlanMode", "plan-guidance", "legacy-title");
   }
 
   if (
-    // 当前 ZCode Agent 传给 app 的 plan mode 退出工具是 ExitPlanMode，
+    // 当前 XCode Agent 传给 app 的 plan mode 退出工具是 ExitPlanMode，
     // normalize 后没有下划线；旧兼容只认 switch_mode / Exited Plan Mode，导致计划卡片走 fallback。
     [
       toolCall.toolName,
@@ -324,7 +284,6 @@ export function resolveToolCallIdentity(
       toolCall.title,
       rawNames.direct,
       rawNames.zcode,
-      rawNames.claudeCode,
       rawNames.rawKind,
       rawNames.rawTitle,
     ]
@@ -332,59 +291,31 @@ export function resolveToolCallIdentity(
       .map(normalizeLegacyToken)
       .some(isPlanModeExitToken)
   ) {
-    return identityFromLegacyFamily(
-      "switch_mode",
-      "switch-mode",
-      "legacy-kind",
-    );
+    return identityFromLegacyFamily("switch_mode", "switch-mode", "legacy-kind");
   }
 
-  if (isLegacySkillTool(toolCall, rawNames)) {
+  if (isLegacySkillTool(toolCall)) {
     return identityFromLegacyFamily("Skill", "skill", "legacy-payload");
   }
 
   if (
     normalizedKind === "ask_question" ||
     normalizedTitle === "askuserquestion" ||
-    normalizeLegacyToken(rawNames.claudeCode) === "askuserquestion" ||
     hasAskUserQuestionPayload(toolCall)
   ) {
-    return identityFromLegacyFamily(
-      "AskUserQuestion",
-      "ask-user-question",
-      "legacy-payload",
-    );
+    return identityFromLegacyFamily("AskUserQuestion", "ask-user-question", "legacy-payload");
   }
 
   const legacyKindFamily = resolveLegacyKindFamily(normalizedKind);
   if (legacyKindFamily) {
-    return identityFromLegacyFamily(
-      toolCall.kind?.trim() ?? null,
-      legacyKindFamily,
-      "legacy-kind",
-    );
+    return identityFromLegacyFamily(toolCall.kind?.trim() ?? null, legacyKindFamily, "legacy-kind");
   }
 
   const titlePrefixFamily = resolveLegacyKindFamily(
     normalizeLegacyToken(toolCall.title).split("_")[0] ?? "",
   );
   if (titlePrefixFamily === "file-read") {
-    return identityFromLegacyFamily(
-      toolCall.title?.trim() ?? null,
-      "file-read",
-      "legacy-title",
-    );
-  }
-
-  const claudeIdentity = identityFromKnownToolName(
-    rawNames.claudeCode,
-    "raw-claude-meta",
-  );
-  if (claudeIdentity) {
-    return {
-      ...claudeIdentity,
-      isLegacy: true,
-    };
+    return identityFromLegacyFamily(toolCall.title?.trim() ?? null, "file-read", "legacy-title");
   }
 
   return UNKNOWN_TOOL_IDENTITY;
@@ -397,7 +328,7 @@ export function isFileContentWriteToolCall(
   if (identity.family !== "file-write") {
     return false;
   }
-  if (isZCodeFileContentWriteToolName(identity.toolName)) {
+  if (isXCodeFileContentWriteToolName(identity.toolName)) {
     return true;
   }
   const legacyKind = normalizeLegacyToken(toolCall.kind);
@@ -408,8 +339,5 @@ export function isFileDiffToolCall(
   toolCall: ToolIdentityLike,
   identity = resolveToolCallIdentity(toolCall),
 ): boolean {
-  return (
-    identity.family === "file-write" &&
-    !isFileContentWriteToolCall(toolCall, identity)
-  );
+  return identity.family === "file-write" && !isFileContentWriteToolCall(toolCall, identity);
 }

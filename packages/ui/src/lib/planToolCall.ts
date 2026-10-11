@@ -1,13 +1,13 @@
 import { getPathLeaf, isAbsoluteFilePath, joinFilePath } from "@/lib/path.js";
 
-export interface PlanToolCallSource {
+interface PlanToolCallSource {
   input?: unknown;
   inputText?: string;
   output?: unknown;
   raw?: unknown;
 }
 
-export interface PlanToolCallContent {
+interface PlanToolCallContent {
   markdown?: string;
   planFilePath?: string;
 }

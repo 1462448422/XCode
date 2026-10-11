@@ -250,7 +250,7 @@ function collectNormalizedCandidates(
   return candidates;
 }
 
-export function stripReadLineNumberPrefixes(search: string): string | null {
+function stripReadLineNumberPrefixes(search: string): string | null {
   const lines = search.split("\n");
   const stripped = lines.map((line) => {
     const colonMatch = line.match(/^\d+: (.*)$/);

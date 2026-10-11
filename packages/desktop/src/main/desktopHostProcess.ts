@@ -1,6 +1,16 @@
 import { ingestToolExecResource } from "./desktopResourceTelemetry.js";
 import { ingestMcpResourceSamples } from "./processResourceMcpTelemetrySource.js";
-/* eslint-disable max-lines -- host process 统一处理 main↔host 生命周期、日志、ZCode Agent，拆分前先保持跨进程消息收口。 */
+/* eslint-disable max-lines -- host process 统一处理 main↔host 生命周期、日志、XCode Agent，拆分前先保持跨进程消息收口。 */
+import { bindDatabaseStartupRelay } from "./databaseStartupRelay.js";
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import {
+  app,
+  BrowserWindow,
+  MessageChannelMain,
+  utilityProcess as electronUtilityProcess,
+} from "electron";
+import type { MessagePortMain, UtilityProcess as ElectronUtilityProcess } from "electron";
 import {
   type HostAgentProcessErrorResponse,
   type HostAgentProcessExceptionResponse,
@@ -10,56 +20,40 @@ import {
   type HostCuaOperationStateResponse,
   type HostMcpTelemetryResponse,
   type HostSessionCreateTelemetryResponse,
-  type RemoteTarget,
   type TaskRealtimeHostDeliveryKind,
-  type WorkspacePurpose,
-  formatZCodeHostProcessName,
+  formatXCodeHostProcessName,
   HostMessageTypes,
-  hostResponseMessageSchema,
   HostResponseTypes,
+  hostResponseMessageSchema,
   InternalChannels,
   LAUNCH_MARKS_QUERY_KEY,
-  RUNTIME_ZCODE_DEBUG,
+  RUNTIME_XCODE_DEBUG,
   serializeLaunchMarks,
-  ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
+  type RemoteTarget,
+  type WorkspacePurpose,
+  XCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
 } from "@zcode/shared";
-import type {
-  PluginSandboxHandle,
-  PluginSandboxRegisterRequestPayload,
-  PluginSandboxRegisterResultPayload,
-} from "@zcode/shared/mcp-apps";
-import type { UtilityProcess as ElectronUtilityProcess, MessagePortMain } from "electron";
-import {
-  app,
-  BrowserWindow,
-  utilityProcess as electronUtilityProcess,
-  MessageChannelMain,
-} from "electron";
-import { randomUUID } from "node:crypto";
-import { join } from "node:path";
-import { BroadcastHub } from "./broadcastHub.js";
-import { bindDatabaseStartupRelay } from "./databaseStartupRelay.js";
 import { getMainLaunchPartialMarks } from "./desktopLaunchMarks.js";
-import { ingestHostNetworkObservations } from "./desktopNetworkTelemetry.js";
-import {
-  buildHostProcessEnv,
-  hostModulePath,
-  resolveBundledGlmBinaryPath,
-} from "./desktopRuntimeEnv.js";
-import { ingestHostNetworkCapture } from "./resourceManagerNetwork.js";
-import { buildHostE2ECoverageEnv } from "./e2eCoverage.js";
-import { createFeedbackLogArchiveFromExportLogs } from "./exportLogs.js";
+import { BroadcastHub } from "./broadcastHub.js";
+import type { TaskRealtimeBus } from "./taskRealtimeBus.js";
 import { createHostLogRelay } from "./hostLogRelay.js";
-import { ingestCliResourceSample } from "./processResourceCliSource.js";
-import { ingestHostSelfResourceSample } from "./processResourceSelfHeapSource.js";
-import { resolveHostResourceUsageResult } from "./resourceManagerHostSampling.js";
 import {
   registerHostAgentProcess,
   registerHostProcess,
   unregisterHostAgentProcess,
   unregisterHostProcess,
 } from "./resourceManagerWindow.js";
-import type { TaskRealtimeBus } from "./taskRealtimeBus.js";
+import { resolveHostResourceUsageResult } from "./resourceManagerHostSampling.js";
+import {
+  buildHostProcessEnv,
+  hostModulePath,
+  resolveBundledGlmBinaryPath,
+} from "./desktopRuntimeEnv.js";
+import { ingestHostNetworkObservations } from "./desktopNetworkTelemetry.js";
+import { ingestCliResourceSample } from "./processResourceCliSource.js";
+import { ingestHostSelfResourceSample } from "./processResourceSelfHeapSource.js";
+import { createFeedbackLogArchiveFromExportLogs } from "./exportLogs.js";
+import { buildHostE2ECoverageEnv } from "./e2eCoverage.js";
 
 export interface WindowBootstrapOptions {
   restoreSession?: boolean;
@@ -85,13 +79,13 @@ export interface HostInitMessage {
     workspaceIdentity?: string;
   }>;
   agentSpawnFallbackCwd?: string;
-  /** Main 解析后的 ZCode Built-in Provider Config 路径；Host/Services 不感知 Electron 安装布局。 */
+  /** Main 解析后的 XCode Built-in Provider Config 路径；Host/Services 不感知 Electron 安装布局。 */
   zcodeBuiltinProviderConfigFilePath: string;
   /** Main 提前异步采集并过滤的本机 runtime 环境；只允许传给 InitLocal。 */
   runtimeProcessEnvPatch?: Record<string, string>;
 }
 
-export interface SpawnHostProcessOptions {
+interface SpawnHostProcessOptions {
   internalChannel?: typeof InternalChannels.ServicePort | typeof InternalChannels.ScopedServicePort;
   internalPayload?: unknown;
   registerBroadcast?: boolean;
@@ -251,36 +245,32 @@ export function spawnHostProcess(
     }) => Promise<{ ok: boolean; [k: string]: unknown }>;
     /** Host 已完成附件授权后，由 Main 将本地视频 realpath 加入精确协议授权集合。 */
     authorizeLocalMediaPreviewPath?: (path: string) => Promise<string>;
-    /** Host 校验完插件 UI HTML 后交给 Main 沙箱注册表登记，返回句柄。 */
-    registerPluginSandbox?: (
-      input: PluginSandboxRegisterRequestPayload,
-    ) => PluginSandboxHandle | Promise<PluginSandboxHandle>;
   },
   options?: SpawnHostProcessOptions,
 ): ElectronUtilityProcess {
   const hostId = randomUUID();
   const glmBinaryPath = resolveBundledGlmBinaryPath();
   const execArgv = [
-    ...(RUNTIME_ZCODE_DEBUG ? [`--inspect-brk=${RUNTIME_ZCODE_DEBUG}`] : []),
+    ...(RUNTIME_XCODE_DEBUG ? [`--inspect-brk=${RUNTIME_XCODE_DEBUG}`] : []),
     "--no-warnings",
   ];
   const child = electronUtilityProcess.fork(hostModulePath, [], {
-    serviceName: formatZCodeHostProcessName(label),
+    serviceName: formatXCodeHostProcessName(label),
     execArgv,
     env: {
       ...buildHostProcessEnv(dependencies.hostProcessLocalEnv),
       ...buildHostE2ECoverageEnv(),
-      ZCODE_PROCESS_LABEL: label,
+      XCODE_PROCESS_LABEL: label,
       // macOS-only: the Computer Use Helper launcher runs inside this forked host utilityProcess, whose
-      // code-signing identity is a nested Electron helper (NOT dev.zcode.app). Publish THIS (main
-      // Electron) process's pid — which IS dev.zcode.app — so helperLauncher passes it as
+      // code-signing identity is a nested Electron helper (NOT dev.xcode.app). Publish THIS (main
+      // Electron) process's pid — which IS dev.xcode.app — so helperLauncher passes it as
       // `--launcher-pid` and the Helper's signature/peer verification succeeds instead of
       // health-timing out. Env-name mirror of services' LAUNCHER_PID_ENV. Not set on
       // Windows/Linux (CUA is macOS-only; nothing reads it there) to keep the host env pristine.
-      ...(process.platform === "darwin" ? { ZCODE_CUA_LAUNCHER_PID: String(process.pid) } : {}),
+      ...(process.platform === "darwin" ? { XCODE_CUA_LAUNCHER_PID: String(process.pid) } : {}),
       ...(dependencies.desktopContextPromptEnabled
         ? {
-            [ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV]: dependencies.desktopContextPromptEnabled()
+            [XCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV]: dependencies.desktopContextPromptEnabled()
               ? "1"
               : "0",
           }
@@ -332,10 +322,7 @@ export function spawnHostProcess(
       ingestHostNetworkObservations(result.data.observations);
       return;
     }
-    if (result.data.type === HostResponseTypes.NetworkCaptureBatch) {
-      ingestHostNetworkCapture(result.data.batch, child.pid ?? 0);
-      return;
-    }
+
     // CLI 自采的 60 秒样本：按 services 打的 lane 归入 cli_chat / cli_aux 角色。
     if (result.data.type === HostResponseTypes.AgentResourceSample) {
       ingestCliResourceSample(
@@ -410,32 +397,6 @@ export function spawnHostProcess(
             error: error instanceof Error ? error.message : String(error),
           });
         });
-      return;
-    }
-
-    if (result.data.type === HostResponseTypes.PluginSandboxRegisterRequest) {
-      const request = result.data;
-      const register = dependencies.registerPluginSandbox;
-      const reply = (payload: PluginSandboxRegisterResultPayload) =>
-        child.postMessage({ type: HostMessageTypes.PluginSandboxRegisterResult, ...payload });
-      if (!register || win.isDestroyed() || request.ownerWebContentsId !== win.webContents.id) {
-        reply({
-          requestId: request.requestId,
-          ok: false,
-          error: "Plugin UI sandbox is unavailable.",
-        });
-        return;
-      }
-      void Promise.resolve()
-        .then(() => register(request))
-        .then((handle) => reply({ requestId: request.requestId, ok: true, ...handle }))
-        .catch((error: unknown) =>
-          reply({
-            requestId: request.requestId,
-            ok: false,
-            error: error instanceof Error ? error.message : String(error),
-          }),
-        );
       return;
     }
 
@@ -605,6 +566,7 @@ export function spawnHostProcess(
       return;
     }
 
+
     if (result.data.type === HostResponseTypes.BotRemoteWorkspaceReconnectRequest) {
       const request = result.data;
       const handler = dependencies.handleBotRemoteWorkspaceReconnectRequest;
@@ -694,7 +656,7 @@ export function spawnHostProcess(
           type: HostMessageTypes.BotRemoteWorkspaceRuntimePort,
           requestId: request.requestId,
           ok: false,
-          // Bugfix: 远端 Bot 不能在缺少 runtime bridge 时回落到本地 ZCode Agent，
+          // Bugfix: 远端 Bot 不能在缺少 runtime bridge 时回落到本地 XCode Agent，
           // 否则会把 remote workspace 的任务写到本地并触发错误模型。
           error: "未注入 Bot 远端 workspace runtime 处理器。",
         });

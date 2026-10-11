@@ -5,22 +5,22 @@ import { basename, dirname, resolve } from "node:path";
 import type { ProviderConfigLayerSnapshot, ProviderSource } from "@zcode/provider";
 import { atomicWritePrivateTextFile, withFileLock } from "@zcode/shared/node";
 import {
-  decodeZCodeBuiltinRelease,
-  encodeZCodeBuiltinRelease,
-  serializeZCodeBuiltinRelease,
-  type ZCodeBuiltinRelease,
+  decodeXCodeBuiltinRelease,
+  encodeXCodeBuiltinRelease,
+  serializeXCodeBuiltinRelease,
+  type XCodeBuiltinRelease,
 } from "./zcode-builtin-release.js";
 
-export interface NodeZCodeBuiltinProviderConfigSourceOptions {
+export interface NodeXCodeBuiltinProviderConfigSourceOptions {
   readonly bundledFilePath: string;
   readonly activeFilePath?: string;
   readonly watch?: boolean;
 }
 
-export type ApplyZCodeBuiltinReleaseResult = "updated" | "unchanged" | "stale";
+export type ApplyXCodeBuiltinReleaseResult = "updated" | "unchanged" | "stale";
 
 /** Bundled、Active/LKG 与 Remote 共用同一 Release，并最终发布为现有 Config Snapshot。 */
-export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<ProviderConfigLayerSnapshot> {
+export class NodeXCodeBuiltinProviderConfigSource implements ProviderSource<ProviderConfigLayerSnapshot> {
   readonly #bundledFilePath: string;
   readonly #activeFilePath: string;
   readonly #sourceKey: string;
@@ -31,9 +31,9 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
   #watchRefresh = Promise.resolve();
   #disposed = false;
 
-  constructor(options: NodeZCodeBuiltinProviderConfigSourceOptions) {
+  constructor(options: NodeXCodeBuiltinProviderConfigSourceOptions) {
     const bundledFilePath = options.bundledFilePath.trim();
-    if (!bundledFilePath) throw new Error("ZCode Built-in bundledFilePath 不能为空");
+    if (!bundledFilePath) throw new Error("XCode Built-in bundledFilePath 不能为空");
     this.#bundledFilePath = bundledFilePath;
     this.#activeFilePath = options.activeFilePath?.trim() || bundledFilePath;
     // 旧标识只有发布序号，不同 Endpoint 同序号会让 Registry 误复用上一来源。
@@ -48,7 +48,7 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
 
   async read(): Promise<ProviderConfigLayerSnapshot> {
     this.#assertNotDisposed();
-    let release: ZCodeBuiltinRelease;
+    let release: XCodeBuiltinRelease;
     try {
       await this.#ensureWatcher();
       release = await withFileLock(this.#activeFilePath, () => this.#readAndMaterializeLocked());
@@ -61,7 +61,7 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
     return snapshotFromRelease(release, this.#sourceKey);
   }
 
-  async applyRemoteRelease(release: ZCodeBuiltinRelease): Promise<ApplyZCodeBuiltinReleaseResult> {
+  async applyRemoteRelease(release: XCodeBuiltinRelease): Promise<ApplyXCodeBuiltinReleaseResult> {
     this.#assertNotDisposed();
     await this.#ensureWatcher();
     const result = await withFileLock(this.#activeFilePath, async () => {
@@ -70,10 +70,10 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
       this.#assertNotDisposed();
       if (release.revision < current.revision) return "stale" as const;
       if (release.revision === current.revision) {
-        if (serializeZCodeBuiltinRelease(release) === serializeZCodeBuiltinRelease(current)) {
+        if (serializeXCodeBuiltinRelease(release) === serializeXCodeBuiltinRelease(current)) {
           return "unchanged" as const;
         }
-        throw new Error(`ZCode Built-in 相同 revision ${release.revision} 对应不同内容`);
+        throw new Error(`XCode Built-in 相同 revision ${release.revision} 对应不同内容`);
       }
       await this.#writeActiveLocked(release);
       this.#observedSignature = signatureOf(release);
@@ -97,7 +97,7 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
     this.#listeners.clear();
   }
 
-  async #readAndMaterializeLocked(): Promise<ZCodeBuiltinRelease> {
+  async #readAndMaterializeLocked(): Promise<XCodeBuiltinRelease> {
     const [bundled, active] = await Promise.all([
       readReleaseCandidate(this.#bundledFilePath),
       this.#activeFilePath === this.#bundledFilePath
@@ -112,11 +112,11 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
     return selected;
   }
 
-  async #writeActiveLocked(release: ZCodeBuiltinRelease): Promise<void> {
+  async #writeActiveLocked(release: XCodeBuiltinRelease): Promise<void> {
     this.#assertNotDisposed();
     await atomicWritePrivateTextFile(
       this.#activeFilePath,
-      JSON.stringify(encodeZCodeBuiltinRelease(release), null, 2),
+      JSON.stringify(encodeXCodeBuiltinRelease(release), null, 2),
     );
   }
 
@@ -153,24 +153,24 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
   }
 
   #assertNotDisposed(): void {
-    if (this.#disposed) throw new Error("NodeZCodeBuiltinProviderConfigSource 已 dispose");
+    if (this.#disposed) throw new Error("NodeXCodeBuiltinProviderConfigSource 已 dispose");
   }
 }
 
-export function createNodeZCodeBuiltinProviderConfigSource(
-  options: NodeZCodeBuiltinProviderConfigSourceOptions,
-): NodeZCodeBuiltinProviderConfigSource {
-  return new NodeZCodeBuiltinProviderConfigSource(options);
+export function createNodeXCodeBuiltinProviderConfigSource(
+  options: NodeXCodeBuiltinProviderConfigSourceOptions,
+): NodeXCodeBuiltinProviderConfigSource {
+  return new NodeXCodeBuiltinProviderConfigSource(options);
 }
 
 interface ReleaseCandidate {
-  readonly release?: ZCodeBuiltinRelease;
+  readonly release?: XCodeBuiltinRelease;
   readonly error?: unknown;
 }
 
 async function readReleaseCandidate(filePath: string): Promise<ReleaseCandidate | null> {
   try {
-    return { release: decodeZCodeBuiltinRelease(JSON.parse(await readFile(filePath, "utf8"))) };
+    return { release: decodeXCodeBuiltinRelease(JSON.parse(await readFile(filePath, "utf8"))) };
   } catch (error) {
     if (isFileNotFound(error)) return null;
     return { error };
@@ -180,24 +180,24 @@ async function readReleaseCandidate(filePath: string): Promise<ReleaseCandidate 
 function selectReleaseCandidate(
   bundled: ReleaseCandidate | null,
   active: ReleaseCandidate | null,
-): ZCodeBuiltinRelease {
+): XCodeBuiltinRelease {
   if (
     bundled?.release &&
     active?.release &&
     bundled.release.revision === active.release.revision &&
-    serializeZCodeBuiltinRelease(bundled.release) !== serializeZCodeBuiltinRelease(active.release)
+    serializeXCodeBuiltinRelease(bundled.release) !== serializeXCodeBuiltinRelease(active.release)
   ) {
     // 同 revision 冲突属于 Active 缓存失效，不能反向使可信 Bundled 无法启动。
     // 返回 Bundled 后调用方会在能够写入时原子替换 Active。
     return bundled.release;
   }
   const valid = [bundled?.release, active?.release].filter(
-    (candidate): candidate is ZCodeBuiltinRelease => candidate !== undefined,
+    (candidate): candidate is XCodeBuiltinRelease => candidate !== undefined,
   );
   if (valid.length === 0) {
     throw new AggregateError(
       [bundled?.error, active?.error].filter((error) => error !== undefined),
-      "Bundled 与 Active ZCode Built-in Release 均不可用",
+      "Bundled 与 Active XCode Built-in Release 均不可用",
     );
   }
   return valid.reduce((newest, candidate) =>
@@ -206,7 +206,7 @@ function selectReleaseCandidate(
 }
 
 function snapshotFromRelease(
-  release: ZCodeBuiltinRelease,
+  release: XCodeBuiltinRelease,
   sourceKey: string,
 ): ProviderConfigLayerSnapshot {
   return Object.freeze({
@@ -217,8 +217,8 @@ function snapshotFromRelease(
   });
 }
 
-function signatureOf(release: ZCodeBuiltinRelease): string {
-  return `${release.revision}:${serializeZCodeBuiltinRelease(release)}`;
+function signatureOf(release: XCodeBuiltinRelease): string {
+  return `${release.revision}:${serializeXCodeBuiltinRelease(release)}`;
 }
 
 function isFileNotFound(error: unknown): boolean {

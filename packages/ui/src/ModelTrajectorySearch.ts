@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { ZCodeModelTrajectoryMessage, ZCodeModelTrajectoryRecord } from "@zcode/services";
+import type { XCodeModelTrajectoryMessage, XCodeModelTrajectoryRecord } from "@zcode/services";
 import {
   trajectoryToolCallInputs,
   trajectoryToolMetadata,
@@ -20,15 +20,15 @@ export interface TrajectorySearchMatch {
   sourceText: string;
 }
 
-export interface TrajectorySearchIndex {
+interface TrajectorySearchIndex {
   query: string;
   matches: TrajectorySearchMatch[];
 }
 
 export interface TrajectorySearchTimelineItem {
   key: string;
-  record: ZCodeModelTrajectoryRecord;
-  inputMessages: ZCodeModelTrajectoryMessage[];
+  record: XCodeModelTrajectoryRecord;
+  inputMessages: XCodeModelTrajectoryMessage[];
 }
 
 interface SearchTarget {
@@ -98,7 +98,7 @@ function messageTargets(
   callKey: string,
   callIndex: number,
   expansionKey: string,
-  message: ZCodeModelTrajectoryMessage,
+  message: XCodeModelTrajectoryMessage,
 ): SearchTarget[] {
   const metadata = trajectoryToolMetadata(message);
   const content = message.parts.some((part) => part.kind === "tool-result")
@@ -149,7 +149,7 @@ export function findTrajectoryTextMatches(
   return matches;
 }
 
-export function normalizeTrajectorySearchText(source: string): {
+function normalizeTrajectorySearchText(source: string): {
   text: string;
   starts: number[];
   ends: number[];

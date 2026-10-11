@@ -1,12 +1,12 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { ZCODE_PLUGIN_HOST_COMMAND } from "@zcode/contracts/plugins";
-import { getCapturedZCodeCuaBrokerCredentials, ZCODE_CUA_BROKER_SOCKET_ENV_KEY, ZCODE_CUA_NODE_REPL_HOST_ENV_KEY, } from "@zcode/shared/runtime-env";
-import { ZCODE_CUA_OFFICIAL_PLUGIN_ID, ZCODE_PLUGIN_ID_ENV_KEY } from "@zcode/shared/mcp";
-const HOST_USAGE = `${ZCODE_PLUGIN_HOST_COMMAND} <server-path> [-- <server-arg>...]`;
+import { XCODE_PLUGIN_HOST_COMMAND } from "@zcode/contracts/plugins";
+import { getCapturedXCodeCuaBrokerCredentials, XCODE_CUA_BROKER_SOCKET_ENV_KEY, XCODE_CUA_NODE_REPL_HOST_ENV_KEY, } from "@zcode/shared/runtime-env";
+import { XCODE_CUA_OFFICIAL_PLUGIN_ID, XCODE_PLUGIN_ID_ENV_KEY } from "@zcode/shared/mcp";
+const HOST_USAGE = `${XCODE_PLUGIN_HOST_COMMAND} <server-path> [-- <server-arg>...]`;
 export function isPluginHostInvocation(argv) {
-    return argv[0] === ZCODE_PLUGIN_HOST_COMMAND;
+    return argv[0] === XCODE_PLUGIN_HOST_COMMAND;
 }
 // __zcode-plugin-host 在 agent 子进程里运行 official plugin 的 MCP server（server.js）。
 // CLI 入口 main.ts 的 applyCliRuntimeEnvSanitization 会先把 broker token 从 process.env 剔除进
@@ -29,19 +29,19 @@ export async function runPluginHostCommand(ctx, argv) {
         if (!existsSync(serverPath)) {
             throw new Error("Plugin server file does not exist.");
         }
-        const capturedBrokerCredentials = getCapturedZCodeCuaBrokerCredentials();
+        const capturedBrokerCredentials = getCapturedXCodeCuaBrokerCredentials();
         assertCapturedBrokerLaunchIsAuthorized(capturedBrokerCredentials);
         const module = (await import(pathToFileURL(serverPath).href));
         if (typeof module.main !== "function") {
             throw new Error("Plugin server does not export main().");
         }
         const originalArgv = process.argv;
-        const originalBrokerSocket = process.env[ZCODE_CUA_BROKER_SOCKET_ENV_KEY];
+        const originalBrokerSocket = process.env[XCODE_CUA_BROKER_SOCKET_ENV_KEY];
         // shared node_repl 把同一凭据组恢复到环境，由 broker bridge 读取；旧的独立 CUA
         // MCP 不再拥有执行入口。
         process.argv = [process.execPath, serverPath, ...serverArgs];
-        if (capturedBrokerCredentials.socket && process.env[ZCODE_CUA_NODE_REPL_HOST_ENV_KEY] === "1") {
-            process.env[ZCODE_CUA_BROKER_SOCKET_ENV_KEY] = capturedBrokerCredentials.socket;
+        if (capturedBrokerCredentials.socket && process.env[XCODE_CUA_NODE_REPL_HOST_ENV_KEY] === "1") {
+            process.env[XCODE_CUA_BROKER_SOCKET_ENV_KEY] = capturedBrokerCredentials.socket;
         }
         try {
             await module.main();
@@ -49,10 +49,10 @@ export async function runPluginHostCommand(ctx, argv) {
         finally {
             process.argv = originalArgv;
             if (originalBrokerSocket === undefined) {
-                delete process.env[ZCODE_CUA_BROKER_SOCKET_ENV_KEY];
+                delete process.env[XCODE_CUA_BROKER_SOCKET_ENV_KEY];
             }
             else {
-                process.env[ZCODE_CUA_BROKER_SOCKET_ENV_KEY] = originalBrokerSocket;
+                process.env[XCODE_CUA_BROKER_SOCKET_ENV_KEY] = originalBrokerSocket;
             }
         }
         return 0;
@@ -67,7 +67,7 @@ function assertCapturedBrokerLaunchIsAuthorized(credentials) {
     const hasCapturedCredentials = Boolean(credentials.socket || credentials.pluginAuthority);
     if (!hasCapturedCredentials)
         return;
-    const pluginId = process.env[ZCODE_PLUGIN_ID_ENV_KEY]?.trim().toLowerCase();
+    const pluginId = process.env[XCODE_PLUGIN_ID_ENV_KEY]?.trim().toLowerCase();
     // 凭据组里已经没有 token 了：broker 全平台改为身份模式（Helper 按对端代码签名裁决连接），
     // shared/runtimeEnv.ts 的 CapturedCuaBrokerCredentials 只有 socket + pluginAuthority
     // (+ refreshMarker)。这里不能再读 `credentials.token`；token 已从凭据组移除，
@@ -78,8 +78,8 @@ function assertCapturedBrokerLaunchIsAuthorized(credentials) {
     // 退出（"connection closed during the server/discover probe"），工具面为空。
     if (credentials.socket === undefined ||
         credentials.pluginAuthority === undefined ||
-        pluginId !== ZCODE_CUA_OFFICIAL_PLUGIN_ID ||
-        process.env[ZCODE_CUA_NODE_REPL_HOST_ENV_KEY] !== "1") {
-        throw new Error("Captured ZCode CUA broker credentials may only launch the trusted shared node_repl host");
+        pluginId !== XCODE_CUA_OFFICIAL_PLUGIN_ID ||
+        process.env[XCODE_CUA_NODE_REPL_HOST_ENV_KEY] !== "1") {
+        throw new Error("Captured XCode CUA broker credentials may only launch the trusted shared node_repl host");
     }
 }

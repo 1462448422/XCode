@@ -1,5 +1,5 @@
 import { formatJson } from "@zcode/core";
-const COMMANDS_COMMAND_USAGE = "Usage: zcode commands [list|inspect <name>]";
+const COMMANDS_COMMAND_USAGE = "Usage: xcode commands [list|inspect <name>]";
 export async function runCommandsCommand(ctx, options, deps, args) {
     const subcommand = args[0] ?? "list";
     if (subcommand === "list") {
@@ -60,13 +60,13 @@ async function resolveListCustomCommands(deps) {
     if (deps.listCustomCommands)
         return deps.listCustomCommands;
     const bootstrap = deps.loadBootstrapModule ?? (() => import("@zcode/bootstrap"));
-    return (await bootstrap()).listZCodeCustomCommands;
+    return (await bootstrap()).listXCodeCustomCommands;
 }
 async function resolveInspectCustomCommand(deps) {
     if (deps.inspectCustomCommand)
         return deps.inspectCustomCommand;
     const bootstrap = deps.loadBootstrapModule ?? (() => import("@zcode/bootstrap"));
-    return (await bootstrap()).inspectZCodeCustomCommand;
+    return (await bootstrap()).inspectXCodeCustomCommand;
 }
 function reportCommandsError(ctx, options, error) {
     const message = error instanceof Error ? error.message : String(error);

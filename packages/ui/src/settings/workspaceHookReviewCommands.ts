@@ -34,7 +34,7 @@ export async function sendWorkspaceHookCommand<T extends CommandType>(
   }
 }
 
-export function toWorkspaceHookReviewCommandTarget(request: WorkspaceHookReviewRequestPayload) {
+function toWorkspaceHookReviewCommandTarget(request: WorkspaceHookReviewRequestPayload) {
   return {
     sessionId: request.sessionId,
     taskId: request.taskId,

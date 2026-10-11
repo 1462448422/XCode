@@ -12,7 +12,7 @@
  * 默认键位保持既有行为，零变化。
  */
 import { useEffect, useRef } from "react";
-import type { ShortcutCommandId, ZCodeConfigOption } from "@zcode/shared";
+import type { ShortcutCommandId, XCodeConfigOption } from "@zcode/shared";
 import {
   isShortcutRecordingActive,
   matchesShortcutBinding,
@@ -23,9 +23,9 @@ import { logger } from "@/logger.js";
 
 type ChatToolbarShortcutKey = "m" | "ctrlShiftM" | "t" | null;
 
-/** 旧 chatInputControlShortcuts.getChatToolbarShortcutKey 原样恢复。 */
-export function getChatToolbarShortcutKey(
-  category: ZCodeConfigOption["category"],
+/** 按 config category 解析工具条热键槽位。 */
+function getChatToolbarShortcutKey(
+  category: XCodeConfigOption["category"],
 ): ChatToolbarShortcutKey {
   switch (category) {
     case "model":
@@ -41,7 +41,7 @@ export function getChatToolbarShortcutKey(
 
 /** 计算 select 选项的下一次循环取值（模式循环用）。 */
 export function getNextConfigSelectValue(
-  option: Pick<ZCodeConfigOption, "type" | "currentValue" | "options">,
+  option: Pick<XCodeConfigOption, "type" | "currentValue" | "options">,
 ): string | null {
   if (option.type !== "select" || !option.options?.length) {
     return null;
@@ -70,9 +70,9 @@ interface ToolbarShortcutState {
   hasAnyOption: boolean;
   toolbarDisabled: boolean;
   modelMenuDisabled: boolean;
-  modelOption?: ZCodeConfigOption;
-  modeOption?: ZCodeConfigOption;
-  thoughtOption?: ZCodeConfigOption;
+  modelOption?: XCodeConfigOption;
+  modeOption?: XCodeConfigOption;
+  thoughtOption?: XCodeConfigOption;
 }
 
 type ToolbarShortcutAction = "openModelMenu" | "cycleSessionMode" | "cycleThoughtLevel";
@@ -83,7 +83,7 @@ type ToolbarShortcutAction = "openModelMenu" | "cycleSessionMode" | "cycleThough
  * 对 "Ctrl+m" / "Ctrl+Shift+m" / "Ctrl+t" 的语义一致）；原 option 归属与 disabled
  * 门控保持不变。事件与生效表由调用方传入，纯函数可独立单测。
  */
-export function resolveToolbarShortcutAction(
+function resolveToolbarShortcutAction(
   event: ToolbarShortcutKeyboardEvent,
   effective: EffectiveShortcutBindings,
   {
@@ -109,7 +109,7 @@ export function resolveToolbarShortcutAction(
     action: ToolbarShortcutAction;
     commandId: ShortcutCommandId;
     expectedKey: ChatToolbarShortcutKey;
-    option?: ZCodeConfigOption;
+    option?: XCodeConfigOption;
     disabled?: boolean;
   }> = [
     {
@@ -137,7 +137,10 @@ export function resolveToolbarShortcutAction(
     if (candidate.disabled) {
       continue;
     }
-    if (!candidate.option || getChatToolbarShortcutKey(candidate.option.category) !== candidate.expectedKey) {
+    if (
+      !candidate.option ||
+      getChatToolbarShortcutKey(candidate.option.category) !== candidate.expectedKey
+    ) {
       continue;
     }
     for (const binding of effective[candidate.commandId] ?? []) {
@@ -154,9 +157,9 @@ export function useToolbarShortcutBindings(params: {
   hasAnyOption: boolean;
   toolbarDisabled: boolean;
   modelMenuDisabled: boolean;
-  modelOption?: ZCodeConfigOption;
-  modeOption?: ZCodeConfigOption;
-  thoughtOption?: ZCodeConfigOption;
+  modelOption?: XCodeConfigOption;
+  modeOption?: XCodeConfigOption;
+  thoughtOption?: XCodeConfigOption;
   onOpenModelMenu: () => void;
   /** Ctrl+Shift+M：参考 thought level，按选项顺序快速切换会话模式，不打开菜单。 */
   onCycleSessionMode: () => void;

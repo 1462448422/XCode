@@ -1,4 +1,3 @@
-import type { PluginUiToolBinding } from "@/plugin-ui/contract.js";
 import type { ReactNode } from "react";
 import type { WorkflowRunState } from "@zcode/shared/zcode-protocol-v4";
 import type { MessageFileLinkTarget } from "@/components/ai-elements/message.js";
@@ -89,7 +88,7 @@ export function readRawToolCallInput(raw: unknown): unknown {
     return raw.rawInput;
   }
 
-  // ZCode protocol 的 permission/request payload 按 schema 把工具参数放在 input，
+  // XCode protocol 的 permission/request payload 按 schema 把工具参数放在 input，
   // 旧 UI 只读兼容输入字段 rawInput，Write/Edit 会退化成整段 JSON 展示而不是文件 diff。
   return "input" in raw ? raw.input : null;
 }
@@ -206,11 +205,6 @@ export interface ToolCallBlockRenderContext {
   toolCallNode: TaskChatToolCallTreeNode;
   workspacePath: string;
   /**
-   * 插件 UI：scope 是沙箱登记需要的 session 范围，onOpenSidePane 是"在侧栏打开"回调；
-   * 由 PluginUiSessionProvider 在边界注入。缺省表示宿主不提供，带 ui:// 资源的工具回退普通 MCP 卡片。
-   */
-  pluginUi?: PluginUiToolBinding;
-  /**
    * 应用主题（store 耦合剥离）：由构建 render context 的宿主
    * （ToolCallBlock / PermissionDialog 等）从上层状态传入，供
    * MessageResponse / EditInlineDiffContent 等展示组件做 light/dark 分流。
@@ -223,8 +217,6 @@ export interface ToolCallBlockRenderContext {
   viewerSource: CodeViewerSource | null;
   rawFileSummaries: RawToolCallFileSummary[];
   isRunning: boolean;
-  /** 权限预览尚未执行，不展示任何输出或空输出占位。 */
-  isPermissionPreview?: boolean;
   statusLabel: string;
   sourceLabel?: string;
   errorText?: string;

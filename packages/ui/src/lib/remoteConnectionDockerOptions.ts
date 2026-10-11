@@ -1,11 +1,8 @@
 import type { DockerContainerInfo, IPlatformService } from "@zcode/shared";
 
-type DockerOptionsPlatform = Pick<
-  IPlatformService,
-  "isDockerAvailable" | "listDockerContainers"
->;
+type DockerOptionsPlatform = Pick<IPlatformService, "isDockerAvailable" | "listDockerContainers">;
 
-export interface RemoteConnectionDockerOptionsResult {
+interface RemoteConnectionDockerOptionsResult {
   dockerAvailable: boolean | null;
   dockerContainers: DockerContainerInfo[];
   error: string;
@@ -52,8 +49,7 @@ export function resolveDockerContainerSelectionAfterRefresh({
   }
 
   const selectedContainerStillRunning = dockerContainers.some(
-    (container) =>
-      container.name === selectedContainer || container.id === selectedContainer,
+    (container) => container.name === selectedContainer || container.id === selectedContainer,
   );
 
   return selectedContainerStillRunning ? selectedContainer : "";

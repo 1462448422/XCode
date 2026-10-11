@@ -1,4 +1,3 @@
-import type { DynamicWorkflowMode } from "@zcode/shared";
 import type { TuiSlashCommandSuggestion } from "@zcode/tui";
 import {
   findCustomCommandHelpEntry,
@@ -10,30 +9,8 @@ import {
 import { SLASH_COMMAND_HELP_ENTRIES, type SlashCommandHelpEntry } from "./slash-command-help.js";
 import type { SlashCommand } from "./slash-command-types.js";
 import { splitArgs } from "./utils.js";
-import { isWorkflowModeEnabled } from "../workflow-mode.js";
 
-const WORKFLOW_COMMAND_NAME = "workflow";
-
-export type SlashCommandSurfaceOptions = {
-  /** 缺席不设门（单测、嵌入方）；CLI 入口总会传入解析后的 `--workflow-mode`。 */
-  workflowMode?: DynamicWorkflowMode;
-};
-
-/**
- * 命令面（建议、`/help`、未知命令提示）共用的可见集合：`disabled` 下去掉 `/workflow`，
- * 与 builtin resolver 不展开它是同一个结论（launch.md「The standalone CLI: `--workflow-mode`」）。
- */
-function visibleHelpEntries(
-  options?: SlashCommandSurfaceOptions,
-): readonly SlashCommandHelpEntry[] {
-  return isWorkflowModeEnabled(options?.workflowMode)
-    ? SLASH_COMMAND_HELP_ENTRIES
-    : SLASH_COMMAND_HELP_ENTRIES.filter((entry) => entry.name !== WORKFLOW_COMMAND_NAME);
-}
-
-export function listAvailableCommandNames(options?: SlashCommandSurfaceOptions): string[] {
-  return visibleHelpEntries(options).map((entry) => `/${entry.name}`);
-}
+export const AVAILABLE_COMMANDS = SLASH_COMMAND_HELP_ENTRIES.map((entry) => `/${entry.name}`);
 
 const SKILL_COMMAND_USAGE = "Usage: /skill [<skill-name> [task]]";
 
@@ -271,10 +248,9 @@ export function manualSkillCommandUsage(): string {
 
 export function listSlashCommandSuggestions(
   customCommands?: CommandCenterCustomCommandListOutcome,
-  options?: SlashCommandSurfaceOptions,
 ): TuiSlashCommandSuggestion[] {
   return [
-    ...visibleHelpEntries(options).map((entry) => ({
+    ...SLASH_COMMAND_HELP_ENTRIES.map((entry) => ({
       ...(entry.aliases ? { aliases: entry.aliases } : {}),
       name: entry.name,
       summary: entry.summary,
@@ -287,23 +263,21 @@ export function listSlashCommandSuggestions(
 export function formatSlashCommandHelp(
   args = "",
   customCommands?: CommandCenterCustomCommandListOutcome,
-  options?: SlashCommandSurfaceOptions,
 ): string {
-  const entries = visibleHelpEntries(options);
   const target = normalizeHelpTarget(args);
   if (target) {
-    const entry = findSlashCommandHelpEntry(entries, target);
+    const entry = findSlashCommandHelpEntry(target);
     if (entry) return formatSlashCommandHelpEntry(entry);
 
     const custom = findCustomCommandHelpEntry(target, customCommands);
     if (custom) return formatCustomCommandHelpEntry(custom);
 
-    return `Unknown slash command: /${target}. Available commands: ${formatAvailableCommandNames(listAvailableCommandNames(options), customCommands)}.`;
+    return `Unknown slash command: /${target}. Available commands: ${formatAvailableCommandNames(AVAILABLE_COMMANDS, customCommands)}.`;
   }
 
   const lines = [
     "Slash commands:",
-    ...entries.map((entry) => `- ${entry.usage}: ${entry.summary}`),
+    ...SLASH_COMMAND_HELP_ENTRIES.map((entry) => `- ${entry.usage}: ${entry.summary}`),
   ];
   if (customCommands && customCommands.commands.length > 0) {
     lines.push(
@@ -325,11 +299,10 @@ function normalizeHelpTarget(args: string): string | undefined {
   return normalized && normalized.length > 0 ? normalized : undefined;
 }
 
-function findSlashCommandHelpEntry(
-  entries: readonly SlashCommandHelpEntry[],
-  name: string,
-): SlashCommandHelpEntry | undefined {
-  return entries.find((entry) => entry.name === name || entry.aliases?.includes(name));
+function findSlashCommandHelpEntry(name: string): SlashCommandHelpEntry | undefined {
+  return SLASH_COMMAND_HELP_ENTRIES.find(
+    (entry) => entry.name === name || entry.aliases?.includes(name),
+  );
 }
 
 function formatSlashCommandHelpEntry(entry: SlashCommandHelpEntry): string {

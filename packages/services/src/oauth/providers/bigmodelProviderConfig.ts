@@ -2,7 +2,7 @@ import { BIGMODEL_PROVIDER_ID, buildBigModelApiUrl } from "@zcode/shared";
 import type { OAuthProviderRuntimeConfig } from "../runtimeConfig.js";
 import {
   buildDesktopOAuthRedirectUriFromEnv,
-  buildZCodeApiUrlFromEnv,
+  buildXCodeApiUrlFromEnv,
   readBoolean,
   readEnv,
 } from "./configUtils.js";
@@ -10,14 +10,14 @@ import {
 const BIGMODEL_USERINFO_PATH = "/api/biz/customer/getCustomerInfo";
 const BIGMODEL_AUTHORIZE_PATH = "/login";
 
-export const BIGMODEL_OAUTH_PROVIDER_CONFIG: Omit<OAuthProviderRuntimeConfig, "appSecret"> = {
+const BIGMODEL_OAUTH_PROVIDER_CONFIG: Omit<OAuthProviderRuntimeConfig, "appSecret"> = {
   id: BIGMODEL_PROVIDER_ID,
   displayName: "BigModel",
   enabled: true,
   order: 0,
   authorizeUrl: "https://bigmodel.cn/login",
   tokenUrl: "https://zcode.z.ai/api/v1/oauth/token",
-  userinfoUrl: buildBigModelApiUrl({ ZCODE_ENV: "production" }, BIGMODEL_USERINFO_PATH),
+  userinfoUrl: buildBigModelApiUrl({ XCODE_ENV: "production" }, BIGMODEL_USERINFO_PATH),
   appId: "zcode",
   redirectUri: "zcode://oauth/callback",
 };
@@ -33,7 +33,7 @@ export function createBigModelProviderRuntimeConfig(
       buildBigModelApiUrl(env, BIGMODEL_AUTHORIZE_PATH),
     tokenUrl:
       readEnv(env, "BIGMODEL_OAUTH_TOKEN_URL") ??
-      buildZCodeApiUrlFromEnv(env, "/api/v1/oauth/token"),
+      buildXCodeApiUrlFromEnv(env, "/api/v1/oauth/token"),
     userinfoUrl: resolveBigModelUserinfoUrl(env),
     appId: readEnv(env, "BIGMODEL_OAUTH_APP_ID") ?? BIGMODEL_OAUTH_PROVIDER_CONFIG.appId,
     redirectUri: buildDesktopOAuthRedirectUriFromEnv(env),

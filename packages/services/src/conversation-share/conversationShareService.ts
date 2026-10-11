@@ -21,18 +21,18 @@ import {
   extractConversationPreviewFileReferences,
   type ConversationPreviewArtifactCandidate,
   localizeConversationShareUrl,
-  resolveRuntimeZCodeEndpointOrigin,
+  resolveRuntimeXCodeEndpointOrigin,
 } from "@zcode/shared";
 import type { ConversationRow } from "@zcode/shared/zcode-protocol-v4";
 import {
   PROTOCOL_V4_LIMITS,
-  ZCODE_ATTACHMENT_FAULT_CODES,
-  readZCodeAttachmentFaultCode,
+  XCODE_ATTACHMENT_FAULT_CODES,
+  readXCodeAttachmentFaultCode,
 } from "@zcode/shared/zcode-protocol-v4";
 import { Emitter } from "@zcode/rpc";
 
-import type { IZCodeAgentService } from "../zcode-agent/zcodeAgent.js";
-import type { IZCodeSessionService } from "#src/zcode-session/zcodeSession.js";
+import type { IXCodeAgentService } from "../zcode-agent/zcodeAgent.js";
+import type { IXCodeSessionService } from "#src/zcode-session/zcodeSession.js";
 import { getConversationWorkspaceDir } from "#src/paths.js";
 import { createServiceLogger, type ServiceLogger } from "#src/logger/serviceLogger.js";
 import {
@@ -64,7 +64,6 @@ import {
   buildConversationShareConfirmRequest,
   sha256ConversationShareJson,
 } from "./conversationShareIntegrity.js";
-import { materializeConversationShareInlineImages } from "./conversationShareInlineImages.js";
 import { buildConversationSharePublicProjection } from "./conversationSharePublicProjection.js";
 import type { ConversationShareArtifactSource } from "./conversationShareArtifactSource.js";
 import { formatSharedContextV1 } from "./sharedContextFormatter.js";
@@ -160,7 +159,7 @@ function uniqueImportedFileName(
   return candidate;
 }
 
-export interface ConversationShareServiceOptions {
+interface ConversationShareServiceOptions {
   zcodeAgentService: ConversationShareAgentService;
   client: ConversationShareHttpClient;
   artifactSource: ConversationShareArtifactSource;
@@ -168,7 +167,7 @@ export interface ConversationShareServiceOptions {
   confirmPollTimeoutMs?: number;
   now?: () => number;
   sleep?: (delayMs: number) => Promise<void>;
-  zcodeSessionService?: Pick<IZCodeSessionService, "createSession" | "listSessions">;
+  zcodeSessionService?: Pick<IXCodeSessionService, "createSession" | "listSessions">;
   download?: (url: string, init?: { signal?: AbortSignal }) => Promise<Response>;
   /** 单个 artifact 下载的超时（含读 body）；缺省 120s。 */
   downloadTimeoutMs?: number;
@@ -179,7 +178,7 @@ export interface ConversationShareServiceOptions {
 }
 
 type ConversationShareAgentService = Pick<
-  IZCodeAgentService,
+  IXCodeAgentService,
   | "conversationRowsRangeV4"
   | "conversationFileChangesV4"
   | "conversationAttachmentReadV4"
@@ -326,6 +325,14 @@ function hasUnsupportedArtifactReference(value: unknown): boolean {
 function sanitizeUnsupportedShareStructures(rows: readonly ConversationRow[]): ConversationRow[] {
   const sanitized: ConversationRow[] = [];
   for (const row of rows) {
+    if (row.kind === "toolCall" && row.display?.kind === "node_repl_images") {
+      // 内嵌图片就在 display.images 的 base64 里，删掉 display 即移除全部图片字节。
+      const { display: _display, ...rest } = row;
+      // 这些图片无法在公开 projection 中闭合，但不需要用户处理；静默移除，避免把内部
+      // renderer 结构误报成“有文件被跳过”。
+      sanitized.push(rest);
+      continue;
+    }
     if (row.kind === "timelineMarker") {
       // 运行中的 marker 留着，让 collectShareStructureIssues 照旧阻断——内容尚未定稿。
       // 被阻断的发布不会进入投影，保留该 marker 无副作用。
@@ -508,11 +515,11 @@ function allowedArtifactFor(
  * 仅在 fault 码缺席时保留一条 errno 文本兜底，用于尚未带结构化码的旧 zcode-cli。
  */
 function isDefiniteMissingAttachment(error: unknown): boolean {
-  const faultCode = readZCodeAttachmentFaultCode(error);
+  const faultCode = readXCodeAttachmentFaultCode(error);
   if (faultCode) {
     return (
-      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareStatNotFound ||
-      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.statNotFile
+      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareStatNotFound ||
+      faultCode === XCODE_ATTACHMENT_FAULT_CODES.statNotFile
     );
   }
   const message = error instanceof Error ? error.message : String(error);
@@ -520,13 +527,13 @@ function isDefiniteMissingAttachment(error: unknown): boolean {
 }
 
 function isAttachmentAuthorizationError(error: unknown): boolean {
-  const faultCode = readZCodeAttachmentFaultCode(error);
+  const faultCode = readXCodeAttachmentFaultCode(error);
   if (faultCode) {
     return (
-      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareStatNotAuthorized ||
-      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareReadNotAuthorized ||
-      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareStatConnectionUntrusted ||
-      faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareReadConnectionUntrusted
+      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareStatNotAuthorized ||
+      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareReadNotAuthorized ||
+      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareStatConnectionUntrusted ||
+      faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareReadConnectionUntrusted
     );
   }
   const message = error instanceof Error ? error.message : String(error);
@@ -535,10 +542,10 @@ function isAttachmentAuthorizationError(error: unknown): boolean {
 
 /** 附件体积超出协议/通道可承载范围：选择阶段就应作为确定阻断呈现。 */
 function isAttachmentTooLargeError(error: unknown): boolean {
-  const faultCode = readZCodeAttachmentFaultCode(error);
+  const faultCode = readXCodeAttachmentFaultCode(error);
   return (
-    faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareStatTooLarge ||
-    faultCode === ZCODE_ATTACHMENT_FAULT_CODES.previewTooLarge
+    faultCode === XCODE_ATTACHMENT_FAULT_CODES.shareStatTooLarge ||
+    faultCode === XCODE_ATTACHMENT_FAULT_CODES.previewTooLarge
   );
 }
 
@@ -570,7 +577,7 @@ function buildTurnPreflightResults(
 }
 
 function removeIndependentArtifactRows(rows: readonly ConversationRow[]): ConversationRow[] {
-  // 文件候选来自用户输入附件和最终可见的 Assistant 预览卡片；内嵌图片随后独立转换。历史 artifact row
+  // 分享候选只有用户输入附件和最终可见的 Assistant 预览卡片；历史 artifact row
   // 若没有对应预览卡片，不再作为第三条独立发现来源进入公开 projection。
   return rows.filter((row) => row.kind !== "artifact");
 }
@@ -668,7 +675,7 @@ export class ConversationShareService implements IConversationShareService {
     Emitter<ConversationShareImportProgress>
   >();
   private readonly zcodeSessionService?: Pick<
-    IZCodeSessionService,
+    IXCodeSessionService,
     "createSession" | "listSessions"
   >;
   private readonly download: (url: string, init?: { signal?: AbortSignal }) => Promise<Response>;
@@ -712,15 +719,15 @@ export class ConversationShareService implements IConversationShareService {
     this.conversationWorkspaceRoot =
       options.conversationWorkspaceRoot ?? getConversationWorkspaceDir();
     // 兜底写死生产站 https://zcode.z.ai/cn/share，于是测试环境（API base 走
-    // 配置的 ZCode origin）导入后回链仍指向生产站，点分割线打开的是另一个环境的分享。
-    // 改用与 API base 同一个环境解析器（buildRuntimeZCodeApiUrl 也走它），保证同环境。
-    // 优先级不变：显式 option > ZCODE_CONVERSATION_SHARE_WEB_URL > 按环境推导。
+    // 配置的 XCode origin）导入后回链仍指向生产站，点分割线打开的是另一个环境的分享。
+    // 改用与 API base 同一个环境解析器（buildRuntimeXCodeApiUrl 也走它），保证同环境。
+    // 优先级不变：显式 option > XCODE_CONVERSATION_SHARE_WEB_URL > 按环境推导。
     this.shareWebUrl = (
       options.shareWebUrl ??
-      process.env.ZCODE_CONVERSATION_SHARE_WEB_URL ??
-      `${resolveRuntimeZCodeEndpointOrigin(process.env)}/cn/share`
+      process.env.XCODE_CONVERSATION_SHARE_WEB_URL ??
+      `${resolveRuntimeXCodeEndpointOrigin(process.env)}/cn/share`
     ).replace(/\/+$/u, "");
-    this.importIndexPath = join(this.conversationWorkspaceRoot, ".zcode-share-imports.json");
+    this.importIndexPath = join(this.conversationWorkspaceRoot, ".xcode-share-imports.json");
     this.logger = options.logger ?? createServiceLogger("conversation-share");
     this.completedImportsLoaded = this.loadCompletedImportIndex();
     if (this.zcodeSessionService) {
@@ -805,18 +812,14 @@ export class ConversationShareService implements IConversationShareService {
       };
     }
 
-    const inlineImages = materializeConversationShareInlineImages(
-      removeIndependentArtifactRows(sanitizeUnsupportedShareStructures(selected.rows)),
-      capabilities,
-      turnOrdinalByProductTurn(conversation.rows),
-    );
+    const structureSanitized = sanitizeUnsupportedShareStructures(selected.rows);
     const artifactSanitized = sanitizeUnsupportedShareArtifacts(
-      inlineImages.rows,
+      removeIndependentArtifactRows(structureSanitized),
       capabilities,
       conversation.rows,
     );
     const selectedRows = artifactSanitized.rows;
-    skippableWarnings.push(...inlineImages.warnings, ...artifactSanitized.warnings);
+    skippableWarnings.push(...artifactSanitized.warnings);
     blockingIssues.push(...collectShareStructureIssues(selectedRows, conversation.rows));
     let hasShareableContent = selectedRows.some((row) => {
       if (row.kind === "turnHeader" || row.kind === "timelineMarker") return false;
@@ -1005,32 +1008,10 @@ export class ConversationShareService implements IConversationShareService {
       rows: selectedRows,
       selectedProductTurnIds: selected.productTurnIds,
     });
-    if (registeredProjection.rows.length > capabilities.max_rows) {
-      blockingIssues.push({
-        code: "rows_limit",
-        scope: "conversation",
-        actual: registeredProjection.rows.length,
-        limit: capabilities.max_rows,
-      });
-    }
     const manifestIssues = this.collectArtifactManifestIssues(
       capabilities,
       registeredProjection.artifacts,
-    ).map((issue) => {
-      // 内嵌图片的容量问题必须带轮次定位，否则拆分 turn 缓存时会漏掉文件级阻断。
-      const row = selectedRows.find(
-        (candidate) =>
-          candidate.kind === "artifact" && candidate.displayName === issue.artifactDisplayName,
-      );
-      return row
-        ? {
-            ...issue,
-            rowId: row.rowId,
-            productTurnId: row.productTurnId,
-            turnOrdinal: rowTurnOrdinal(row, turnOrdinalByProductTurnId),
-          }
-        : issue;
-    });
+    );
     blockingIssues.push(
       ...manifestIssues.filter((issue) => issue.code !== "artifact_type_not_allowed"),
     );
@@ -1216,19 +1197,7 @@ export class ConversationShareService implements IConversationShareService {
         sanitizedBlockingIssues.issues,
         sanitizedWarnings.issues,
         sanitizedDeferred.issues,
-      ).map((result) => ({
-        ...result,
-        rowBudget: {
-          count: registeredProjection.rows.filter(
-            (row) =>
-              row.productTurnId ===
-              registeredProjection.selectedProductTurnIds[
-                selected.productTurnIds.indexOf(result.productTurnId)
-              ],
-          ).length,
-          limit: capabilities.max_rows,
-        },
-      })),
+      ),
     };
   }
 
@@ -1418,9 +1387,9 @@ export class ConversationShareService implements IConversationShareService {
         : this.conversationWorkspaceRoot;
     const workspaceIdentity =
       input.targetWorkspaceIdentity && !remoteTarget ? input.targetWorkspaceIdentity : undefined;
-    const shareRoot = join(workspacePath, ".zcode-share");
+    const shareRoot = join(workspacePath, ".xcode-share");
     const importRoot = join(shareRoot, sanitizeFileSegment(continuation.share.share_id));
-    const markerPath = join(importRoot, ".zcode-share-import.json");
+    const markerPath = join(importRoot, ".xcode-share-import.json");
     const stagingPath = join(importRoot, ".share-import-staging");
     const finalArtifactsPath = join(importRoot, "shared-artifacts");
     const conversationPath = join(importRoot, "shared-conversation.json");
@@ -1577,7 +1546,7 @@ export class ConversationShareService implements IConversationShareService {
         await writeFile(join(stagingPath, fileName), bytes);
         installedArtifacts.push({
           artifactId: artifact.artifact_id,
-          workspaceRelativePath: `.zcode-share/${sanitizeFileSegment(continuation.share.share_id)}/shared-artifacts/${fileName}`,
+          workspaceRelativePath: `.xcode-share/${sanitizeFileSegment(continuation.share.share_id)}/shared-artifacts/${fileName}`,
           displayName: artifact.display_name,
           mimeType: artifact.mime_type,
           sha256: artifact.sha256,
@@ -1737,7 +1706,7 @@ export class ConversationShareService implements IConversationShareService {
   /**
    * 按 contextId 找回导入时落盘的公开 rows。
    *
-   * 目录名用的是 share_id 而不是 contextId（二者不等价），所以扫 .zcode-share/ 下各
+   * 目录名用的是 share_id 而不是 contextId（二者不等价），所以扫 .xcode-share/ 下各
    * importRoot 并比对文件内的 contextId —— 不额外维护索引，历史导入也能被读到。
    * 内容来自磁盘，属跨存储边界，必须过 schema 再交给渲染层。
    */
@@ -1745,7 +1714,7 @@ export class ConversationShareService implements IConversationShareService {
     workspacePath: string;
     contextId: string;
   }): Promise<ImportedConversationShare | null> {
-    const shareRoot = join(input.workspacePath, ".zcode-share");
+    const shareRoot = join(input.workspacePath, ".xcode-share");
     let entries: Dirent[];
     try {
       entries = await readdir(shareRoot, { withFileTypes: true });
@@ -1902,9 +1871,6 @@ export class ConversationShareService implements IConversationShareService {
         ...(typeof record?.status === "number" ? { status: record.status } : {}),
         ...(typeof record?.code === "number" ? { code: record.code } : {}),
         ...(typeof record?.requestId === "string" ? { requestId: record.requestId } : {}),
-        ...(error instanceof ConversationShareClientError && error.details?.clientRequestId
-          ? { clientRequestId: error.details.clientRequestId }
-          : {}),
         errorName:
           typeof record?.name === "string"
             ? record.name
@@ -1972,23 +1938,16 @@ export class ConversationShareService implements IConversationShareService {
     const selected = selectRows(conversation.rows, input.selection);
     // 无法公开承载的已定稿结构先降级：删字段或丢整行，换成非阻断提示，
     // 后续所有投影与产物发现都基于这份 sanitized rows。
-    const inlineImages = materializeConversationShareInlineImages(
-      removeIndependentArtifactRows(sanitizeUnsupportedShareStructures(selected.rows)),
-      capabilities,
-      turnOrdinalByProductTurn(conversation.rows),
-    );
+    const structureSanitized = sanitizeUnsupportedShareStructures(selected.rows);
     const artifactSanitized = sanitizeUnsupportedShareArtifacts(
-      inlineImages.rows,
+      removeIndependentArtifactRows(structureSanitized),
       capabilities,
       conversation.rows,
     );
     const selectedRows = artifactSanitized.rows;
-    const publishWarnings: ConversationShareFailureIssue[] = [
-      ...inlineImages.warnings,
-      ...artifactSanitized.warnings,
-    ];
-    // 修复原因：此前公开投影遇到第一个不支持结构就直接退出，用户无法知道还有哪些轮次需要取消；
-    // 现在先完成整组选中内容的结构预检，返回脱敏 issues 让 UI 给出逐项可操作建议。
+    const publishWarnings: ConversationShareFailureIssue[] = [...artifactSanitized.warnings];
+    // 公开投影不能遇到第一个不支持结构就直接退出，用户要知道还有哪些轮次需要取消；
+    // 先完成整组选中内容的结构预检，返回脱敏 issues 让 UI 给出逐项可操作建议。
     const structureIssues = collectShareStructureIssues(selectedRows, conversation.rows);
     if (structureIssues.length > 0) {
       const structureKind = structureIssues.some(
@@ -2024,7 +1983,6 @@ export class ConversationShareService implements IConversationShareService {
       input,
       selectedRows,
       registeredArtifacts: registeredProjection.artifacts,
-      inlineBytesBySourceRef: inlineImages.bytesBySourceRef,
       capabilities,
       revision: conversation.revision,
       logEpoch: conversation.logEpoch,
@@ -2044,7 +2002,7 @@ export class ConversationShareService implements IConversationShareService {
     }
     if (publishWarnings.length > 0) {
       // 非阻断：正文引用的文件或用户输入附件无法物化时，发布照常继续，但要让分享者
-      // 知道哪些真实文件没有进入链接；内部 marker 已移除，内嵌图片已转换为 artifact。
+      // 知道哪些真实文件没有进入链接；内部 marker/inline image 已在前面静默移除。
       report("collecting", 0, 0, sanitizeConversationShareIssues(publishWarnings));
     }
     const publicProjection = buildConversationSharePublicProjection({
@@ -2210,12 +2168,12 @@ export class ConversationShareService implements IConversationShareService {
     await this.completedImportsLoaded;
     // 只扫描默认 conversation workspace 的 import-owned 子目录；其它 workspace 的 marker
     // 在下一次带 target 的导入请求中处理，避免启动期枚举并触碰用户项目目录。
-    const shareRoot = join(this.conversationWorkspaceRoot, ".zcode-share");
+    const shareRoot = join(this.conversationWorkspaceRoot, ".xcode-share");
     const imports = await readdir(shareRoot, { withFileTypes: true }).catch(() => []);
     for (const entry of imports) {
       if (!entry.isDirectory()) continue;
       const importRoot = join(shareRoot, entry.name);
-      const markerPath = join(importRoot, ".zcode-share-import.json");
+      const markerPath = join(importRoot, ".xcode-share-import.json");
       let marker: {
         sessionId?: unknown;
         shareCode?: unknown;

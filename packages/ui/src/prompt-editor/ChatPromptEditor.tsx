@@ -19,7 +19,7 @@ import {
   type ChatComposerPasteEvent,
   type LexicalChatInputHandle,
 } from "@/LexicalChatInput.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type { AppSlashCommand } from "@/slashCommandHelpers.js";
 import {
   hasWorkspaceFileDragPayload,
@@ -61,7 +61,6 @@ export function ChatPromptEditor({
   isDraggingOver = false,
   dragAttachmentHint,
   topContent,
-  inputLeadingContent,
   leadingActions,
   attachmentAction,
   betweenCancelAndSubmitAction,
@@ -75,7 +74,6 @@ export function ChatPromptEditor({
   promptHistory,
   className,
   shellClassName,
-  avoidIosInputFocusZoom = false,
   compactPlaceholder = false,
   onChange,
   onSubmit,
@@ -114,8 +112,6 @@ export function ChatPromptEditor({
   isDraggingOver?: boolean;
   dragAttachmentHint?: string;
   topContent?: ReactNode;
-  /** 与输入正文同一行的前置内容；Highspeed 使用紧凑 Fast 标签。 */
-  inputLeadingContent?: ReactNode;
   leadingActions?: ReactNode;
   attachmentAction?: {
     label: string;
@@ -135,7 +131,6 @@ export function ChatPromptEditor({
   promptHistory?: readonly string[];
   className?: string;
   shellClassName?: string;
-  avoidIosInputFocusZoom?: boolean;
   compactPlaceholder?: boolean;
   onChange?: (value: string) => void;
   // 适配：返回 false 表示业务层拒绝/延迟本次提交，Lexical 不自行 reset（草稿保留）。
@@ -154,7 +149,7 @@ export function ChatPromptEditor({
   /** mention 面板开关（透传 LexicalChatInput）。 */
   enableMentionPanel?: boolean;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const toolbarRef = useComposerToolbarFit();
   const internalInputApiRef = useRef<LexicalChatInputHandle | null>(null);
   const resolvedInputApiRef = inputApiRef ?? internalInputApiRef;
@@ -336,35 +331,6 @@ export function ChatPromptEditor({
       ? dragAttachmentHint
       : undefined;
 
-  const editorNode = (
-    <LexicalChatInput
-      placeholder={placeholder}
-      disabled={disabled}
-      submitDisabled={submitDisabled}
-      allowSubmitWhenEmpty={allowSubmitWhenEmpty}
-          enterSubmits={enterSubmits}
-          onSubmit={handleEditorSubmit}
-          onModifiedSubmit={onModifiedSubmit}
-      onChange={handleTextChange}
-      onFocus={onFocus}
-      triggerPanelContainer={resolvedTriggerPanelContainer}
-      workspacePath={workspacePath}
-      workspaceIdentity={workspaceIdentity}
-      taskId={taskId}
-      skillCatalogSessionId={skillCatalogSessionId}
-      inputTestId={inputTestId}
-      editorApiRef={resolvedInputApiRef}
-      promptHistory={promptHistory}
-      avoidIosInputFocusZoom={avoidIosInputFocusZoom}
-      compactPlaceholder={compactPlaceholder}
-      onWhiteboardMentionSelected={onWhiteboardMentionSelected}
-      onPaste={onPaste}
-      excludedSlashCommandNames={excludedSlashCommandNames}
-      appSlashCommands={appSlashCommands}
-      enableMentionPanel={enableMentionPanel}
-    />
-  );
-
   return (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className={cn("relative", className)}>
       {triggerPanelContainer ? null : (
@@ -377,6 +343,9 @@ export function ChatPromptEditor({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        // Codex 主题包的 [data-ds-part="composer"] 描述的就是这张输入卡
+        // （alpha/圆角/边框），挂点必须是真正可见的外壳，不是外层 wrapper。
+        data-ds-part="composer"
         className={cn(
           "relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-input-border bg-input p-3 transition-colors hover:border-input-border-hover focus-within:!border-input-border-focused focus-within:bg-input-focused",
           (isWorkspaceFileDropActive || isExternalFileDropActive) &&
@@ -394,15 +363,36 @@ export function ChatPromptEditor({
         ) : null}
 
         {topContent}
-        {inputLeadingContent ? (
-          <div className="flex min-w-0 items-start gap-2">
-            <div className="shrink-0">{inputLeadingContent}</div>
-            <div className="min-w-0 flex-1">{editorNode}</div>
-          </div>
-        ) : (
-          editorNode
-        )}
-        <div ref={toolbarRef} className="group/toolbar flex items-end gap-3">
+        <LexicalChatInput
+          placeholder={placeholder}
+          disabled={disabled}
+          submitDisabled={submitDisabled}
+          allowSubmitWhenEmpty={allowSubmitWhenEmpty}
+          enterSubmits={enterSubmits}
+          onSubmit={handleEditorSubmit}
+          onModifiedSubmit={onModifiedSubmit}
+          onChange={handleTextChange}
+          onFocus={onFocus}
+          triggerPanelContainer={resolvedTriggerPanelContainer}
+          workspacePath={workspacePath}
+          workspaceIdentity={workspaceIdentity}
+          taskId={taskId}
+          skillCatalogSessionId={skillCatalogSessionId}
+          inputTestId={inputTestId}
+          editorApiRef={resolvedInputApiRef}
+          promptHistory={promptHistory}
+          compactPlaceholder={compactPlaceholder}
+          onWhiteboardMentionSelected={onWhiteboardMentionSelected}
+          onPaste={onPaste}
+          excludedSlashCommandNames={excludedSlashCommandNames}
+          appSlashCommands={appSlashCommands}
+          enableMentionPanel={enableMentionPanel}
+        />
+        <div
+          ref={toolbarRef}
+          className="group/toolbar flex items-end gap-3"
+          data-ds-part="composer-toolbar"
+        >
           <div className="flex min-w-0 flex-1 items-center" data-composer-leading-actions>
             <div className="flex shrink-0 items-center gap-1" data-composer-leading-content>
               {hasActionMenu ? (
@@ -420,7 +410,7 @@ export function ChatPromptEditor({
                   showPlugins={enableMentionPanel !== false}
                 />
               ) : null}
-              {/* Bugfix：权限/模式选择曾作为 leadingActions 先于动作菜单渲染，导致常驻顺序与产品规范相反。 */}
+              {/* 权限/模式选择曾作为 leadingActions 先于动作菜单渲染，导致常驻顺序与产品规范相反。*/}
               {leadingActions}
               {onModeSwitchContainerChange ? (
                 <span ref={onModeSwitchContainerChange} className="flex shrink-0 items-center" />

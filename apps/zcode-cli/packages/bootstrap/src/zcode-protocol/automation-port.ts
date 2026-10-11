@@ -13,30 +13,30 @@ import {
   zcodeAutomationListResultSchema,
   zcodeAutomationUpdateResultSchema,
   zcodeProtocolMethods,
-  type ZCodeAutomationProtocol,
+  type XCodeAutomationProtocol,
 } from "@zcode/shared";
 import {
   ProtocolRequestError,
-  type ZCodeProtocolAgentServerContext,
-  type ZCodeProtocolSessionRecord,
+  type XCodeProtocolAgentServerContext,
+  type XCodeProtocolSessionRecord,
 } from "./server-types.js";
 
-export const AUTOMATION_CREATE_FROM_AUTOMATION_RUN_ERROR =
+const AUTOMATION_CREATE_FROM_AUTOMATION_RUN_ERROR =
   "Cannot create a scheduled task while running a scheduled task.";
 
-export const AUTOMATION_CREATE_IN_BOUND_SESSION_ERROR =
+const AUTOMATION_CREATE_IN_BOUND_SESSION_ERROR =
   "Cannot create a scheduled task inside a session that already belongs to a scheduled task. " +
   "Ask the user to start a new chat to create another scheduled task.";
 
-export const AUTOMATION_CREATE_BOUND_SESSION_CHECK_ERROR =
+const AUTOMATION_CREATE_BOUND_SESSION_CHECK_ERROR =
   "Cannot verify whether this session belongs to a scheduled task. Try again later.";
 
 export function createProtocolAutomationPort(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   // 归属会话解析器：automation-port 是按 session 构造的，直接绑定「自己所服务的 session
   // record」。避免依赖 context.sessions 查找——V4/desktop 会话未必登记在该 legacy map 里，
   // 之前会导致 activeSession 命中失败、权限/思考等级丢失（模型有 createContext 兜底才幸存）。
-  resolveOwnSession?: () => ZCodeProtocolSessionRecord | undefined,
+  resolveOwnSession?: () => XCodeProtocolSessionRecord | undefined,
 ): AutomationPort {
   return {
     async create(input, createContext) {
@@ -98,9 +98,6 @@ export function createProtocolAutomationPort(
       }
       // CronCreate 的工具上下文只携带了部分配置，导致权限或思考等级在跨层时丢失。
       // 协议边界按 sessionId 读取活跃 runtime，确保保存的是用户触发工具当下看到的配置。
-      // 定时任务只继承会话稳定 Selection：加速卡等单轮执行走 modelExecution
-      // （selectionScope=execution），从不改写 Session Selection，因此这里读到的一定不是
-      // turn-only 模型，不需要再区分持久/临时两套读取路径。
       const runtimeModelSelection =
         activeSession?.app.runtime.getSessionModelSelection() ??
         (() => {
@@ -226,23 +223,17 @@ export function createProtocolAutomationPort(
 }
 
 function normalizeCronAutomationMode(
-  mode: ZCodeAutomationProtocol["mode"],
+  mode: XCodeAutomationProtocol["mode"],
 ): CronAutomation["mode"] {
   switch (mode) {
     case undefined:
       return undefined;
     case "plan":
     case "edit":
-    case "guarded":
     case "yolo":
     case "build":
       return mode;
-    case "dontAsk":
-    case "bypassPermissions":
-      return "yolo";
-    case "default":
     case "auto":
-    case "acceptEdits":
     case "autoEdit":
       return "build";
     default: {
@@ -252,7 +243,7 @@ function normalizeCronAutomationMode(
   }
 }
 
-function toCronAutomation(input: ZCodeAutomationProtocol): CronAutomation {
+function toCronAutomation(input: XCodeAutomationProtocol): CronAutomation {
   return {
     automationId: input.automationId,
     title: input.title,

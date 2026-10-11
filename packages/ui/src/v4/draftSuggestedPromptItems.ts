@@ -30,7 +30,7 @@ export interface DraftSuggestedPromptItem {
   };
 }
 
-export function parseDraftSuggestedPromptActions(
+function parseDraftSuggestedPromptActions(
   onFinish: string | null | undefined,
 ): DraftSuggestedPromptAction[] {
   if (!onFinish) return [];

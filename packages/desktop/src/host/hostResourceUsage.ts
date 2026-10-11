@@ -1,4 +1,4 @@
-import type { IZCodeAgentService } from "@zcode/services";
+import type { IXCodeAgentService } from "@zcode/services";
 import {
   attributeHostProcessTree,
   createProcessResourceSampler,
@@ -11,8 +11,8 @@ import {
   type HostResourceUsageSnapshotResultResponse,
 } from "@zcode/shared";
 
-export interface CreateHostResourceUsageResponderOptions {
-  getAgentService: () => Pick<IZCodeAgentService, "collectLocalRuntimeChildProcesses"> | undefined;
+interface CreateHostResourceUsageResponderOptions {
+  getAgentService: () => Pick<IXCodeAgentService, "collectLocalRuntimeChildProcesses"> | undefined;
   postMessage: (message: HostResourceUsageSnapshotResultResponse) => void;
   hostPid?: number;
   sampler?: ProcessResourceSampler;
@@ -21,7 +21,7 @@ export interface CreateHostResourceUsageResponderOptions {
   now?: () => number;
 }
 
-export interface HostResourceUsageResponder {
+interface HostResourceUsageResponder {
   handleRequest(message: HostResourceUsageSnapshotRequestMessage): Promise<void>;
   cancelRequest(requestId: string): void;
 }

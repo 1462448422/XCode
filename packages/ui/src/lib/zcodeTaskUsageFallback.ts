@@ -1,4 +1,4 @@
-import type { ZCodeUsage } from "@zcode/shared";
+import type { XCodeUsage } from "@zcode/shared";
 import type { TaskUsageState } from "@/store/zcodeSessionStoreTypes.js";
 
 interface TaskUsageKeyParams {
@@ -78,7 +78,7 @@ export function buildPromptCompletionUsageFallback(
   params: TaskUsageKeyParams & {
     currentUsage: TaskUsageState | null | undefined;
     currentContextWindow?: number | null;
-    usage?: ZCodeUsage;
+    usage?: XCodeUsage;
   },
 ): TaskUsageState | null {
   const { currentUsage, currentContextWindow, usage } = params;
@@ -100,8 +100,4 @@ export function buildPromptCompletionUsageFallback(
     size: contextWindow,
     used: Math.min(contextWindow, Math.max(currentUsage?.used ?? 0, usage.totalTokens)),
   };
-}
-
-export function resetTaskContextUsageUpdateRecordsForTest() {
-  taskContextUsageUpdateKeys.clear();
 }

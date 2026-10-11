@@ -4,7 +4,7 @@ import {
   sanitizeTelemetryErrorMessage,
   type IPlatformService,
   type ModelSelection,
-  type ZCodeAutomation,
+  type XCodeAutomation,
 } from "@zcode/shared";
 import type { ProviderSettingsView } from "@zcode/services";
 import { isApiKeyAccess } from "@zcode/provider";
@@ -14,7 +14,7 @@ import { legacyTelemetryProviderId } from "@/lib/providerTelemetryIdentity.js";
 const EVENT_REGION = "app.automations";
 type TelemetryPlatform = Pick<IPlatformService, "reportTelemetryEvent">;
 
-export function resolveAutomationModelTelemetry(
+function resolveAutomationModelTelemetry(
   modelValue: string | null | undefined,
   explicitProvider: string | null | undefined,
   providerSettingsView: ProviderSettingsView | null,
@@ -64,7 +64,7 @@ export function resolveAutomationSelectionTelemetry(
   );
 }
 
-export function sanitizeAutomationTelemetryError(error: string | null | undefined): string {
+function sanitizeAutomationTelemetryError(error: string | null | undefined): string {
   // 修复原因：旧正则只遮住 Authorization 后的 Bearer，秘密值仍会泄露；统一丢弃原文。
   return sanitizeTelemetryErrorMessage(error);
 }
@@ -135,7 +135,7 @@ export function reportAutomationActionClick(
   params: {
     action: "run_now" | "delete";
     source: "list" | "editor";
-    automation: ZCodeAutomation;
+    automation: XCodeAutomation;
     providerSettingsView: ProviderSettingsView | null;
   },
 ): Promise<void> {

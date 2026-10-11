@@ -10,7 +10,6 @@ import { resolveResumeSession } from "./resume.js";
 import { readRuntimeEventSubscriber } from "./runtime-event-subscriber.js";
 import { DEFAULT_CLI_CLEANUP_TIMEOUT_MS, registerCliShutdownHandlers, runCliCleanupWithTimeout, } from "./shutdown.js";
 import { runSkillsCommand } from "./skills-command.js";
-import { DEFAULT_CLI_WORKFLOW_MODE, isWorkflowModeEnabled, resolveWorkflowModeRuntimeConfig, WORKFLOW_DISABLED_NOTICE, } from "./workflow-mode.js";
 /**
  * Does this run print a JSON summary at the end?
  *
@@ -29,25 +28,15 @@ const VIDEO_EXTENSIONS = new Set([".mp4", ".m4v", ".mov", ".webm", ".mkv", ".avi
 const EMPTY_PROMPT_ERROR = "--prompt requires non-empty text.";
 const MEMORY_BENCH_DISABLED_ERROR = "--memory-bench requires Project Memory to be enabled (features.memory=true and memory.use=true).";
 const TARGET_SELECTION_UNAVAILABLE_ERROR = "Headless goal commands cannot open an interactive replacement picker. Re-run with --target-replace or use /goal replace <objective>.";
-export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, version, mode, resumeRequest = { continueSession: false }, toolDisallowlist, forceMcs = false, presentationSurface = "terminal", workflowMode = DEFAULT_CLI_WORKFLOW_MODE) => {
+export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, version, mode, resumeRequest = { continueSession: false }, toolDisallowlist, forceMcs = false, presentationSurface = "terminal") => {
     if (prompt.trim().length === 0) {
         ctx.stderr.write(`${EMPTY_PROMPT_ERROR}\n`);
         return 1;
     }
     const slashCommand = parseSlashCommand(prompt);
     if (slashCommand?.type === "known" && slashCommand.name === "help") {
-        ctx.stdout.write(`${formatSlashCommandHelp(slashCommand.args, await listCustomCommandsForPrompt(deps), {
-            workflowMode,
-        })}\n`);
+        ctx.stdout.write(`${formatSlashCommandHelp(slashCommand.args, await listCustomCommandsForPrompt(deps))}\n`);
         return 0;
-    }
-    // disabled 下 `/workflow` 不展开（builtin resolver 同判）；若照常建 app 提交，原文会作为普通文本
-    // 发给模型并「成功」退出，脚本察觉不到。建 app 之前就报错退出，与 TUI 的本地提示同一句。
-    if (slashCommand?.type === "known" &&
-        slashCommand.name === "workflow" &&
-        !isWorkflowModeEnabled(workflowMode)) {
-        ctx.stderr.write(`Error: ${WORKFLOW_DISABLED_NOTICE}\n`);
-        return 1;
     }
     if (slashCommand?.type === "known" && slashCommand.name === "skill" && !slashCommand.skillName) {
         return await runSkillsCommand(ctx, options, deps, []);
@@ -117,10 +106,10 @@ export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, ver
             });
         }
         const sessionId = await resolveResumeSession(resumeRequest, workingDirectory, env, deps);
-        const bootstrapModule = deps.createZCodeApp ? undefined : await loadBootstrapModule();
-        const createApp = deps.createZCodeApp ?? bootstrapModule?.createZCodeApp;
+        const bootstrapModule = deps.createXCodeApp ? undefined : await loadBootstrapModule();
+        const createApp = deps.createXCodeApp ?? bootstrapModule?.createXCodeApp;
         if (!createApp)
-            throw new Error("ZCode app factory is unavailable.");
+            throw new Error("XCode app factory is unavailable.");
         const streamsEvents = wantsEventStream(options);
         let mapSessionEvent;
         if (streamsEvents) {
@@ -135,14 +124,14 @@ export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, ver
             stderr: ctx.stderr,
             stdout: ctx.stdout,
         });
-        const prepareTelemetry = deps.prepareZCodeTelemetryEnv ?? bootstrapModule?.prepareZCodeTelemetryEnv;
+        const prepareTelemetry = deps.prepareXCodeTelemetryEnv ?? bootstrapModule?.prepareXCodeTelemetryEnv;
         if (prepareTelemetry) {
-            shutdownTelemetry = deps.shutdownZCodeTelemetry ?? bootstrapModule?.shutdownZCodeTelemetry;
+            shutdownTelemetry = deps.shutdownXCodeTelemetry ?? bootstrapModule?.shutdownXCodeTelemetry;
         }
         const appEnv = prepareTelemetry
             ? await prepareTelemetry(env, {
                 cliVersion: version,
-                productVersion: env.ZCODE_APP_VERSION,
+                productVersion: env.XCODE_APP_VERSION,
             })
             : env;
         const startProviderRegistryRuntime = deps.startProcessProviderRegistryRuntime ??
@@ -158,13 +147,6 @@ export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, ver
                     ...(deps.userConfigPath ? { legacyCliUserConfigFilePath: deps.userConfigPath } : {}),
                 },
             });
-        const createProviderEndpointRoutingPort = deps.createProviderEndpointRoutingPort ??
-            bootstrapModule?.createDefaultProviderEndpointRoutingPort;
-        const providerEndpointRoutingPort = createProviderEndpointRoutingPort?.({
-            appVersion: version,
-            env,
-            workingDirectory,
-        });
         browserRuntime = createCliHeadlessBrowserRuntime(options, deps);
         app = await createApp({
             browserControlPort: browserRuntime?.browserControlPort,
@@ -174,7 +156,6 @@ export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, ver
             // 这个最小 broker 只按工具名放行 CreateWorkflow，其余工具委托回同一个 deny
             // broker，语义逐字不变。详见 headless-workflow.ts 的注释。
             permissionBroker: createHeadlessPermissionBroker(),
-            ...(providerEndpointRoutingPort ? { providerEndpointRoutingPort } : {}),
             providerRegistry: providerRegistryRuntime.runtime.registryService,
             configuredDefaultModelSelection: providerRegistryRuntime.configuredDefaultModelSelection,
             ...(providerRegistryRuntime.providerRuntimeHeadersPort
@@ -187,7 +168,8 @@ export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, ver
                 ...(mode ? { mode } : {}),
                 ...(toolDisallowlist ? { toolDisallowlist } : {}),
                 ...(forceMcs ? { midConversationSystem: { mode: "force" } } : {}),
-                ...resolveWorkflowModeRuntimeConfig(workflowMode),
+                // headless 按本次调用显式开关；不改 core 缺省值，保持 TUI 与 stdio 的既有策略。
+                dynamicWorkflowEnabled: options.enableWorkflow === true,
                 memory: { extractionEnabled: options.memoryBench === true },
                 modelStreaming: "on",
                 presentationSurface,
@@ -215,7 +197,7 @@ export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, ver
         // 自定义命令解析出来一律是 `type === "unknown"`，过去因此全部早退进
         // command-center；那条路径自己 submit 完就 return，于是只挂在下面普通 prompt 路径上
         // 的三件机制全被跳过——dwf 结算等待、常驻事件订阅的单一写者、`response` 取最后一个
-        // 回合。结果是 `zcode -p "/workflow ..."` 在第一个回合后就退出，把在飞的 run 孤儿化
+        // 回合。结果是 `xcode -p "/workflow ..."` 在第一个回合后就退出，把在飞的 run 孤儿化
         // 成 Interrupted。能解析成真实自定义命令的必须落到普通 prompt 路径，提交**原文**即可：
         // facade 的 customCommandPromptResolver 会在服务端展开（$ARGUMENTS、skills: 前言、`!`）。
         // 解析不出来的名字继续留在 command-center，拿它的 "Unknown command" 文案；保留名
@@ -223,7 +205,7 @@ export const runPrompt = async (ctx, prompt, attachmentPaths, options, deps, ver
         // 判据与 facade 的 gate 共用一个来源，见 isResolvableCustomCommand。
         // `/expert`、`/goal` 走不到 submitPrompt，路由逐字不变。
         if (slashCommand && (await routesToPromptCommandCenter(slashCommand, deps))) {
-            return await runPromptCommandCenterCommand(ctx, options, app, prompt, mode, traceId, abortController.signal, deps, workflowMode);
+            return await runPromptCommandCenterCommand(ctx, options, app, prompt, mode, traceId, abortController.signal, deps);
         }
         // 事件的**单一写者**。常驻订阅跨回合存活，所以完成通知驱动的回合（core 自驱，
         // `runtime-command-queue.ts:336`）的事件也在内；per-turn `onEvent` 则在 submitPrompt
@@ -396,7 +378,7 @@ async function isResolvableCustomCommand(deps, name) {
     // 直接返回 undefined、不做展开，所以这里若把一个保留名判成"可解析"，它就会以字面文本
     // `/compress …` 被当成普通 prompt 提交给模型——静默走错路，没有任何报错。
     //
-    // 探测刻意用「保留名检查 + load」这一对，而不是直接调 resolveZCodeCustomCommandPrompt：
+    // 探测刻意用「保留名检查 + load」这一对，而不是直接调 resolveXCodeCustomCommandPrompt：
     // 后者会执行 `!` shell expansion，拿它探测等于把用户的 shell 片段跑两遍。
     // 这一对是它的无副作用等价物（load 只读文件）。
     if (await isReservedSlashCommandName(deps, name))
@@ -419,9 +401,9 @@ async function isReservedSlashCommandName(deps, name) {
     if (deps.isReservedSlashCommandName)
         return deps.isReservedSlashCommandName(name);
     const bootstrap = await loadBootstrapModule();
-    return bootstrap.isReservedZCodeSlashCommandName(name);
+    return bootstrap.isReservedXCodeSlashCommandName(name);
 }
-async function runPromptCommandCenterCommand(ctx, options, app, prompt, mode, traceId, abortSignal, deps, workflowMode) {
+async function runPromptCommandCenterCommand(ctx, options, app, prompt, mode, traceId, abortSignal, deps) {
     const commandCenter = createCommandCenter({
         getApp: async () => app,
         getMode: () => app.getMode?.() ?? mode ?? "build",
@@ -431,7 +413,6 @@ async function runPromptCommandCenterCommand(ctx, options, app, prompt, mode, tr
             await app.recordInputHistory?.(input, kind);
         },
         resumeApp: async () => app,
-        workflowMode,
         setLocale: async (locale) => {
             if (!app.setLocale) {
                 throw new Error("Locale switching is not available in this client.");
@@ -477,7 +458,7 @@ async function listCustomCommandsForPrompt(deps) {
         return await deps.listCustomCommands({ env, logger: deps.logger, workingDirectory });
     }
     const bootstrap = await loadBootstrapModule();
-    return await bootstrap.listZCodeCustomCommands({ env, logger: deps.logger, workingDirectory });
+    return await bootstrap.listXCodeCustomCommands({ env, logger: deps.logger, workingDirectory });
 }
 async function loadCustomCommandForPrompt(deps, name) {
     const env = deps.env ?? process.env;
@@ -486,7 +467,7 @@ async function loadCustomCommandForPrompt(deps, name) {
         return await deps.loadCustomCommand({ env, logger: deps.logger, name, workingDirectory });
     }
     const bootstrap = await loadBootstrapModule();
-    return await bootstrap.loadZCodeCustomCommand({
+    return await bootstrap.loadXCodeCustomCommand({
         env,
         logger: deps.logger,
         name,

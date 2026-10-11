@@ -4,7 +4,7 @@ import type { IServiceAccessor } from "@zcode/services";
  * 只把既有远端 RPC client 收进窗口 Host，不改变 zcode-server wire。
  * 这个窄类型固定 mixed remote workspace 真正依赖的 legacy channel，并在组合服务前做完整性校验。
  */
-export const LEGACY_REMOTE_WORKSPACE_RPC_CHANNELS = [
+const LEGACY_REMOTE_WORKSPACE_RPC_CHANNELS = [
   "fileService",
   "gitService",
   "gitCheckpointService",
@@ -26,7 +26,7 @@ export const LEGACY_REMOTE_WORKSPACE_RPC_CHANNELS = [
   "providerSettingsService",
 ] as const satisfies readonly (keyof IServiceAccessor)[];
 
-export type LegacyRemoteWorkspaceRpcContract = Pick<
+type LegacyRemoteWorkspaceRpcContract = Pick<
   IServiceAccessor,
   (typeof LEGACY_REMOTE_WORKSPACE_RPC_CHANNELS)[number]
 >;

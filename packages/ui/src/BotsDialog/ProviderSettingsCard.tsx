@@ -15,12 +15,11 @@ import type { BotConfig, BotServiceStatus } from "@zcode/shared";
 import { isFeishuBotProvider } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import { Input } from "@/components/ui/input.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { SettingsGroupCard, SettingsRow } from "@/settings/SettingsPageParts.js";
 import { cn } from "@/components/lib/utils.js";
 import { logger } from "@/logger.js";
 import type { BindCodeState, FeishuRegistrationState, WeixinRegistrationState } from "./shared.js";
-import { PrivateDeliveryRetry } from "@/BotsDialog/PrivateDeliveryRetry.js";
 import { TELEGRAM_BOTFATHER_URL, formatBindCountdown } from "./shared.js";
 
 function DetailPanel({ children }: { children: ReactNode }) {
@@ -38,7 +37,7 @@ function TelegramBotFatherQrPanel({
   onCredentialValueChange: (value: string) => void;
   onSaveSecret: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -157,7 +156,7 @@ export function ProviderSettingsCard({
   onUnbind: () => void;
   onCopyBindCommand: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   if (bot.provider === "webhook") {
     return null;
   }
@@ -461,13 +460,6 @@ export function ProviderSettingsCard({
                   <div className="whitespace-pre-wrap break-all text-foreground-subtle">
                     {runtime.deliveryError}
                   </div>
-                  {runtime.deliveryRetryId ? (
-                    <PrivateDeliveryRetry
-                      key={runtime.deliveryRetryId}
-                      botId={bot.id}
-                      deliveryId={runtime.deliveryRetryId}
-                    />
-                  ) : null}
                 </div>
               </DetailPanel>
               {detail}

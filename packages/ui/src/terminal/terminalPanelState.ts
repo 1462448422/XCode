@@ -84,9 +84,9 @@ export function formatTerminalTabTitle(projectName: string, index: number): stri
   return index === 1 ? projectName : `${projectName} ${index}`;
 }
 
-export type TerminalSessionCloseAction = "none" | "close-panel" | "close-session";
+type TerminalSessionCloseAction = "none" | "close-panel" | "close-session";
 
-export interface TerminalSessionExitResult {
+interface TerminalSessionExitResult {
   state: TerminalPanelState;
   action: TerminalSessionCloseAction;
 }

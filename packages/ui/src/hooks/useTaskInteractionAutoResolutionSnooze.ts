@@ -6,7 +6,7 @@ import { resolveWorkspaceRemoteSessionId } from "@/lib/workspaceServiceResolver.
 import { useRemoteWorkspaceSessionStore } from "@/store/remoteWorkspaceSessionStore.js";
 import { sendInteractionAutoResolutionSnooze } from "@/v4/interactionAutoResolutionCommand.js";
 
-export interface TaskInteractionAutoResolutionTarget {
+interface TaskInteractionAutoResolutionTarget {
   workspacePath: string;
   workspaceIdentity?: string;
   remoteSessionId?: string;

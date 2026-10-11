@@ -2,12 +2,7 @@ import { CodingPlanEntryButton } from "@/settings/CodingPlanEntryButton.js";
 import { Loader2Icon, RocketIcon } from "lucide-react";
 import type { UsageEntitlementSnapshot, UsageQuotaLimit } from "@zcode/shared";
 import { cn } from "@/components/lib/utils.js";
-import {
-  CodingPlanBillingDiscountBadgePill,
-  CodingPlanBillingDiscountInfoDialog,
-  useCodingPlanBillingDiscount,
-} from "@/CodingPlanBillingDiscount.js";
-import type { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import type { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { getContextQuotaMeterGridClass } from "@/chat-input-toolbar/contextQuotaMeterGrid.js";
 import { formatStartPlanBucketResetTime } from "@/lib/codingPlanQuotaPresentation.js";
 import { formatQuotaModelDisplayName } from "@/settings/model-provider-section/quotaModelDisplayName.js";
@@ -82,13 +77,7 @@ export function hasChatStartPlanBalance(config: ChatStartPlanBalanceConfig | und
   );
 }
 
-function ChatStartPlanBalanceMeter({
-  limit,
-  locale,
-}: {
-  limit: UsageQuotaLimit;
-  locale: string;
-}) {
+function ChatStartPlanBalanceMeter({ limit, locale }: { limit: UsageQuotaLimit; locale: string }) {
   const total = resolveLimitTotal(limit);
   const remaining = resolveLimitRemaining(limit);
   const remainingRatio = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
@@ -99,21 +88,17 @@ function ChatStartPlanBalanceMeter({
   return (
     <div className="min-w-0 space-y-1.5">
       <div className="min-w-0 space-y-0.5 text-ui-sm">
-        <div className="min-w-0 truncate text-foreground-subtle">
-          {formatLimitModels(limit)}
-        </div>
+        <div className="min-w-0 truncate text-foreground-subtle">{formatLimitModels(limit)}</div>
         <div className="min-w-0 text-ui-sm tabular-nums">
           <span className="font-mono text-foreground">
             {formatStartPlanRemainingPercentage(remainingRatio, locale)}
           </span>
-          {renewTime ? (
-            <span className="text-foreground-subtle"> · {renewTime}</span>
-          ) : null}
+          {renewTime ? <span className="text-foreground-subtle"> · {renewTime}</span> : null}
         </div>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover">
-        {/* 修复原因：与 Coding Plan 额度条对齐，hover 静默刷新返回后宽度平滑过渡到新值，
-            原先瞬间跳变导致"已刷新"完全无感；同时保留 motion-reduce 无障碍降级。 */}
+        {/* 与 Coding Plan 额度条对齐，hover 静默刷新返回后宽度平滑过渡到新值，
+            瞬间跳变会让"已刷新"完全无感；同时保留 motion-reduce 无障碍降级。 */}
         <div
           className="h-full rounded-full bg-success transition-[width] duration-500 ease-out motion-reduce:transition-none"
           style={{ width: `${remainingRatio * 100}%` }}
@@ -130,12 +115,10 @@ export function ChatStartPlanBalancePanel({
   separated = false,
 }: {
   config: ChatStartPlanBalanceConfig;
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   locale: string;
   separated?: boolean;
 }) {
-  const billingDiscount = useCodingPlanBillingDiscount();
-  const upgradeButtonHighlighted = billingDiscount.active === true;
   const limits = getVisibleStartPlanLimits(config.snapshot);
 
   if (!config.loading && limits.length === 0) {
@@ -156,38 +139,19 @@ export function ChatStartPlanBalancePanel({
           ) : null}
         </div>
         {config.onUpgradeClick ? (
-          <div className="inline-flex shrink-0 items-center gap-1">
-            <CodingPlanEntryButton
-              type="button"
-              size="xs"
-              className={cn(
-                "h-6 shrink-0 gap-1 px-2 text-ui-sm",
-                upgradeButtonHighlighted &&
-                  "button-gradient rounded-full pr-[5px] text-white hover:bg-transparent hover:opacity-90 dark:bg-[#484A58] dark:hover:bg-[#484A58]",
-              )}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                config.onUpgradeClick?.();
-              }}
-            >
-              <RocketIcon className="size-3" />
-              {intl.formatMessage({ id: "chat.quota.action.upgrade" })}
-              {upgradeButtonHighlighted ? (
-                <CodingPlanBillingDiscountBadgePill
-                  config={billingDiscount.config}
-                  iconVisible={false}
-                  size="compact"
-                  variant="surface"
-                />
-              ) : null}
-            </CodingPlanEntryButton>
-            {upgradeButtonHighlighted ? (
-              <CodingPlanBillingDiscountInfoDialog
-                config={billingDiscount.config}
-              />
-            ) : null}
-          </div>
+          <CodingPlanEntryButton
+            type="button"
+            size="xs"
+            className="h-6 shrink-0 gap-1 px-2 text-ui-sm"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              config.onUpgradeClick?.();
+            }}
+          >
+            <RocketIcon className="size-3" />
+            {intl.formatMessage({ id: "chat.quota.action.upgrade" })}
+          </CodingPlanEntryButton>
         ) : null}
       </div>
       <div className={cn("grid gap-2", getContextQuotaMeterGridClass(limits.length))}>

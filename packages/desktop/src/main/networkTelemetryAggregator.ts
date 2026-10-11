@@ -56,7 +56,7 @@ interface InterfaceBucket {
 }
 
 const buckets = new Map<string, InterfaceBucket>();
-export const MAX_NETWORK_INTERFACE_BUCKETS_PER_TRANSPORT = 128;
+const MAX_NETWORK_INTERFACE_BUCKETS_PER_TRANSPORT = 128;
 
 const NETWORK_ERROR_KINDS = new Set<string>(NETWORK_ERROR_KIND_ORDER);
 
@@ -221,7 +221,7 @@ export function recordNetworkObservation(observation: NetworkObservation): void 
   }
 }
 
-export function normalizeHttpInterface(name?: string, url?: string): string {
+function normalizeHttpInterface(name?: string, url?: string): string {
   const raw = (url ?? name ?? "").trim();
   if (!raw) {
     return "unknown";

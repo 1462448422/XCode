@@ -10,7 +10,7 @@ import type { StorageRootId, StorageRootSpec, StorageUsageSnapshot } from "@zcod
 import type { FsCleanerPort, RootsResolverPort, ScanRunnerPort } from "./ports.js";
 import { createScanJob, type ScanJob } from "./scanJob.js";
 
-export interface StorageServiceDependencies {
+interface StorageServiceDependencies {
   roots: RootsResolverPort;
   scanRunner: ScanRunnerPort;
   cleaner: FsCleanerPort;
@@ -19,7 +19,7 @@ export interface StorageServiceDependencies {
   progressThrottleMs?: number;
 }
 
-export const DEFAULT_STORAGE_PROGRESS_THROTTLE_MS = 300;
+const DEFAULT_STORAGE_PROGRESS_THROTTLE_MS = 300;
 
 export function createStorageService(deps: StorageServiceDependencies): IStorageService {
   const now = deps.now ?? Date.now;

@@ -14,7 +14,7 @@ function storageKey(workspaceKey: string): string {
   return `${STORAGE_PREFIX}${workspaceKey}`;
 }
 
-export function readPersistedPaneSession(workspaceKey: string): string | null {
+function readPersistedPaneSession(workspaceKey: string): string | null {
   try {
     return localStorage.getItem(storageKey(workspaceKey));
   } catch {
@@ -22,10 +22,7 @@ export function readPersistedPaneSession(workspaceKey: string): string | null {
   }
 }
 
-export function persistPaneSession(
-  workspaceKey: string,
-  sessionId: string | null,
-): void {
+function persistPaneSession(workspaceKey: string, sessionId: string | null): void {
   try {
     if (sessionId) {
       localStorage.setItem(storageKey(workspaceKey), sessionId);
@@ -37,7 +34,7 @@ export function persistPaneSession(
   }
 }
 
-export interface UsePaneSessionPersistenceParams {
+interface UsePaneSessionPersistenceParams {
   workspaceKey: string;
   activeSessionId: string | null;
   /** startDraft 的显式用户意图代次；大于 0 时 null 表示草稿，不是待恢复。 */
@@ -48,7 +45,7 @@ export interface UsePaneSessionPersistenceParams {
   selectSession: (sessionId: string) => void;
 }
 
-export function shouldRestorePersistedPaneSession(params: {
+function shouldRestorePersistedPaneSession(params: {
   activeSessionId: string | null;
   draftFocusVersion: number;
   enabled: boolean;

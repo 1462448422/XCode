@@ -44,14 +44,13 @@ export { useAlertDialog } from "./useAlertDialog.js";
 
 // 凭据服务
 export { useCredentials, useAuthToken } from "./useCredentials.js";
-export { useZCodeAgentService } from "./useZCodeAgentService.js";
+export { useXCodeAgentService } from "./useXCodeAgentService.js";
 
 // Git pane
 export { useGitAutoRefresh } from "./useGitAutoRefresh.js";
 export { useGitRepository } from "./useGitRepository.js";
 export { useGitActions } from "./useGitActions.js";
 // workspace provider 配置路径
-export { useWorkspaceProviderConfigFile } from "./useWorkspaceProviderConfigFile.js";
 export { useTaskNativeSessionLogFile } from "./useTaskNativeSessionLogFile.js";
 export { useTaskSessionFilePath } from "./useTaskSessionFilePath.js";
 export { useUsageStats } from "./useUsageStats.js";

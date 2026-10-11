@@ -1,14 +1,14 @@
 import http from "node:http";
 import https from "node:https";
+import { Readable } from "node:stream";
 import { ProxyAgent } from "proxy-agent";
 import {
   loadTlsCaCertificates,
   resolveProxyUrlForRequest,
   resolveTlsCaCertFile,
 } from "./http-config.js";
-import { readIncomingResponse, toWebResponse } from "./incoming-response.js";
 
-export type NetworkFetch = typeof globalThis.fetch;
+type NetworkFetch = typeof globalThis.fetch;
 
 interface NetworkProxyFetchOptions {
   caCertFile?: string;
@@ -64,12 +64,7 @@ export function createNetworkProxyFetch(options: NetworkProxyFetchOptions): Netw
 }
 
 function hasNetworkFetchPolicy(options: NetworkProxyFetchOptions): boolean {
-  return Boolean(
-    options.caCertFile ||
-      options.env ||
-      options.httpProxy ||
-      options.noProxy,
-  );
+  return Boolean(options.caCertFile || options.env || options.httpProxy || options.noProxy);
 }
 
 function readFetchInputUrl(input: Parameters<NetworkFetch>[0]): URL | undefined {
@@ -171,18 +166,25 @@ function fetchWithAgent(
         responseMessage = message;
         responseMessage.once("close", cleanupAll);
         responseMessage.once("error", onResponseError);
-        // 回调里抛出的东西没人接得住、会打死整个 agent 进程（network/incoming-response.ts）：
-        // 表示不了的状态码只让这一次请求失败。
-        let response: Response;
-        try {
-          response = toWebResponse(readIncomingResponse(message));
-        } catch (error) {
-          message.destroy();
-          rejectOnce(error);
-          return;
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(message.headers)) {
+          if (Array.isArray(value)) {
+            for (const item of value) {
+              headers.append(name, item);
+            }
+          } else if (value !== undefined) {
+            headers.append(name, String(value));
+          }
         }
+
         settled = true;
-        resolve(response);
+        resolve(
+          new Response(Readable.toWeb(message) as ReadableStream<Uint8Array>, {
+            headers,
+            status: message.statusCode ?? 502,
+            statusText: message.statusMessage,
+          }),
+        );
       },
     );
 

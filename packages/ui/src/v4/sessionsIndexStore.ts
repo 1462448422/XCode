@@ -10,12 +10,12 @@ import {
   type SessionsIndexTopicFrame,
   type TopicFrameDeliveryKind,
 } from "@zcode/shared/zcode-protocol-v4";
-import { isZCodeFileLockTimeoutError } from "@zcode/shared";
-import { ZCODE_AGENT_RUNTIME_UNAVAILABLE_CODE } from "@zcode/services";
+import { isXCodeFileLockTimeoutError } from "@zcode/shared";
+import { XCODE_AGENT_RUNTIME_UNAVAILABLE_CODE } from "@zcode/services";
 import { logger } from "@/logger.js";
 import type { SessionsIndexTransport } from "@/v4/agentSessionsIndexTransport.js";
 
-export interface SessionsIndexState {
+interface SessionsIndexState {
   /** workspaceId → 已知；null = 尚无 snapshot。 */
   workspaceId: string | null;
   logEpoch: string | null;
@@ -25,7 +25,7 @@ export interface SessionsIndexState {
   sessions: Map<string, SessionSummary>;
 }
 
-export const EMPTY_SESSIONS_INDEX_STATE: SessionsIndexState = {
+const EMPTY_SESSIONS_INDEX_STATE: SessionsIndexState = {
   workspaceId: null,
   logEpoch: null,
   seq: 0,
@@ -41,7 +41,7 @@ const TRANSIENT_SUBSCRIBE_RETRY_DELAYS_MS = [250, 1_000, 3_000] as const;
 const ERROR_RECOVERY_RETRY_DELAYS_MS = [5_000, 15_000, 60_000] as const;
 
 function isTransientSubscribeError(error: unknown): boolean {
-  if (isZCodeFileLockTimeoutError(error)) {
+  if (isXCodeFileLockTimeoutError(error)) {
     return true;
   }
   const code =
@@ -63,7 +63,7 @@ function isRuntimeUnavailableError(error: unknown): boolean {
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    (error as { code?: unknown }).code === ZCODE_AGENT_RUNTIME_UNAVAILABLE_CODE
+    (error as { code?: unknown }).code === XCODE_AGENT_RUNTIME_UNAVAILABLE_CODE
   );
 }
 
@@ -84,7 +84,7 @@ async function unsubscribeIgnoringFailure(
   }
 }
 
-export interface ApplySessionsIndexResult {
+interface ApplySessionsIndexResult {
   state: SessionsIndexState;
   /** true = 帧区间断档（fromSeq 与水位不衔接），调用方应重订阅。 */
   gap: boolean;

@@ -16,19 +16,19 @@ import {
 const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
 const GITHUB_REPOSITORY_SEGMENT = /^[A-Za-z0-9_.-]+$/u;
 
-export interface PublicGitHubRepository {
+interface PublicGitHubRepository {
   owner: string;
   repo: string;
 }
 
-export interface ResolveGitHubArchiveSourceInput {
+interface ResolveGitHubArchiveSourceInput {
   path?: string;
   pin?: string;
   signal?: AbortSignal;
   url: string;
 }
 
-export class GitHubArchiveRequiresGitError extends Error {
+class GitHubArchiveRequiresGitError extends Error {
   readonly reason: string;
 
   constructor(reason: string) {
@@ -38,7 +38,7 @@ export class GitHubArchiveRequiresGitError extends Error {
   }
 }
 
-export function parsePublicGitHubRepositoryUrl(value: string): PublicGitHubRepository | null {
+function parsePublicGitHubRepositoryUrl(value: string): PublicGitHubRepository | null {
   let url: URL;
   try {
     url = new URL(value);
@@ -74,7 +74,7 @@ export function parsePublicGitHubRepositoryUrl(value: string): PublicGitHubRepos
   return { owner, repo };
 }
 
-export function buildGitHubArchiveUrl(repository: PublicGitHubRepository, pin = "HEAD"): string {
+function buildGitHubArchiveUrl(repository: PublicGitHubRepository, pin = "HEAD"): string {
   const normalizedPin = pin.trim() || "HEAD";
   return `https://api.github.com/repos/${repository.owner}/${repository.repo}/zipball/${encodeURIComponent(normalizedPin)}`;
 }
@@ -91,7 +91,7 @@ export async function resolveGitHubArchiveSource(
   const resolved = await resolveHttpZipSource({
     headers: {
       Accept: "application/vnd.github+json",
-      "User-Agent": "ZCode-Plugin-Installer",
+      "User-Agent": "XCode-Plugin-Installer",
     },
     requireSingleRoot: true,
     signal: input.signal,

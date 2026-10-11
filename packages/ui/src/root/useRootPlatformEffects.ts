@@ -1,6 +1,6 @@
 /* oxlint-disable eslint(max-lines) -- 平台事件和分享导入共用同一生命周期。 */
 import { useEffect, useRef, useState } from "react";
-import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import type { IPlatformService } from "@zcode/shared";
 import { isWorkspaceTab, type TabStoreState, type WindowTabState } from "@/store/tabStore.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";
@@ -10,12 +10,8 @@ import { dismissToast, toast, updateToast } from "@/components/ui/toast.js";
 import { matchesPrimaryShortcut } from "@/lib/keyboardShortcuts.js";
 import { isShortcutRecordingActive } from "@/shortcuts/bindings.js";
 import { isRendererReloadNavigation } from "@/lib/rendererNavigation.js";
-import {
-  buildConnectedRemoteWorkspaceSessionTargets,
-  buildWebRemoteControlWorkspaceTargets,
-  shouldPublishCompleteWorkspaceSnapshot,
-} from "@/root/rootPlatformWorkspaceSync.js";
 import { useOptionalBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
+import { shouldPublishCompleteWorkspaceSnapshot } from "@/root/rootPlatformWorkspaceSync.js";
 import {
   createShareImportIntent,
   isShareImportIntentSame,
@@ -47,8 +43,6 @@ export function useRootPlatformEffects({
   reconnectingRemoteWorkspaceKeys = [],
   remoteWorkspaceErrorByWorkspaceKey = {},
   totalUnreadTaskCount,
-  webRemoteControlFeatureEnabled = false,
-  webRemoteControlSessionActive = false,
   hasCompletedFullTabRestore = true,
   intl,
   isRestoringOAuthSession,
@@ -75,17 +69,15 @@ export function useRootPlatformEffects({
   setWorkspaceActionError: (message: string | null) => void;
   allowOpenWorkspace?: boolean;
   isDesktop?: boolean;
-  locale: ReturnType<typeof import("@/i18n/IntlProvider.js").useZCodeIntl>["locale"];
+  locale: ReturnType<typeof import("@/i18n/IntlProvider.js").useXCodeIntl>["locale"];
   tabs: WindowTabState[];
   activeWorkspacePath?: string | null;
   activeWorkspaceIdentity?: string | null;
   reconnectingRemoteWorkspaceKeys?: string[];
   remoteWorkspaceErrorByWorkspaceKey?: Record<string, string>;
   totalUnreadTaskCount: number;
-  webRemoteControlFeatureEnabled?: boolean;
-  webRemoteControlSessionActive?: boolean;
   hasCompletedFullTabRestore?: boolean;
-  intl: ReturnType<typeof import("@/i18n/IntlProvider.js").useZCodeIntl>["intl"];
+  intl: ReturnType<typeof import("@/i18n/IntlProvider.js").useXCodeIntl>["intl"];
   isRestoringOAuthSession: boolean;
 }) {
   const didBootstrapInitialWorkspaceRef = useRef(false);
@@ -116,7 +108,7 @@ export function useRootPlatformEffects({
           : undefined,
       );
       if (initialTaskId) {
-        useZCodeSessionStore
+        useXCodeSessionStore
           .getState()
           .setActiveTaskId(initialWorkspaceAbsPath, initialTaskId, initialWorkspaceIdentity);
       } else if (!isRendererReloadNavigation()) {
@@ -213,7 +205,7 @@ export function useRootPlatformEffects({
     const disposeNotificationClick = platform.onTaskNotificationClick((taskId: string) => {
       logger.info("[Root] onTaskNotificationClick:", taskId);
       // 遍历所有 workspace 找到 taskId 所属的 workspace，然后激活对应 tab 并切换任务
-      const workspaces = useZCodeSessionStore.getState().workspaces;
+      const workspaces = useXCodeSessionStore.getState().workspaces;
       for (const [workspacePath, workspaceState] of Object.entries(workspaces)) {
         const taskMeta = workspaceState.taskListCache?.find((task) => task.taskId === taskId);
         const hasTask = workspaceState.activeTaskId === taskId || Boolean(taskMeta);
@@ -226,7 +218,7 @@ export function useRootPlatformEffects({
             targetWorkspacePath,
             targetWorkspaceIdentity ? { workspaceIdentity: targetWorkspaceIdentity } : undefined,
           );
-          useZCodeSessionStore
+          useXCodeSessionStore
             .getState()
             .setActiveTaskId(targetWorkspacePath, taskId, targetWorkspaceIdentity);
           return;
@@ -386,7 +378,7 @@ export function useRootPlatformEffects({
             workspacePurpose: "conversation",
           });
         }
-        const sessionStore = useZCodeSessionStore.getState();
+        const sessionStore = useXCodeSessionStore.getState();
         sessionStore.setActiveTaskId(
           result.workspacePath,
           result.sessionId,
@@ -514,44 +506,6 @@ export function useRootPlatformEffects({
   }, [hasCompletedFullTabRestore, isDesktop, platform, tabs]);
 
   useEffect(() => {
-    if (
-      !isDesktop ||
-      !shouldPublishCompleteWorkspaceSnapshot(hasCompletedFullTabRestore) ||
-      !platform.syncWebRemoteControlWorkspaces
-    ) {
-      return;
-    }
-
-    const connectedRemoteWorkspaces = buildConnectedRemoteWorkspaceSessionTargets({ tabs });
-    if (connectedRemoteWorkspaces.length > 0) {
-      // Bugfix: Bot 远端连接状态查询依赖 main 进程里 remoteSessionId -> workspaceIdentity 的绑定。
-      // 之前这条绑定复用 Web 远控 workspace 同步，Web 远控未开启时不会执行，导致 UI 已连接但 Bot 误判未连接。
-      platform.syncWebRemoteControlWorkspaces(connectedRemoteWorkspaces);
-    }
-
-    if (!webRemoteControlFeatureEnabled || !webRemoteControlSessionActive) {
-      return;
-    }
-
-    const workspaces = buildWebRemoteControlWorkspaceTargets({
-      tabs,
-      reconnectingRemoteWorkspaceKeys,
-      remoteWorkspaceErrorByWorkspaceKey,
-    });
-
-    platform.syncWebRemoteControlWorkspaces(workspaces);
-  }, [
-    hasCompletedFullTabRestore,
-    isDesktop,
-    platform,
-    reconnectingRemoteWorkspaceKeys,
-    remoteWorkspaceErrorByWorkspaceKey,
-    tabs,
-    webRemoteControlFeatureEnabled,
-    webRemoteControlSessionActive,
-  ]);
-
-  useEffect(() => {
     if (isDesktop) {
       return;
     }
@@ -629,7 +583,7 @@ export function useRootPlatformEffects({
     const workspaceIdentity = activeTab?.workspaceIdentity;
     const syncActiveSession = (): void => {
       const nextSessionId = workspacePath
-        ? (useZCodeSessionStore.getState().getWorkspaceState(workspacePath, workspaceIdentity)
+        ? (useXCodeSessionStore.getState().getWorkspaceState(workspacePath, workspaceIdentity)
             .activeTaskId ?? null)
         : null;
       if (nextSessionId === lastSyncedSessionIdRef.current) return;
@@ -637,6 +591,6 @@ export function useRootPlatformEffects({
       platform.syncActiveTaskSession(nextSessionId);
     };
     syncActiveSession();
-    return useZCodeSessionStore.subscribe(syncActiveSession);
+    return useXCodeSessionStore.subscribe(syncActiveSession);
   }, [activeTab, activeTabId, isDesktop, platform]);
 }

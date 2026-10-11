@@ -1,12 +1,9 @@
 import type { ModelUsage } from "@zcode/contracts";
 import { formatTaskNotification } from "../runtime-task/notification.js";
 
-export type LocalAgentTaskNotificationStatus =
-  | "completed"
-  | "failed"
-  | "stopped";
+type LocalAgentTaskNotificationStatus = "completed" | "failed" | "stopped";
 
-export interface LocalAgentTaskNotificationInput {
+interface LocalAgentTaskNotificationInput {
   agentId: string;
   agentType: string;
   description: string;
@@ -21,9 +18,7 @@ export interface LocalAgentTaskNotificationInput {
   usage?: ModelUsage;
 }
 
-export function formatLocalAgentTaskNotification(
-  input: LocalAgentTaskNotificationInput,
-): string {
+export function formatLocalAgentTaskNotification(input: LocalAgentTaskNotificationInput): string {
   return formatTaskNotification({
     agentId: input.agentId,
     description: input.description,
@@ -46,15 +41,11 @@ export function formatLocalAgentTaskNotification(
 }
 
 function formatLocalAgentNotificationSummary(
-  input: Pick<
-    LocalAgentTaskNotificationInput,
-    "agentType" | "description" | "error" | "status"
-  >,
+  input: Pick<LocalAgentTaskNotificationInput, "agentType" | "description" | "error" | "status">,
 ): string {
   const summary = `Agent ${input.agentType} task "${input.description}" ${input.status}.`;
-  const error =
-    input.status === "failed" && input.error?.trim() ? input.error : undefined;
-  // 修复原因：失败 summary 是 Agent 卡“子智能体输出”的来源，必须保留原前缀并
+  const error = input.status === "failed" && input.error?.trim() ? input.error : undefined;
+  // 失败 summary 是 Agent 卡“子智能体输出”的来源，必须保留原前缀并
   // 直接追加与 <error> 相同的失败原因；completed/stopped 文案保持不变。
   return error ? `${summary} ${error}` : summary;
 }

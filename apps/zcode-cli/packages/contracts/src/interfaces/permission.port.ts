@@ -22,8 +22,6 @@ export interface PermissionRuleValue {
 }
 
 export interface PermissionRuleset {
-  /** 群协作任务的记忆授权仅在当前 session 内生效。 */
-  scope?: "session";
   version?: 1;
   allow?: PermissionRuleValue[];
   deny?: PermissionRuleValue[];
@@ -52,7 +50,6 @@ export type PermissionBrokerReasonSource = "plan_approval_feedback" | "workflow_
 export type PermissionOptionsPolicy = "no-always-allow" | "session-always-allow";
 
 export interface PermissionBrokerRequest {
-  approvalMode?: "user-once";
   requestId: string;
   sessionId: SessionId;
   turnId?: TurnId;
@@ -85,14 +82,6 @@ export interface PermissionBrokerResult {
    * by the broker on the answer side because the wire option schema is strict.
    */
   sessionPermissionUpdates?: PermissionUpdate[];
-  /**
-   * Fields the user changed in the confirmation window before approving, keyed by the tool's own
-   * input field names; `null` means "back to the field's default". Carried only on an allow and
-   * applied only by a tool that declares `applyInputAdjustments` (CreateWorkflow and
-   * AmendWorkflow: docs/dynamic-workflow/launch.md「Adjusting the settings in the window」).
-   * Synthesized by the broker from the v4 answer's `content`.
-   */
-  inputAdjustments?: Readonly<Record<string, unknown>>;
   resolvedAt?: Date;
 }
 
@@ -107,8 +96,5 @@ export interface PermissionBrokerPort {
   requestPermission(
     request: PermissionBrokerRequest,
     options?: PermissionBrokerRequestOptions,
-  ): Promise<PermissionBrokerResult> & {
-    /** 异步登记时必须提供；缺省表示调用内同步登记。仅表示可响应，不持有授权状态。 */
-    readonly registered?: Promise<void>;
-  };
+  ): Promise<PermissionBrokerResult>;
 }

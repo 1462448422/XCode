@@ -1,7 +1,7 @@
 import type { TuiModelOption } from "./types.js";
 
 const MODEL_REF_SEPARATOR = "/";
-export const UNKNOWN_MODEL_FIELD = "-";
+const UNKNOWN_MODEL_FIELD = "-";
 
 type ModelDisplayParts = {
   model: string;

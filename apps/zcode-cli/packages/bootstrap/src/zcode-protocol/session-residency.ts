@@ -5,9 +5,9 @@ import type {
   SessionDeactivationDecision,
   SessionResidentPoolHost,
 } from "./session-resident-pool.js";
-import type { ZCodeProtocolAgentServerContext } from "./server-types.js";
+import type { XCodeProtocolAgentServerContext } from "./server-types.js";
 
-export interface SessionResidencyFinalizationOwner {
+interface SessionResidencyFinalizationOwner {
   residencyFinalizationCount?: number;
 }
 
@@ -16,7 +16,7 @@ export interface SessionResidencyFinalizationOwner {
  * record。Prompt admission 的 busy/idle authority 已归 Core；activeAbortController 仅是旧命令
  * 路径的兼容取消句柄，不能再作为 prompt 调度锁。
  */
-export function acquireSessionResidencyFinalization(
+function acquireSessionResidencyFinalization(
   record: SessionResidencyFinalizationOwner,
 ): () => void {
   record.residencyFinalizationCount = (record.residencyFinalizationCount ?? 0) + 1;
@@ -50,8 +50,8 @@ export function runWithSessionResidencyFinalization<T>(
  * 又会并发碰同一 session 资源。因此同步摘除与异步 close 必须由 pool 的 in-flight gate
  * 组合成一个生命周期事务。
  */
-export async function deactivateSessionRecord(
-  context: ZCodeProtocolAgentServerContext,
+async function deactivateSessionRecord(
+  context: XCodeProtocolAgentServerContext,
   sessionId: string,
 ): Promise<void> {
   const record = context.sessions.get(sessionId);
@@ -68,7 +68,7 @@ export async function deactivateSessionRecord(
 }
 
 export function createSessionResidentPoolHost(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
 ): SessionResidentPoolHost {
   return {
     deactivate: (sessionId) => deactivateSessionRecord(context, sessionId),

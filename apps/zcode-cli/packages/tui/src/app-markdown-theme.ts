@@ -1,7 +1,7 @@
 import { SyntaxStyle, type ThemeTokenStyle } from "@mbears/opentui-core";
 import type { TuiThemeTokens } from "./theme/index.js";
 
-export function markdownSyntaxRules(theme: TuiThemeTokens): ThemeTokenStyle[] {
+function markdownSyntaxRules(theme: TuiThemeTokens): ThemeTokenStyle[] {
   return [
     token(["default"], { foreground: theme.markdownText }),
     token(["markup.heading", "markup.heading.1", "markup.heading.2", "markup.heading.3"], {
@@ -60,9 +60,6 @@ export function createMarkdownSyntaxStyle(theme: TuiThemeTokens): SyntaxStyle | 
   }
 }
 
-function token(
-  scope: string[],
-  style: ThemeTokenStyle["style"],
-): ThemeTokenStyle {
+function token(scope: string[], style: ThemeTokenStyle["style"]): ThemeTokenStyle {
   return { scope, style };
 }

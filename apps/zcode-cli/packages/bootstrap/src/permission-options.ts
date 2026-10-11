@@ -1,5 +1,5 @@
 import type { PermissionOptionsPolicy, PermissionUpdate } from "@zcode/contracts";
-import { OFFICIAL_CUA_PERMISSION_RULE_TOOL_NAME, type ZCodePermissionOption } from "@zcode/shared";
+import { OFFICIAL_CUA_PERMISSION_RULE_TOOL_NAME, type XCodePermissionOption } from "@zcode/shared";
 
 const PROJECT_RULE_INPUT_KEYS = ["command", "url", "file_path", "path", "pattern"] as const;
 
@@ -25,7 +25,6 @@ export const SESSION_ALLOW_PERMISSION_OPTION_KIND = "allow_session";
 const SESSION_ALLOW_PERMISSION_OPTION_NAME = "Always allow in this session";
 
 interface PermissionOptionSource {
-  approvalMode?: "user-once";
   input?: unknown;
   suggestedPermissionUpdates?: PermissionUpdate[];
   optionsPolicy?: PermissionOptionsPolicy;
@@ -37,14 +36,14 @@ interface PermissionOptionSource {
  */
 export function buildProtocolPermissionOptions(
   source: PermissionOptionSource,
-): ZCodePermissionOption[] {
+): XCodePermissionOption[] {
   const permissionUpdates = source.suggestedPermissionUpdates?.length
     ? source.suggestedPermissionUpdates
     : defaultPermissionUpdates(source);
   const officialCuaProjectScope = permissionUpdates.some((update) =>
     update.rules.some((rule) => rule.toolName === OFFICIAL_CUA_PERMISSION_RULE_TOOL_NAME),
   );
-  const options: ZCodePermissionOption[] = [
+  return [
     {
       kind: "allow_once",
       name: "Allow once",
@@ -100,9 +99,6 @@ export function buildProtocolPermissionOptions(
       },
     },
   ];
-  return source.approvalMode === "user-once"
-    ? options.filter((option) => option.kind === "allow_once" || option.kind === "deny")
-    : options;
 }
 
 /**

@@ -17,7 +17,7 @@ const SELECTION_SIDE_CHAT_RESTRICTED_COMMANDS = new Set<CommandEnvelope["type"]>
   "discardSharedContext",
 ]);
 
-export class V4SelectionSideChatRestrictedCommandError extends Error {
+class V4SelectionSideChatRestrictedCommandError extends Error {
   readonly reasonCode = "guard.selectionSideChatRestrictedCommand";
 
   constructor(command: CommandEnvelope["type"]) {
@@ -60,18 +60,18 @@ export class V4CommandExecutor {
   }
 }
 
-export interface V4CommandAdmission {
+interface V4CommandAdmission {
   admissionSeq: number;
   admittedAt: number;
   queueItemId: string;
 }
 
-export interface V4CommandExecutionContext {
+interface V4CommandExecutionContext {
   /** 内部 auto-drain 必须在 reserve 前由 handler 原子校验 Core idle。 */
   autoDrainPromotion?: true;
 }
 
-export type V4AdmittedCommandEnvelope = CommandEnvelope & {
+type V4AdmittedCommandEnvelope = CommandEnvelope & {
   __v4Admission?: V4CommandAdmission;
   __v4ExecutionContext?: V4CommandExecutionContext;
 };

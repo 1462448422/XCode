@@ -17,7 +17,7 @@ interface WorkspaceHomeCacheEntry {
 
 const workspaceHomePathCache = new Map<string, WorkspaceHomeCacheEntry>();
 
-export function buildWorkspaceHomeCacheKey(params: WorkspaceHomePathParams): string {
+function buildWorkspaceHomeCacheKey(params: WorkspaceHomePathParams): string {
   const workspaceKey = params.workspaceIdentity?.trim() || params.workspacePath;
   return `${workspaceKey}::${params.remoteSessionId?.trim() || "local"}`;
 }
@@ -25,10 +25,6 @@ export function buildWorkspaceHomeCacheKey(params: WorkspaceHomePathParams): str
 function normalizeHostHomePath(homePath: string): string | null {
   const trimmed = homePath.trim();
   return trimmed && isAbsoluteFilePath(trimmed) ? trimmed : null;
-}
-
-export function resetWorkspaceHomePathCacheForTests(): void {
-  workspaceHomePathCache.clear();
 }
 
 export function useWorkspaceHomePath(params: WorkspaceHomePathParams): string | undefined {

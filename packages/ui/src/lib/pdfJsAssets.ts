@@ -1,4 +1,4 @@
-export interface PdfJsDocumentOptions {
+interface PdfJsDocumentOptions {
   cMapPacked: true;
   cMapUrl: string;
 }

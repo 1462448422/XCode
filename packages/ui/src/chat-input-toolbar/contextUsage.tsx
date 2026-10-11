@@ -11,8 +11,8 @@ import {
 import {
   TID_CHAT_CONTEXT_USAGE_TRIGGER,
   type CodingPlanResetType,
-  type ZCodeContextUsageBreakdownItem,
-  type ZCodeProvider,
+  type XCodeContextUsageBreakdownItem,
+  type XCodeProvider,
 } from "@zcode/shared";
 import {
   Context,
@@ -28,7 +28,7 @@ import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { resolveCodingPlanUsageRemainingState } from "@/CodingPlanUsageRemainingPanel.js";
 import { CodingPlanQuotaResetStatusContent } from "@/components/coding-plan-quota-reset/CodingPlanQuotaResetStatus.js";
 import { useCodingPlanQuotaResetUi } from "@/hooks/useCodingPlanQuotaResetUi.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   CODING_PLAN_QUOTA_RESET_AUTOMATIC_PROCESSING_MS,
   CODING_PLAN_QUOTA_RESET_TYPES,
@@ -64,7 +64,7 @@ import {
   shouldDismissContextQuotaResetOpportunityReminder,
 } from "@/chat-input-toolbar/contextQuotaResetOpportunityReminder.js";
 
-type ContextUsageBreakdownSource = ZCodeContextUsageBreakdownItem["source"];
+type ContextUsageBreakdownSource = XCodeContextUsageBreakdownItem["source"];
 
 interface ContextUsageBreakdownSegment {
   chars: number;
@@ -82,7 +82,7 @@ const CONTEXT_PROGRESS_TONE_COLORS = [
 const PERCENT_MAX = 100;
 const CACHE_HIT_RATE_DISPLAY_THRESHOLD = 0.78;
 
-export function formatContextUsageTokenCount(
+function formatContextUsageTokenCount(
   value: number,
   locale: string,
   options: { maximumFractionDigits?: number } = {},
@@ -90,7 +90,7 @@ export function formatContextUsageTokenCount(
   return formatCompactTokenNumber(locale, value, options);
 }
 
-export function formatContextUsageSummary({
+function formatContextUsageSummary({
   locale,
   percent,
   size,
@@ -114,7 +114,7 @@ export function formatContextUsageSummary({
   )} (${percentageFormatter.format(percent)})`;
 }
 
-export function formatContextCacheHitRateLabel(
+function formatContextCacheHitRateLabel(
   hitRate: number | null | undefined,
   locale: string,
   options: { showBelowThreshold?: boolean } = {},
@@ -125,10 +125,7 @@ export function formatContextCacheHitRateLabel(
 
   // 生产面板只露出明显缓存收益，避免低命中率分散对上下文容量的注意力；
   // 开发环境需要观察 provider 的真实低命中值，因此允许绕过 78% 展示阈值。
-  if (
-    !options.showBelowThreshold &&
-    hitRate < CACHE_HIT_RATE_DISPLAY_THRESHOLD
-  ) {
+  if (!options.showBelowThreshold && hitRate < CACHE_HIT_RATE_DISPLAY_THRESHOLD) {
     return null;
   }
 
@@ -141,9 +138,8 @@ export function formatContextCacheHitRateLabel(
 function getBreakdownToneStyle(index: number): CSSProperties {
   return {
     backgroundColor:
-      CONTEXT_PROGRESS_TONE_COLORS[
-        Math.min(index, CONTEXT_PROGRESS_TONE_COLORS.length - 1)
-      ] ?? CONTEXT_PROGRESS_TONE_COLORS[0],
+      CONTEXT_PROGRESS_TONE_COLORS[Math.min(index, CONTEXT_PROGRESS_TONE_COLORS.length - 1)] ??
+      CONTEXT_PROGRESS_TONE_COLORS[0],
   };
 }
 
@@ -167,24 +163,18 @@ const BREAKDOWN_SOURCE_ORDER: Record<ContextUsageBreakdownSource, number> = {
   mcp_tool_schemas: 6,
 };
 
-export function buildContextUsageBreakdownSegments(
-  breakdown: readonly ZCodeContextUsageBreakdownItem[] | undefined,
+function buildContextUsageBreakdownSegments(
+  breakdown: readonly XCodeContextUsageBreakdownItem[] | undefined,
 ): ContextUsageBreakdownSegment[] {
   const charsBySource = new Map<ContextUsageBreakdownSource, number>();
   for (const item of breakdown ?? []) {
     if (!Number.isFinite(item.chars) || item.chars <= 0) {
       continue;
     }
-    charsBySource.set(
-      item.source,
-      (charsBySource.get(item.source) ?? 0) + item.chars,
-    );
+    charsBySource.set(item.source, (charsBySource.get(item.source) ?? 0) + item.chars);
   }
 
-  const totalChars = [...charsBySource.values()].reduce(
-    (sum, chars) => sum + chars,
-    0,
-  );
+  const totalChars = [...charsBySource.values()].reduce((sum, chars) => sum + chars, 0);
   if (totalChars <= 0) {
     return [];
   }
@@ -198,14 +188,11 @@ export function buildContextUsageBreakdownSegments(
     .sort(
       (left, right) =>
         right.chars - left.chars ||
-        BREAKDOWN_SOURCE_ORDER[left.source] -
-          BREAKDOWN_SOURCE_ORDER[right.source],
+        BREAKDOWN_SOURCE_ORDER[left.source] - BREAKDOWN_SOURCE_ORDER[right.source],
     );
 }
 
-export function buildContextUsageProgressSegments(
-  segments: readonly ContextUsageBreakdownSegment[],
-) {
+function buildContextUsageProgressSegments(segments: readonly ContextUsageBreakdownSegment[]) {
   return segments.map((segment, index) => ({
     id: segment.source,
     percent: segment.percent,
@@ -213,14 +200,14 @@ export function buildContextUsageProgressSegments(
   }));
 }
 
-export function getRenderableTaskUsage<
-  T extends { used: number; size: number },
->(taskUsage: T | null): T | null {
+export function getRenderableTaskUsage<T extends { used: number; size: number }>(
+  taskUsage: T | null,
+): T | null {
   if (!taskUsage) {
     return null;
   }
 
-  // ZCode Protocol 迁移后会单独补齐真实 contextUsed/contextWindow。
+  // XCode Protocol 迁移后会单独补齐真实 contextUsed/contextWindow。
   // used=0 或非法值不代表可展示的上下文占用，避免把初始化/异常兜底渲染成误导性的 0%。
   if (
     !Number.isFinite(taskUsage.used) ||
@@ -234,28 +221,15 @@ export function getRenderableTaskUsage<
   return taskUsage;
 }
 
-export function getContextCompressionCommand(_provider: ZCodeProvider): string {
+export function getContextCompressionCommand(_provider: XCodeProvider): string {
   return "/compact";
 }
 
 // 自动/运营完成（startedAt 为空）当前生效的 used_at；手动完成不进入触发器交互。
-function resolveAutomaticCompletedAt(
-  entry: CodingPlanQuotaResetUiEntry | null,
-): number | null {
-  return entry?.status === "completed" &&
-    entry.startedAt === null &&
-    entry.observedAt !== null
+function resolveAutomaticCompletedAt(entry: CodingPlanQuotaResetUiEntry | null): number | null {
+  return entry?.status === "completed" && entry.startedAt === null && entry.observedAt !== null
     ? entry.completedAt
     : null;
-}
-
-export function refreshContextUsageOnOpen(
-  open: boolean,
-  onAccess: (() => Promise<void> | void) | undefined,
-): void {
-  if (open) {
-    void onAccess?.();
-  }
 }
 
 export function ChatContextUsage({
@@ -272,16 +246,16 @@ export function ChatContextUsage({
     used: number;
     size: number;
     cache?: { hitRate: number | null };
-    breakdown?: ZCodeContextUsageBreakdownItem[];
+    breakdown?: XCodeContextUsageBreakdownItem[];
   } | null;
-  selectedProvider: ZCodeProvider;
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  selectedProvider: XCodeProvider;
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   locale: string;
   onSendCompressionCommand?: (command: string) => void;
   compressionDisabled?: boolean;
 }) {
-  const isWorkspaceVisible = useOptionalTabStore((state) =>
-    !state.tabs.some((tab) => tab.id === state.activeTabId && isSettingsTab(tab)),
+  const isWorkspaceVisible = useOptionalTabStore(
+    (state) => !state.tabs.some((tab) => tab.id === state.activeTabId && isSettingsTab(tab)),
   );
   const [contextOpen, setContextOpen] = useState(false);
   const [contextAccessRefreshing, setContextAccessRefreshing] = useState(false);
@@ -300,8 +274,7 @@ export function ChatContextUsage({
       // hover 刷新入口不能只认 Coding Plan 的 onAccess：Start Plan（今日余额）与
       // Coding Plan 连接方式互斥，start plan 用户 hover 时整条刷新链路都不触发，余额只能被动等
       // 设置页/侧栏刷新。改为两段配置任一提供 onAccess 即发起本次静默 access 刷新（互斥下实际只有一个存在）。
-      const accessRefresh =
-        codingPlanUsageRemaining?.onAccess ?? startPlanBalance?.onAccess;
+      const accessRefresh = codingPlanUsageRemaining?.onAccess ?? startPlanBalance?.onAccess;
       if (!open || !accessRefresh) {
         return;
       }
@@ -334,8 +307,7 @@ export function ChatContextUsage({
     }
     const base = {
       ...codingPlanUsageRemaining,
-      refreshing:
-        contextAccessRefreshing || codingPlanUsageRemaining.refreshing === true,
+      refreshing: contextAccessRefreshing || codingPlanUsageRemaining.refreshing === true,
     };
     if (!codingPlanUsageRemaining.onUsageClick) {
       return base;
@@ -350,9 +322,7 @@ export function ChatContextUsage({
         }),
     };
   }, [codingPlanUsageRemaining, contextAccessRefreshing]);
-  const startPlanBalanceWithClose = useMemo<
-    ChatStartPlanBalanceConfig | undefined
-  >(() => {
+  const startPlanBalanceWithClose = useMemo<ChatStartPlanBalanceConfig | undefined>(() => {
     if (!startPlanBalance) {
       return undefined;
     }
@@ -360,8 +330,7 @@ export function ChatContextUsage({
       ...startPlanBalance,
       // 静默 access 刷新不置 entitlement.loading，今日余额标题旁 spinner 需要跟随
       // 本次 hover 触发的 promise（contextAccessRefreshing），语义对齐 Coding Plan 段的 refreshing。
-      refreshing:
-        contextAccessRefreshing || startPlanBalance.refreshing === true,
+      refreshing: contextAccessRefreshing || startPlanBalance.refreshing === true,
     };
     if (!startPlanBalance.onUpgradeClick) {
       return base;
@@ -380,17 +349,13 @@ export function ChatContextUsage({
   const hasCodingPlanUsageRemaining = codingPlanUsageRemainingWithClose
     ? hasChatCodingPlanUsageRemaining(codingPlanUsageRemainingWithClose)
     : false;
-  const hasStartPlanBalance = hasChatStartPlanBalance(
-    startPlanBalanceWithClose,
-  );
+  const hasStartPlanBalance = hasChatStartPlanBalance(startPlanBalanceWithClose);
 
   // 自动重置：触发器和面板复用同一完整 Personal/Team scope；共享 in-flight 避免重复请求。
   const resetCodingPlanState = useMemo(
     () =>
       codingPlanUsageRemainingWithClose
-        ? resolveCodingPlanUsageRemainingState(
-            codingPlanUsageRemainingWithClose,
-          )
+        ? resolveCodingPlanUsageRemainingState(codingPlanUsageRemainingWithClose)
         : null,
     [codingPlanUsageRemainingWithClose],
   );
@@ -401,8 +366,7 @@ export function ChatContextUsage({
     sourceKey: resetSourceKey,
     preferredProviderId: resetCodingPlanState?.displayedEntitlement?.providerId,
     accountAccess: resetCodingPlanState?.displayedEntitlement?.accountAccess,
-    onEntitlementRefresh:
-      codingPlanUsageRemainingWithClose?.onEntitlementRefresh,
+    onEntitlementRefresh: codingPlanUsageRemainingWithClose?.onEntitlementRefresh,
   });
   const opportunityBadge = resolveChatCodingPlanResetOpportunityBadge(
     resetCodingPlanState,
@@ -442,21 +406,15 @@ export function ChatContextUsage({
       }
     };
     const untilUrgent =
-      opportunityBadge.expiresAt -
-      now -
-      CONTEXT_QUOTA_RESET_URGENT_SECONDS * 1_000;
+      opportunityBadge.expiresAt - now - CONTEXT_QUOTA_RESET_URGENT_SECONDS * 1_000;
     if (untilUrgent <= 0) {
       startUrgentCountdown();
     } else {
-      urgentThresholdTimer = window.setTimeout(
-        startUrgentCountdown,
-        untilUrgent,
-      );
+      urgentThresholdTimer = window.setTimeout(startUrgentCountdown, untilUrgent);
     }
     return () => {
       if (countdownTimer !== undefined) window.clearInterval(countdownTimer);
-      if (urgentThresholdTimer !== undefined)
-        window.clearTimeout(urgentThresholdTimer);
+      if (urgentThresholdTimer !== undefined) window.clearTimeout(urgentThresholdTimer);
     };
   }, [opportunityBadge.expiresAt, opportunityBadge.visible, resetSourceKey]);
   const opportunityReminder = resolveContextQuotaResetOpportunityReminder({
@@ -464,12 +422,10 @@ export function ChatContextUsage({
     now: opportunityNow,
     opportunity: { ...opportunityBadge, sourceKey: resetSourceKey },
   });
-  const opportunityTriggerTone = resolveContextQuotaResetOpportunityTriggerTone(
-    {
-      now: opportunityNow,
-      opportunity: { ...opportunityBadge, sourceKey: resetSourceKey },
-    },
-  );
+  const opportunityTriggerTone = resolveContextQuotaResetOpportunityTriggerTone({
+    now: opportunityNow,
+    opportunity: { ...opportunityBadge, sourceKey: resetSourceKey },
+  });
   const dismissOpportunityReminder = useCallback(() => {
     if (!opportunityReminder) return;
     contextQuotaResetOpportunityDismissalStore.dismiss(opportunityReminder);
@@ -503,9 +459,7 @@ export function ChatContextUsage({
   const fiveHourEntry = resetUi.entry;
   const weekEntry = resetUi.week.entry;
   // 自动/运营完成（startedAt 为空）只是播放候选；status 入口不能直接驱动 Tooltip/撒花。
-  const automaticCompletionCandidateByType = useMemo<
-    Record<CodingPlanResetType, number | null>
-  >(
+  const automaticCompletionCandidateByType = useMemo<Record<CodingPlanResetType, number | null>>(
     () => ({
       FIVE_HOUR: resolveAutomaticCompletedAt(fiveHourEntry),
       WEEK: resolveAutomaticCompletedAt(weekEntry),
@@ -529,8 +483,7 @@ export function ChatContextUsage({
     sourceKey: resetSourceKey,
     completedAtByType: automaticCompletionCandidateByType,
   };
-  const [autoPlayReservationRetryTick, setAutoPlayReservationRetryTick] =
-    useState(0);
+  const [autoPlayReservationRetryTick, setAutoPlayReservationRetryTick] = useState(0);
 
   // Main 返回 claim winner 前 Composer 可能已经卸载或切换 source。现在先获取带 token
   // 的临时 reservation，只有组件与候选仍有效且即将展示时才 commit played；失效 winner release，
@@ -545,22 +498,18 @@ export function ChatContextUsage({
       completedAtByType: {
         FIVE_HOUR:
           sameSource &&
-          previous.completedAtByType.FIVE_HOUR ===
-            automaticCompletionCandidateByType.FIVE_HOUR
+          previous.completedAtByType.FIVE_HOUR === automaticCompletionCandidateByType.FIVE_HOUR
             ? previous.completedAtByType.FIVE_HOUR
             : null,
         WEEK:
-          sameSource &&
-          previous.completedAtByType.WEEK ===
-            automaticCompletionCandidateByType.WEEK
+          sameSource && previous.completedAtByType.WEEK === automaticCompletionCandidateByType.WEEK
             ? previous.completedAtByType.WEEK
             : null,
       },
     };
     if (
       previous.sourceKey !== synchronized.sourceKey ||
-      previous.completedAtByType.FIVE_HOUR !==
-        synchronized.completedAtByType.FIVE_HOUR ||
+      previous.completedAtByType.FIVE_HOUR !== synchronized.completedAtByType.FIVE_HOUR ||
       previous.completedAtByType.WEEK !== synchronized.completedAtByType.WEEK
     ) {
       claimedAutomaticCompletionRef.current = synchronized;
@@ -569,15 +518,11 @@ export function ChatContextUsage({
 
     for (const resetType of CODING_PLAN_QUOTA_RESET_TYPES) {
       const completedAt = automaticCompletionCandidateByType[resetType];
-      if (
-        completedAt === null ||
-        synchronized.completedAtByType[resetType] === completedAt
-      ) {
+      if (completedAt === null || synchronized.completedAtByType[resetType] === completedAt) {
         continue;
       }
       void coordinateCodingPlanQuotaResetAutoPlay({
-        reserve: () =>
-          resetUi.reserveAutomaticCompletion(resetType, completedAt),
+        reserve: () => resetUi.reserveAutomaticCompletion(resetType, completedAt),
         isCurrent: () => {
           const latest = latestAutomaticCompletionCandidateRef.current;
           return (
@@ -645,9 +590,7 @@ export function ChatContextUsage({
   ]);
 
   // Tooltip/撒花只消费本窗口已经 claim 成功且仍对应当前候选的 used_at。
-  const automaticCompletedAtByType = useMemo<
-    Record<CodingPlanResetType, number | null>
-  >(() => {
+  const automaticCompletedAtByType = useMemo<Record<CodingPlanResetType, number | null>>(() => {
     if (claimedAutomaticCompletion.sourceKey !== resetSourceKey) {
       return { FIVE_HOUR: null, WEEK: null };
     }
@@ -678,17 +621,14 @@ export function ChatContextUsage({
       WEEK: null,
     });
   // 待补播撒花的自动完成 used_at(按类型记录)；hover 展开面板后由对应额度条「已重置」位置各迸发一次。
-  const [armedAutoConfetti, setArmedAutoConfetti] =
-    useState<CodingPlanQuotaResetAutoConfettiArms>({
-      FIVE_HOUR: null,
-      WEEK: null,
-    });
+  const [armedAutoConfetti, setArmedAutoConfetti] = useState<CodingPlanQuotaResetAutoConfettiArms>({
+    FIVE_HOUR: null,
+    WEEK: null,
+  });
   const isTypeDismissed = useCallback(
     (resetType: CodingPlanResetType): boolean => {
       const completedAt = automaticCompletedAtByType[resetType];
-      return (
-        completedAt !== null && resetTooltipDismissed[resetType] === completedAt
-      );
+      return completedAt !== null && resetTooltipDismissed[resetType] === completedAt;
     },
     [automaticCompletedAtByType, resetTooltipDismissed],
   );
@@ -731,22 +671,14 @@ export function ChatContextUsage({
       return null;
     }
     return candidates.reduce((chosen, resetType) => {
-      const chosenObserved =
-        (chosen === "WEEK" ? weekEntry : fiveHourEntry)?.observedAt ?? 0;
-      const currentObserved =
-        (resetType === "WEEK" ? weekEntry : fiveHourEntry)?.observedAt ?? 0;
+      const chosenObserved = (chosen === "WEEK" ? weekEntry : fiveHourEntry)?.observedAt ?? 0;
+      const currentObserved = (resetType === "WEEK" ? weekEntry : fiveHourEntry)?.observedAt ?? 0;
       return currentObserved > chosenObserved ? resetType : chosen;
     });
   }, [phaseByType, fiveHourEntry, weekEntry]);
-  const resetTooltipPhase = activeResetType
-    ? phaseByType[activeResetType]
-    : null;
+  const resetTooltipPhase = activeResetType ? phaseByType[activeResetType] : null;
   const activeEntry =
-    activeResetType === "WEEK"
-      ? weekEntry
-      : activeResetType === "FIVE_HOUR"
-        ? fiveHourEntry
-        : null;
+    activeResetType === "WEEK" ? weekEntry : activeResetType === "FIVE_HOUR" ? fiveHourEntry : null;
   const triggerTooltipKind = resolveContextTriggerTooltipKind(
     resetTooltipPhase,
     opportunityReminder?.phase ?? null,
@@ -794,12 +726,8 @@ export function ChatContextUsage({
     if (resetTooltipPhase !== "processing" || observedAt === null) {
       return;
     }
-    const remaining =
-      observedAt + CODING_PLAN_QUOTA_RESET_AUTOMATIC_PROCESSING_MS - Date.now();
-    const timer = window.setTimeout(
-      () => setResetTooltipNow(Date.now()),
-      Math.max(0, remaining),
-    );
+    const remaining = observedAt + CODING_PLAN_QUOTA_RESET_AUTOMATIC_PROCESSING_MS - Date.now();
+    const timer = window.setTimeout(() => setResetTooltipNow(Date.now()), Math.max(0, remaining));
     return () => window.clearTimeout(timer);
   }, [resetTooltipPhase, activeEntry?.observedAt]);
 
@@ -851,10 +779,7 @@ export function ChatContextUsage({
     });
   }, []);
 
-  const numberFormatter = useMemo(
-    () => new Intl.NumberFormat(locale),
-    [locale],
-  );
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const contextUsageLabel = useMemo(() => {
     if (!renderableTaskUsage) {
       return null;
@@ -869,13 +794,9 @@ export function ChatContextUsage({
     );
   }, [intl, numberFormatter, renderableTaskUsage]);
   const cacheHitRateLabel = useMemo(() => {
-    return formatContextCacheHitRateLabel(
-      renderableTaskUsage?.cache?.hitRate,
-      locale,
-      {
-        showBelowThreshold: import.meta.env.DEV,
-      },
-    );
+    return formatContextCacheHitRateLabel(renderableTaskUsage?.cache?.hitRate, locale, {
+      showBelowThreshold: import.meta.env.DEV,
+    });
   }, [locale, renderableTaskUsage]);
   const breakdownSegments = useMemo(
     () => buildContextUsageBreakdownSegments(renderableTaskUsage?.breakdown),
@@ -903,10 +824,7 @@ export function ChatContextUsage({
   }
 
   const usagePercent = renderableTaskUsage
-    ? Math.min(
-        Math.max(renderableTaskUsage.used / renderableTaskUsage.size, 0),
-        1,
-      )
+    ? Math.min(Math.max(renderableTaskUsage.used / renderableTaskUsage.size, 0), 1)
     : 0;
   const compactTokenUsageLabel = renderableTaskUsage
     ? formatContextUsageSummary({
@@ -935,9 +853,7 @@ export function ChatContextUsage({
     >
       <ControlHintTooltip
         className={
-          triggerTooltipKind === "reset-status"
-            ? undefined
-            : "bg-background py-0.5 pr-0.5"
+          triggerTooltipKind === "reset-status" ? undefined : "bg-background py-0.5 pr-0.5"
         }
         open={resetStatusTooltipOpen}
         side="top"
@@ -960,7 +876,7 @@ export function ChatContextUsage({
           ) : null
         }
       >
-        {/* Bugfix：span 承载 ControlHintTooltip 的 asChild 锚点，内部 ContextTrigger 仍作为
+        {/* span 承载 ControlHintTooltip 的 asChild 锚点，内部 ContextTrigger 仍作为
             HoverCard 触发器，避免两个 Radix 浮层在同一 DOM 上叠加 ref。手动核销的
             processing 由弹层内「重置」按钮自身展示，触发器不转圈。 */}
         <span className="inline-flex shrink-0">
@@ -969,8 +885,7 @@ export function ChatContextUsage({
             className={cn(
               "text-foreground-subtle",
               opportunityTriggerTone === "available" && "text-success",
-              opportunityTriggerTone === "urgent" &&
-                "bg-warning/10 text-warning",
+              opportunityTriggerTone === "urgent" && "bg-warning/10 text-warning",
             )}
             data-chat-toolbar-popover-trigger="true"
             data-testid={TID_CHAT_CONTEXT_USAGE_TRIGGER}
@@ -998,7 +913,7 @@ export function ChatContextUsage({
         sideOffset={2}
       >
         <ContextContentBody className="space-y-3">
-          {/* Bugfix: 默认 ai-elements Header 会硬编码标题并把摘要拆到独立头部。
+          {/* 默认 ai-elements Header 会硬编码标题并把摘要拆到独立头部。
           工具栏上下文 hover 只需要一块紧凑信息面板，摘要和明细统一放在 body 里。 */}
           {renderableTaskUsage && compactTokenUsageLabel ? (
             <div className="space-y-2">
@@ -1018,8 +933,7 @@ export function ChatContextUsage({
               />
             </div>
           ) : null}
-          {renderableTaskUsage &&
-          (breakdownSegments.length > 0 || cacheHitRateLabel) ? (
+          {renderableTaskUsage && (breakdownSegments.length > 0 || cacheHitRateLabel) ? (
             <>
               {breakdownSegments.length > 0 ? (
                 <div
@@ -1044,7 +958,7 @@ export function ChatContextUsage({
                             id: BREAKDOWN_SOURCE_LABEL_ID[segment.source],
                           })}
                         </span>
-                        {/* Bugfix: breakdown 行只展示占比，分项 token 数会和顶部总量口径混在一起造成误读。 */}
+                        {/* breakdown 行只展示占比，分项 token 数会和顶部总量口径混在一起造成误读。*/}
                         <span className="ml-auto min-w-10 shrink-0 text-right font-mono text-ui-sm tabular-nums text-foreground">
                           {percentageFormatter.format(segment.percent)}
                         </span>
@@ -1057,8 +971,7 @@ export function ChatContextUsage({
                 <div
                   className={cn(
                     "flex items-center justify-between gap-3 text-ui-sm",
-                    breakdownSegments.length > 0 &&
-                      "border-t border-border pt-3",
+                    breakdownSegments.length > 0 && "border-t border-border pt-3",
                   )}
                 >
                   <span className="text-foreground-subtle">
@@ -1066,9 +979,7 @@ export function ChatContextUsage({
                       id: "chat.contextUsage.cacheHitRate",
                     })}
                   </span>
-                  <span className="font-mono text-ui-sm text-foreground">
-                    {cacheHitRateLabel}
-                  </span>
+                  <span className="font-mono text-ui-sm text-foreground">{cacheHitRateLabel}</span>
                 </div>
               ) : null}
             </>
@@ -1091,8 +1002,7 @@ export function ChatContextUsage({
               intl={intl}
               locale={locale}
               separated={Boolean(
-                (renderableTaskUsage && compactTokenUsageLabel) ||
-                hasCodingPlanUsageRemaining,
+                (renderableTaskUsage && compactTokenUsageLabel) || hasCodingPlanUsageRemaining,
               )}
             />
           ) : null}

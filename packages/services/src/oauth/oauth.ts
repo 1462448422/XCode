@@ -6,6 +6,7 @@ import type {
   OAuthStartResponse,
   UserInfo,
 } from "@zcode/shared";
+import type { OAuthAccountEntry } from "./repo/oauthCredentialRepo.js";
 import { ServiceChannels } from "@zcode/shared";
 import { createServiceDescriptor } from "../descriptors.js";
 
@@ -64,6 +65,21 @@ export interface IOAuthService {
 
   /** 登出所有 provider */
   logoutAll(): Promise<void>;
+
+  /** 获取已登录账号列表（多账号）。 */
+  getAccounts(): Promise<OAuthAccountEntry[]>;
+
+  /** 获取当前激活账号。 */
+  getActiveAccount(): Promise<OAuthAccountEntry | null>;
+
+  /** 切换激活账号（一次只激活一个）；返回切换后的账号，未找到返回 null。 */
+  switchAccount(accountRef: string): Promise<OAuthAccountEntry | null>;
+
+  /** 登出单个账号（仅清登录态凭证，账号保留在列表，不触发全局 relaunch）。 */
+  logoutAccount(accountRef: string): Promise<void>;
+
+  /** 删除单个账号（清凭证并从账号列表移除）。 */
+  removeAccount(accountRef: string): Promise<void>;
 
   /**
    * 取消 pending OAuth

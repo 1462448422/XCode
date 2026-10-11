@@ -3,7 +3,7 @@ import type { ToolCallCreateWorkflowDisplay } from "@zcode/shared/zcode-protocol
 import { CodeBlock, CodeBlockHeader } from "@/components/ai-elements/code-block.js";
 import { cn } from "@/components/lib/utils.js";
 import { DRAFT_FEEDBACK_DOT } from "@/components/workflow-graph/run-status-presentation.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type { WorkflowDraftPosition } from "@/ToolCallBlocks/shared.js";
 import {
   formatWorkflowFeedbackTooltip,
@@ -52,7 +52,7 @@ export function useWorkflowDraftRowSlots({
   diagnostics,
   saved,
 }: WorkflowDraftRowInput): WorkflowDraftRowSlots {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const ordinal = workflowDraftOrdinalShown(draft, { compileErrors, inFlight });
   const inFlightOrdinal = workflowDraftOrdinalShown(draft, { compileErrors: false, inFlight });
   const inFlightOrdinalText =
@@ -146,7 +146,7 @@ export function WorkflowFeedbackContent({
  * 细节槽里要不要写稿号：编不过的行总是写（宿主给了位置时）；在途行从第 2 稿起写。
  * 运行卡、启动摘要与确认窗不走这里，永远不带稿号。
  */
-export function workflowDraftOrdinalShown(
+function workflowDraftOrdinalShown(
   draft: WorkflowDraftPosition | undefined,
   phase: { compileErrors: boolean; inFlight: boolean },
 ): number | undefined {
@@ -155,8 +155,8 @@ export function workflowDraftOrdinalShown(
   return phase.inFlight && draft.ordinal >= 2 ? draft.ordinal : undefined;
 }
 
-export function WorkflowDraftOrdinal({ ordinal }: { ordinal: number }) {
-  const { intl } = useZCodeIntl();
+function WorkflowDraftOrdinal({ ordinal }: { ordinal: number }) {
+  const { intl } = useXCodeIntl();
   return (
     <span className="shrink-0 whitespace-nowrap tabular-nums" data-testid="workflow-draft-ordinal">
       {intl.formatMessage(
@@ -171,7 +171,7 @@ export function WorkflowDraftOrdinal({ ordinal }: { ordinal: number }) {
  * 空环灯：形状说「什么都没跑」，颜色说注意力是否还悬着（最新一稿警示色，有更新的一稿后褪成中性）。
  * `wf-lamp` 让颜色的变化走过渡，而不是一跳。
  */
-export function WorkflowDraftLamp({ superseded }: { superseded: boolean }) {
+function WorkflowDraftLamp({ superseded }: { superseded: boolean }) {
   return (
     <span
       aria-hidden

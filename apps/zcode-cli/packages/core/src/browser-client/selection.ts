@@ -1,7 +1,7 @@
 import { isIP } from "node:net";
 import type { BrowserInfo } from "./facade.js";
 
-export type BrowserTabsByBrowserId = ReadonlyMap<string, readonly string[]>;
+type BrowserTabsByBrowserId = ReadonlyMap<string, readonly string[]>;
 
 function isPreferredExtension(info: BrowserInfo): boolean {
   return (

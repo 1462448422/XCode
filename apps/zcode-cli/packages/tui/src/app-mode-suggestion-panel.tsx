@@ -94,7 +94,7 @@ export function ModeSuggestionPanel({
   );
 }
 
-export function visibleModeOptionWindow(
+function visibleModeOptionWindow(
   modes: readonly TuiModeOption[],
   selectedIndex: number,
   maxVisible: number,

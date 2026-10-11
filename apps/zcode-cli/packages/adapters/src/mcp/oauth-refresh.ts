@@ -10,9 +10,9 @@ import {
   type OAuthDiscoveryState,
 } from "@modelcontextprotocol/client";
 import type { Logger } from "@zcode/contracts";
-import { isZCodeFileLockTimeoutError } from "@zcode/shared";
+import { isXCodeFileLockTimeoutError } from "@zcode/shared";
 import { withFileLock } from "@zcode/shared/node";
-import type { SharedZCodeCredentialStore } from "../auth/shared-credentials.js";
+import type { SharedXCodeCredentialStore } from "../auth/shared-credentials.js";
 import {
   invalidateCanonicalCredentials,
   loadCredentialPair,
@@ -34,8 +34,8 @@ import { loadDiscoveryRecord, saveDiscoveryRecord } from "./oauth-shared.js";
  */
 const REFRESH_LOCK_MAX_WAIT_MS = 45_000;
 
-export interface RefreshMcpOAuthTokensInput {
-  credentialStore: SharedZCodeCredentialStore;
+interface RefreshMcpOAuthTokensInput {
+  credentialStore: SharedXCodeCredentialStore;
   fetchFn?: FetchLike;
   keyPrefix: string;
   logger?: Logger;
@@ -53,7 +53,7 @@ export interface RefreshMcpOAuthTokensInput {
   staticClientId?: string;
 }
 
-export interface ResolvedAsMetadata {
+interface ResolvedAsMetadata {
   authorizationServerUrl: string;
   metadata?: AuthorizationServerMetadata;
   resource?: URL;
@@ -74,11 +74,15 @@ export async function refreshMcpOAuthTokensUnderLock(
   const lockPath = resolveRefreshLockPath(input.credentialStore.filePath, input.keyPrefix);
 
   try {
-    return await withFileLock(lockPath, async () => await refreshLocked(input, observedGeneration), {
-      lockMaxWaitMs: REFRESH_LOCK_MAX_WAIT_MS,
-    });
+    return await withFileLock(
+      lockPath,
+      async () => await refreshLocked(input, observedGeneration),
+      {
+        lockMaxWaitMs: REFRESH_LOCK_MAX_WAIT_MS,
+      },
+    );
   } catch (error) {
-    if (!isZCodeFileLockTimeoutError(error)) throw error;
+    if (!isXCodeFileLockTimeoutError(error)) throw error;
     // 等锁超时不代表刷新失败：winner 可能已经发布结果。先重读，确认换代且有 token 就直接用。
     const current = await loadCredentialPair(input.credentialStore, input.keyPrefix);
     if (current?.tokens && current.generation !== observedGeneration) {
@@ -241,7 +245,7 @@ function failSoft(
  * discovery 记录带 TTL 且与 Phase 2 共用；`resource` 必须求出并带进 refresh 请求（RFC 8707），
  * SDK 自己的 refresh 会传它，我们绕开 `auth()` 后必须自己补上，否则受众绑定丢失。
  */
-export async function resolveAsMetadata(
+async function resolveAsMetadata(
   input: Pick<
     RefreshMcpOAuthTokensInput,
     "credentialStore" | "fetchFn" | "keyPrefix" | "serverUrl"
@@ -282,6 +286,6 @@ export async function resolveAsMetadata(
  * credentials.json 加锁；同一路径会自重入死锁。basename 只含 hash 与连字符（Windows 文件名
  * 不允许冒号）。
  */
-export function resolveRefreshLockPath(credentialsFilePath: string, keyPrefix: string): string {
+function resolveRefreshLockPath(credentialsFilePath: string, keyPrefix: string): string {
   return join(dirname(credentialsFilePath), `${sanitizeKeyPrefix(keyPrefix)}.refresh`);
 }

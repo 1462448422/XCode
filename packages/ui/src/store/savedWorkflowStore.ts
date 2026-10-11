@@ -4,14 +4,13 @@
 import { create } from "zustand";
 import {
   resolveWorkspaceKey,
-  type ZCodeSavedWorkflowEntry,
-  type ZCodeSavedWorkflowInvalidEntry,
-  type ZCodeSavedWorkflowRun,
-  type ZCodeWorkflowsListResult,
+  type XCodeSavedWorkflowEntry,
+  type XCodeSavedWorkflowInvalidEntry,
+  type XCodeSavedWorkflowRun,
+  type XCodeWorkflowsListResult,
 } from "@zcode/shared";
-import type { IZCodeAgentService, ZCodeAgentSavedWorkflowTarget } from "@zcode/services";
+import type { IXCodeAgentService, XCodeAgentSavedWorkflowTarget } from "@zcode/services";
 import { logger } from "@/logger.js";
-import { useWorkflowRunSavedStore } from "@/store/workflowRunSavedStore.js";
 
 /** 一页里最多拉多少条 run 来算「上次运行」；一个项目的活跃工作流很少超过这个数。 */
 const SAVED_WORKFLOW_RUNS_PAGE = 50;
@@ -22,9 +21,9 @@ const SAVED_WORKFLOW_RUNS_PAGE = 50;
  * @public
  */
 export interface SavedWorkflowWorkspaceState {
-  entries: ZCodeSavedWorkflowEntry[];
-  invalid: ZCodeSavedWorkflowInvalidEntry[];
-  runs: ZCodeSavedWorkflowRun[];
+  entries: XCodeSavedWorkflowEntry[];
+  invalid: XCodeSavedWorkflowInvalidEntry[];
+  runs: XCodeSavedWorkflowRun[];
   /** 扫过的目录（本地绝对路径），全局组据此 watch；未加载或列表未回时为 null。 */
   dir: string | null;
   loading: boolean;
@@ -48,8 +47,8 @@ const EMPTY_SAVED_WORKFLOW_STATE: SavedWorkflowWorkspaceState = {
 interface SavedWorkflowStoreState {
   byWorkspaceKey: Record<string, SavedWorkflowWorkspaceState>;
   load: (
-    target: ZCodeAgentSavedWorkflowTarget,
-    agentService: IZCodeAgentService,
+    target: XCodeAgentSavedWorkflowTarget,
+    agentService: IXCodeAgentService,
     options?: { bypassCache?: boolean },
   ) => Promise<void>;
 }
@@ -61,7 +60,7 @@ const inFlight = new Map<string, Promise<void>>();
  * 用固定键 `"global"`——它跨项目、由 services 自选载体，不该与任何项目的 workspaceKey 混淆；
  * 项目档仍按 `resolveWorkspaceKey` 分片。
  */
-function savedWorkflowStoreKey(target: ZCodeAgentSavedWorkflowTarget): string {
+function savedWorkflowStoreKey(target: XCodeAgentSavedWorkflowTarget): string {
   if (target.scope === "global" && !target.workspacePath) return "global";
   return resolveWorkspaceKey({
     workspacePath: target.workspacePath ?? "",
@@ -76,9 +75,9 @@ function extractErrorCode(error: unknown): number | null {
 }
 
 async function fetchWorkspace(
-  target: ZCodeAgentSavedWorkflowTarget,
-  agentService: IZCodeAgentService,
-): Promise<{ list: ZCodeWorkflowsListResult; runs: ZCodeSavedWorkflowRun[] }> {
+  target: XCodeAgentSavedWorkflowTarget,
+  agentService: IXCodeAgentService,
+): Promise<{ list: XCodeWorkflowsListResult; runs: XCodeSavedWorkflowRun[] }> {
   // 列表与运行历史并行；运行历史失败不拖垮列表（journal 缺席时中枢照常能看、能管）。
   const [list, runs] = await Promise.all([
     agentService.listSavedWorkflows(target),
@@ -89,7 +88,7 @@ async function fetchWorkspace(
         logger.warn("[savedWorkflowStore] 拉取运行历史失败，按无记录处理", {
           error: error instanceof Error ? error.message : String(error),
         });
-        return [] as ZCodeSavedWorkflowRun[];
+        return [] as XCodeSavedWorkflowRun[];
       }),
   ]);
   return { list, runs };
@@ -111,10 +110,6 @@ export const useSavedWorkflowStore = create<SavedWorkflowStoreState>((set) => ({
     }));
     const request = fetchWorkspace(target, agentService)
       .then(({ list, runs }) => {
-        // 中枢刚看过磁盘：把完成卡那张「这次 run 存成了哪个工作流」的读缓存一并作废
-        // （docs/dynamic-workflow/transcript-and-notifications.md「Which workflow a run is saved as」）。
-        // 中枢里的删除 / 移动 / 改元数据都以一次刷新收尾，这一行让那些动作也走到对话里的卡片上。
-        useWorkflowRunSavedStore.getState().invalidate();
         set((state) => ({
           byWorkspaceKey: {
             ...state.byWorkspaceKey,
@@ -157,14 +152,8 @@ export const useSavedWorkflowStore = create<SavedWorkflowStoreState>((set) => ({
 
 export function selectSavedWorkflowState(
   state: SavedWorkflowStoreState,
-  target: ZCodeAgentSavedWorkflowTarget | null,
+  target: XCodeAgentSavedWorkflowTarget | null,
 ): SavedWorkflowWorkspaceState {
   if (!target) return EMPTY_SAVED_WORKFLOW_STATE;
   return state.byWorkspaceKey[savedWorkflowStoreKey(target)] ?? EMPTY_SAVED_WORKFLOW_STATE;
-}
-
-/** 测试用：清掉 in-flight 去重表。 */
-export function resetSavedWorkflowStoreForTests(): void {
-  inFlight.clear();
-  useSavedWorkflowStore.setState({ byWorkspaceKey: {} });
 }

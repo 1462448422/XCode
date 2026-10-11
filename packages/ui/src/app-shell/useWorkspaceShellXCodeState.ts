@@ -1,9 +1,9 @@
 import { useShallow } from "zustand/react/shallow";
 import {
   getWorkspaceDisplayedTaskState,
-  selectWorkspaceZCodeState,
-  useZCodeSessionStore,
-  type WorkspaceZCodeUIState,
+  selectWorkspaceXCodeState,
+  useXCodeSessionStore,
+  type WorkspaceXCodeUIState,
 } from "@/store/zcodeSessionStore.js";
 import { resolveWorkspaceModelConfigSyncScope } from "@/lib/modelConfigSync.js";
 import { hasBusyTaskInWorkspaceProvider } from "@/lib/workspaceBusyTaskLock.js";

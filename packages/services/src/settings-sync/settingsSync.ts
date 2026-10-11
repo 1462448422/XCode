@@ -15,7 +15,7 @@ export interface ISettingsSyncService {
     workspacePath?: string;
     workspaceIdentity?: string;
   }): Promise<SettingsSyncClaudeAgentsFileMigrationStatus>;
-  copyClaudeAgentsFileToZcodeAgentsFile(request?: {
+  copyClaudeAgentsFileToXcodeAgentsFile(request?: {
     workspacePath?: string;
     workspaceIdentity?: string;
     overwrite?: boolean;

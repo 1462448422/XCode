@@ -2,7 +2,7 @@ import type {
   IWindowControllerService,
   WindowHostControllerFrame,
   WindowHostControllerTaskListResult,
-  ZCodeTaskListQuery,
+  XCodeTaskListQuery,
 } from "@zcode/services";
 import {
   CONTROLLER_TASKS_INDEX_TOPIC,
@@ -15,13 +15,13 @@ import {
 } from "@zcode/shared/zcode-protocol-v4";
 import { logger } from "@/logger.js";
 
-export interface WindowControllerTaskListRegistry {
+interface WindowControllerTaskListRegistry {
   subscribe(listener: () => void): () => void;
   getRevision(): number;
   list(
     queryKey: string,
     version: WindowControllerTaskListVersion,
-    query: ZCodeTaskListQuery,
+    query: XCodeTaskListQuery,
   ): Promise<WindowHostControllerTaskListResult>;
 }
 
@@ -44,7 +44,7 @@ function taskAddressKey(address: WindowHostControllerTaskRow["address"]): string
 }
 
 function queryContainsWorkspace(
-  query: ZCodeTaskListQuery,
+  query: XCodeTaskListQuery,
   address: WindowHostControllerTaskRow["address"],
 ): boolean {
   const workspaceKey = address.workspaceIdentity?.trim() || address.workspacePath;
@@ -80,7 +80,7 @@ export function getWindowControllerTaskListRegistry(
     {
       versionKey: string;
       promise: Promise<WindowHostControllerTaskListResult>;
-      query: ZCodeTaskListQuery;
+      query: XCodeTaskListQuery;
     }
   >();
   const taskRows = new Map<string, WindowHostControllerTaskRow>();

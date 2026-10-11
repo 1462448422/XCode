@@ -1,4 +1,4 @@
-/* ZCode 官方 Server MCP 的调用额度读取（`GET /api/v1/mcp/usage`）。
+/* XCode 官方 Server MCP 的调用额度读取（`GET /api/v1/mcp/usage`）。
  *
  * 单文件承载该接口的全部细节：路径、信封解析、总额度映射。**鉴权不在这里实现**——
  * 身份头必须与 server MCP 端点用同一套 5 个头，唯一生产者是
@@ -9,7 +9,7 @@
 import { z } from "zod";
 import {
   MCP_USAGE_QUOTA_LIMIT_TYPE,
-  buildRuntimeZCodeApiUrl,
+  buildRuntimeXCodeApiUrl,
   type ApiClient,
   type UsageMcpQuotaScope,
   type UsageMcpQuotaSnapshot,
@@ -64,7 +64,7 @@ const mcpUsageEnvelopeSchema = z.object({
 });
 
 /** 本次 entitlement 查询的连接归属，用于和凭证归属比对。 */
-export interface McpQuotaRequestScope {
+interface McpQuotaRequestScope {
   providerFamily: "zai" | "bigmodel";
   organizationId?: string | null;
   projectId?: string | null;
@@ -77,10 +77,7 @@ export interface McpQuotaRequestScope {
  * 同时持有 Z.ai 与 BigModel Coding Plan（或个人 + Team）的用户，如果不做这层比对，
  * 就会在另一个 tab 下看到不属于它的 MCP 额度。
  */
-export function matchesMcpQuotaScope(
-  scope: UsageMcpQuotaScope,
-  request: McpQuotaRequestScope,
-): boolean {
+function matchesMcpQuotaScope(scope: UsageMcpQuotaScope, request: McpQuotaRequestScope): boolean {
   if (scope.providerFamily !== request.providerFamily) {
     return false;
   }
@@ -102,7 +99,7 @@ export function matchesMcpQuotaScope(
  *
  * percentage 沿用 quota 接口语义（**已使用**占比），展示端统一反转成剩余。
  */
-export function buildMcpQuotaAggregateLimit(params: {
+function buildMcpQuotaAggregateLimit(params: {
   totalUsage: { used: number; limit: number; remaining: number };
   nextResetTime?: number;
 }): UsageQuotaLimit | null {
@@ -207,7 +204,7 @@ export async function fetchMcpQuotaSnapshot(params: {
     return null;
   }
 
-  const url = buildRuntimeZCodeApiUrl(params.env, MCP_USAGE_PATH);
+  const url = buildRuntimeXCodeApiUrl(params.env, MCP_USAGE_PATH);
   const headers = buildOfficialMcpAuthHeaders(outcome.snapshot);
   let payload: unknown;
   let requestId: string | null = null;

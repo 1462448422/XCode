@@ -6,7 +6,7 @@
 // - 30s keep-warm：refCount 归零不立即 dispose（防 pane 关/开、布局调整抖动）；
 // - agentService 换代：远程条目保持 layer/transport 身份并单向切换最新 proxy；
 //   本地 __base__ 用新 service 重建条目。
-import type { IZCodeAgentService } from "@zcode/services";
+import type { IXCodeAgentService } from "@zcode/services";
 import { createAgentConversationTransport } from "@/v4/agentConversationTransport.js";
 import { remoteAgentServiceGeneration } from "@/lib/remoteAgentServiceGeneration.js";
 import { ReplaceableConversationTransport } from "@/v4/replaceableConversationTransport.js";
@@ -16,7 +16,7 @@ import { logger } from "@/logger.js";
 
 /** 注册表需要的 agentService 窄面（= conversation transport 的依赖面，便于测试注入）。 */
 export type WorkspaceConnectionAgentService = Pick<
-  IZCodeAgentService,
+  IXCodeAgentService,
   | "helloConversationV4"
   | "initializeConversationV4"
   | "subscribeConversationV4"
@@ -46,7 +46,7 @@ export type WorkspaceConnectionAgentService = Pick<
   | "onAgentRuntimeRestarted"
 >;
 
-export interface WorkspaceConnectionScope {
+interface WorkspaceConnectionScope {
   /** = pane 绑定的 primary workspace（连接路由键）。 */
   workspacePath: string;
   workspaceIdentity?: string;
@@ -83,13 +83,13 @@ interface RegistryEntry {
 const registry = new Map<string, RegistryEntry>();
 
 /** 本机 endpoint 的保留键（与 sessionsIndexRegistry / task list shardKey 口径一致）。 */
-export const LOCAL_WORKSPACE_CONNECTION_ENDPOINT = "__base__";
+const LOCAL_WORKSPACE_CONNECTION_ENDPOINT = "__base__";
 
 /** 引用归零后延迟释放窗口（ms）；与 SessionDataLayer keep-warm 同标度。 */
-export const WORKSPACE_CONNECTION_KEEP_WARM_MS = 30_000;
+const WORKSPACE_CONNECTION_KEEP_WARM_MS = 30_000;
 
 /** 注册表条目键 = endpoint + workspaceKey（同 workspaceKey 不同 endpoint 不共用）。 */
-export function buildWorkspaceConnectionKey(scope: WorkspaceConnectionScope): string {
+function buildWorkspaceConnectionKey(scope: WorkspaceConnectionScope): string {
   const workspaceKey = scope.workspaceIdentity?.trim() || scope.workspacePath;
   return `${scope.remoteSessionId ?? LOCAL_WORKSPACE_CONNECTION_ENDPOINT} ${workspaceKey}`;
 }
@@ -261,9 +261,4 @@ export function acquireWorkspaceConnection(
       releaseEntry(entry);
     },
   };
-}
-
-/** 仅测试/诊断用：当前注册的连接条目数（不含已换代失效、待存量租约释放的旧条目）。 */
-export function workspaceConnectionRegistrySize(): number {
-  return registry.size;
 }

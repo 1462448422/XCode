@@ -28,10 +28,10 @@ import { AgentExecutionTelemetryRuntime } from "./agent-trace-runtime.js";
 import { OtelAgentTelemetryMetrics } from "./agent-metrics.js";
 import { ModelApiTelemetryStatusSink } from "./model-api-recorder.js";
 
-export const AGENT_METRIC_EXPORT_INTERVAL_MS = 300_000;
-export const AGENT_TRACE_SAMPLE_RATIO = 0.1;
+const AGENT_METRIC_EXPORT_INTERVAL_MS = 300_000;
+const AGENT_TRACE_SAMPLE_RATIO = 0.1;
 
-export interface CreateOwnedAgentTelemetryRuntimeOptions {
+interface CreateOwnedAgentTelemetryRuntimeOptions {
   endpoint: string;
   headers?: Record<string, string>;
   identity?: TelemetryIdentitySnapshot;
@@ -155,13 +155,13 @@ export function createOwnedAgentTelemetryRuntime(
   };
 }
 
-export function createAgentTraceSampler(ratio = AGENT_TRACE_SAMPLE_RATIO): Sampler {
+function createAgentTraceSampler(ratio = AGENT_TRACE_SAMPLE_RATIO): Sampler {
   return new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(ratio),
   });
 }
 
-export function metricViews(): ViewOptions[] {
+function metricViews(): ViewOptions[] {
   return [
     histogramView("zcode.agent.turn.duration", [1, 5, 10, 30, 60, 300, 600]),
     histogramView("zcode.model.*.duration", [0.25, 1, 2, 5, 10, 30, 60, 120]),
@@ -206,7 +206,7 @@ function cardinalityView(instrumentName: string): ViewOptions {
   };
 }
 
-export function resourceAttributes(
+function resourceAttributes(
   resource: TelemetryResourceContext,
 ): Record<string, string | number | boolean> {
   return telemetryResourceAttributes(resource, {
@@ -215,7 +215,7 @@ export function resourceAttributes(
   });
 }
 
-export function metricResourceAttributes(
+function metricResourceAttributes(
   resource: TelemetryResourceContext,
 ): Record<string, string | number | boolean> {
   return telemetryResourceAttributes(resource, {

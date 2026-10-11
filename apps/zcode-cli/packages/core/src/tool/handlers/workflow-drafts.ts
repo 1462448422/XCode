@@ -6,12 +6,12 @@
 // 只是一道门——`CreateWorkflow` / `AmendWorkflow` / 中枢直接启动一收到不来自文件的脚本，就在
 // 这里写一个。
 //
-// 落点 `<cwd>/.zcode/workflow-drafts/`，与 `.zcode/workflows/`（用户保存的定义）、
-// `.zcode/workflow-runs/`（每个 run 的编译入口）平级。目录自带一份 `.gitignore: *`，写法与
+// 落点 `<cwd>/.xcode/workflow-drafts/`，与 `.xcode/workflows/`（用户保存的定义）、
+// `.xcode/workflow-runs/`（每个 run 的编译入口）平级。目录自带一份 `.gitignore: *`，写法与
 // dynamic-workflow-runtime/src/child-entry-file.ts 逐字同构（那里的注释记着裁决）：只在缺席时
 // 写一次，用户改过就不再动它，项目自己的 `.gitignore` 一个字都不碰。
 //
-// **尽力而为**：写不进去（只读 checkout、`.zcode` 是个普通文件、盘满）不让调用失败，返回
+// **尽力而为**：写不进去（只读 checkout、`.xcode` 是个普通文件、盘满）不让调用失败，返回
 // `undefined`，模型读到的退回「改好脚本再内联提交」的老话。刻意**不**回落到临时目录——一个
 // 用户在项目里找不到的草稿不值得一条路径。
 
@@ -44,7 +44,7 @@ const WORKFLOW_DRAFT_MAX_SLUG_CHARS = 64;
 /**
  * 名字里一个可用字符都不剩时的兜底（中文名是最常见的那一种）。
  */
-export const WORKFLOW_DRAFT_FALLBACK_SLUG = "workflow";
+const WORKFLOW_DRAFT_FALLBACK_SLUG = "workflow";
 
 /**
  * 同名时的后缀上界。撞满这么多次只可能是有人在拿同一个名字刷提交，此时放弃写草稿（返回
@@ -52,9 +52,9 @@ export const WORKFLOW_DRAFT_FALLBACK_SLUG = "workflow";
  */
 const WORKFLOW_DRAFT_MAX_ATTEMPTS = 1_000;
 
-export interface WriteWorkflowDraftInput {
+interface WriteWorkflowDraftInput {
   /**
-   * 会话工作目录；草稿落在它的 `.zcode/workflow-drafts/` 下。缺席即宿主没有工作目录概念
+   * 会话工作目录；草稿落在它的 `.xcode/workflow-drafts/` 下。缺席即宿主没有工作目录概念
    * （端口 stub / 无会话上下文），此时无处可写，与写失败同义。
    */
   cwd: string | undefined;
@@ -93,7 +93,7 @@ export async function writeWorkflowDraft(
     }
     return undefined;
   } catch {
-    // 尽力而为：目录写不进、`.zcode` 是个文件、盘满……一律当作「这次没有草稿」。调用方据此
+    // 尽力而为：目录写不进、`.xcode` 是个文件、盘满……一律当作「这次没有草稿」。调用方据此
     // 退回旧文案，工具调用本身照常完成。
     return undefined;
   }
@@ -119,7 +119,7 @@ export function resolveWorkflowDraftName(
  * 截到上限（按码点，不按 UTF-16 单元，免得把一个字切成半个代理对）；什么都不剩、或只剩点
  * （`.` / `..` 是目录项，不是文件名）时用兜底词。
  */
-export function workflowDraftSlug(name: string): string {
+function workflowDraftSlug(name: string): string {
   const reduced = Array.from(
     name
       .trim()

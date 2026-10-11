@@ -64,7 +64,7 @@ export interface BrowserViewResidencyIpcHandlers {
   ): Promise<BrowserViewRestoredTabShell[]>;
 }
 
-export function registerBrowserViewIpcHandlers(
+function registerBrowserViewIpcHandlers(
   attachBrowserGuest?: AttachBrowserGuest,
   updateBrowserGuestViewport?: UpdateBrowserGuestViewport,
   reportBrowserScreenshotSurfaceReady?: ReportBrowserScreenshotSurfaceReady,

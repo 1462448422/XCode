@@ -1,6 +1,6 @@
 # @zcode/prompt-trajectory
 
-Test-only OpenAI protocol trajectory recorder for zcode-cli prompt assembly checks.
+OpenAI protocol trajectory recorder for inspecting zcode-cli prompt assembly.
 
 This tool lives under `tools/` so it is available in the pnpm workspace but stays out of
 the production CLI and SEA packaging path.
@@ -12,14 +12,11 @@ pnpm --filter @zcode/bootstrap^... build
 pnpm --filter @zcode/bootstrap build
 
 pnpm --filter @zcode/prompt-trajectory record -- \
-  --fixture fixtures/prompt/basic-live.json \
+  --fixture /path/to/recording.json \
   --out /tmp/zcode-prompt-trajectory/basic-live
 
 pnpm --filter @zcode/prompt-trajectory record:prompt -- \
   --prompt "Say hello in one short sentence."
-
-pnpm --filter @zcode/prompt-trajectory run:testcases -- \
-  --cases testcases
 
 pnpm --filter @zcode/prompt-trajectory derive -- \
   --out /tmp/zcode-prompt-trajectory/basic-live
@@ -35,33 +32,18 @@ derives complete request-body snapshots under `/out/trajectories`.
 `trajectory.jsonl` is the single source of truth. Streaming deltas are assembled
 into a single assistant message before they are appended to the JSONL file.
 
+`record`, `record-prompt`, and `derive` accept `--reference-request <path>` to copy
+an optional reference request into `<out>/raw/reference-request-body.raw.json`.
+The copy preserves the supplied text and adds a trailing newline when missing;
+it does not alter the derived trajectories. Without this option, no reference
+copy is written. Unrecognized options are rejected before recording or derivation.
+
 When `--model`, `--upstream-base-url`, and API-key flags are omitted, the recorder
 uses the same zcode model config resolution as the CLI. The upstream request is
 still proxied through the recorder; only the model provider `baseURL` is replaced
 with the local proxy URL at runtime.
 
-## Testcase Runner
-
-`run:testcases` scans the testcase directory one child folder at a time. A case is
-valid when it contains both files:
-
-```text
-testcases/<case-name>/prompt.txt
-testcases/<case-name>/expect.json
-```
-
-Each run writes a timestamped output directory:
-
-```text
-out/testYYYYMMDD-HHMMSS/<case-name>/trajectory.jsonl
-out/testYYYYMMDD-HHMMSS/<case-name>/manifest.json
-out/testYYYYMMDD-HHMMSS/<case-name>/trajectories/*.openai_request_body.json
-out/testYYYYMMDD-HHMMSS/<case-name>/trajectories/*.anthropic_request_body.json
-out/testYYYYMMDD-HHMMSS/<case-name>/expect.json
-```
-
-The runner does not compare `expect.json` yet; it records and derives the
-trajectory so the generated OpenAI request-body JSON can be inspected manually.
+## Prompt recording output
 
 Single prompt recording without `--out` writes to:
 
@@ -103,3 +85,9 @@ the converter preserves that complete assistant message after verifying its text
 tool calls against the response summary. Appending blocks to the final user message
 also remains in the same trajectory. Rewriting existing content still starts a new
 segment. `non-incremental-change` is not a provider cache-miss indicator.
+
+## Live recording configuration
+
+Supply an external recording configuration with `--fixture`, or use `record:prompt`
+with `--model`, `--upstream-base-url`, and `--api-key-env`. Supply credentials through
+the named environment variable; do not store them in the recording configuration.

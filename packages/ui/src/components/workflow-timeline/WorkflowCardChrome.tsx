@@ -12,7 +12,7 @@ import {
   workflowRunStopReasonMessageId,
   isWorkflowRunSuperseded,
 } from "@/components/workflow-graph/run-status-presentation.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
 /**
  * 工作流卡的表头与页脚。
@@ -75,7 +75,7 @@ export function WorkflowRunStatus({
   className?: string;
   testId?: string;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const effectiveStatus = status ?? run?.status ?? "pending";
   const reason =
     run === undefined ? undefined : readWorkflowRunStopReason({ ...run, status: effectiveStatus });
@@ -85,7 +85,7 @@ export function WorkflowRunStatus({
         aria-hidden
         className={cn("wf-lamp size-2 shrink-0 rounded-full", RUN_STATUS_DOT[effectiveStatus])}
       />
-      {/* 状态词按值换：旧词退场新词进场（追记「悬停与运动」的 Kind 一节）。 */}
+      {/* 状态词按值换：旧词退场新词进场。 */}
       <span
         className={cn("wf-swap text-ui-sm", RUN_STATUS_TEXT[effectiveStatus])}
         data-testid={testId}
@@ -161,7 +161,7 @@ export function WorkflowCardHeader({
   /** chevron 的无障碍名；缺席时是工具卡的「展开 / 收起工具详情」。 */
   toggleLabel?: string;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const openLabel = intl.formatMessage({ id: "chat.toolCall.workflow.openRunDetails" });
   const toggleLabel =
     toggleLabelOverride ??

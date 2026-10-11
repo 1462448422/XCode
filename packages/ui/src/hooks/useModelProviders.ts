@@ -211,6 +211,12 @@ export function useModelProviders(target: {
     ],
   );
 
+  // 从上游拉取模型列表（Host 直连 HTTP），不依赖 workspace/agent 进程。
+  const fetchUpstreamModels = useCallback(
+    (providerId: string) => providerSettingsService.fetchUpstreamModels({ providerId }),
+    [providerSettingsService],
+  );
+
   return {
     modelProviders: effectiveModelProviders,
     providerTemplates: providerSettingsView?.providerTemplates ?? [],
@@ -232,6 +238,7 @@ export function useModelProviders(target: {
     reorderProviderModels,
     saveDisplayOrder,
     testModelConnectivity,
+    fetchUpstreamModels,
     providerSettingsView,
   };
 }

@@ -4,7 +4,7 @@ import { normalizeModelSessionIdForAttribution, type ModelStatusContext } from "
 
 const REDACTED_METADATA_USER_ID = "[REDACTED]";
 
-export function createAnthropicRequestMetadataUserId(input: {
+function createAnthropicRequestMetadataUserId(input: {
   deviceMid: string;
   sessionId?: ModelStatusContext["sessionId"];
 }): string {

@@ -8,7 +8,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
-import { Switch } from "@/components/ui/switch.js";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { PluginStoreAvatar } from "@/settings/PluginStoreAvatar.js";
 import {
   canUpdatePluginItem,
@@ -41,7 +40,7 @@ export interface PluginStoreActions {
   togglingPluginId: string | null;
 }
 
-export function isItemBusy(item: StorePluginItem, actions: PluginStoreActions): boolean {
+function isItemBusy(item: StorePluginItem, actions: PluginStoreActions): boolean {
   return (
     actions.operationId === `plugin:install:${item.name}@${item.marketplace}` ||
     actions.operationId === `plugin:restore:${item.id}` ||
@@ -65,7 +64,7 @@ export function PluginStorePaidPlanBadge({
 }: {
   item: Pick<StorePluginItem, "id" | "listing">;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   if (!item.listing?.requiresPaidPlan) return null;
   const label = intl.formatMessage({ id: "settings.plugins.store.requiresPaidPlan" });
   const badgeLabel = intl.formatMessage({ id: "settings.plugins.store.paidPlanBadge" });
@@ -84,34 +83,6 @@ export function PluginStorePaidPlanBadge({
   );
 }
 
-/** 详情页与管理视图的插件级启停开关；紧凑商店卡片只保留「…」菜单。 */
-export function PluginStoreEnabledSwitch({
-  item,
-  actions,
-}: {
-  item: StorePluginItem;
-  actions: PluginStoreActions;
-}) {
-  const { intl } = useZCodeIntl();
-  if (!item.info || !actions.onSetEnabled) return null;
-  const enabled = item.info.enabled;
-  return (
-    <Switch
-      data-testid="plugin-store-enabled-switch"
-      data-plugin-id={item.id}
-      checked={enabled}
-      disabled={actions.togglingPluginId === item.id}
-      aria-label={
-        enabled
-          ? intl.formatMessage({ id: "settings.plugins.store.menu.disable" })
-          : intl.formatMessage({ id: "settings.plugins.store.menu.enable" })
-      }
-      onClick={(event) => event.stopPropagation()}
-      onCheckedChange={(checked) => actions.onSetEnabled?.(item.id, checked)}
-    />
-  );
-}
-
 /** 已安装条目的「…」菜单：启用/禁用、更新（有更新时）、卸载。卡片与详情页共用。 */
 export function PluginStoreItemMenu({
   item,
@@ -126,7 +97,7 @@ export function PluginStoreItemMenu({
   triggerVariant?: "ghost" | "outline";
   triggerSize?: "icon-md" | "icon-lg";
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const enabled = item.info?.enabled ?? false;
   const updatePending = canUpdatePluginItem(item);
   const busy = isItemBusy(item, actions);
@@ -224,7 +195,7 @@ export function PluginStoreInstallButton({
   actions: PluginStoreActions;
   size?: "sm" | "default" | "lg";
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const installing =
     actions.operationId === `plugin:install:${item.name}@${item.marketplace}` ||
     actions.operationId === `plugin:restore:${item.id}`;
@@ -261,7 +232,7 @@ export function PluginStoreUpdateBadge({
 }: {
   item: Pick<StorePluginItem, "id" | "installedMeta" | "orphaned"> | null | undefined;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   if (!canUpdatePluginItem(item)) return null;
   const label = intl.formatMessage({ id: "settings.plugins.list.updateAvailable" });
   return (
@@ -287,7 +258,7 @@ export function PluginStoreUpdateButton({
   actions: PluginStoreActions;
   size?: "sm" | "default" | "lg";
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   if (!item || !canUpdatePluginItem(item)) return null;
   const updating = actions.operationId === `plugin:update:${item.id}`;
   return (
@@ -327,7 +298,7 @@ export function PluginStoreCard({
   actions: PluginStoreActions;
   locale: string;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const displayName = resolveItemDisplayName(item, locale);
   const description = resolveItemDescription(item, locale);
   return (
@@ -374,7 +345,7 @@ export function PluginStoreCard({
         {item.installed ? (
           <>
             <PluginStoreUpdateButton item={item} actions={actions} />
-            {/* Bugfix：旧版误写 suppression 后可能只剩安装记录、没有运行时 info；
+            {/* 旧版误写 suppression 后可能只剩安装记录、没有运行时 info；
                 此时仍须保留卸载菜单，让用户能清理安装记录与脏 suppression。 */}
             <PluginStoreItemMenu item={item} actions={actions} />
           </>

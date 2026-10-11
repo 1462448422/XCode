@@ -2,24 +2,24 @@
 // membership，sessions-index 只在后续投影中补充实时 activity/detail。
 // unread 同为组织态（setTaskUnread 写 tasks-index），与 pin/archive 同类，
 // 不进冻结的 sessions-index schema；这里平行拉取 unreadAt map，列表构建时 join。
-import type { IZCodeTaskService } from "@zcode/services";
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { IXCodeTaskService } from "@zcode/services";
+import type { XCodeTaskMeta } from "@zcode/shared";
 import { buildTaskEntityKey } from "@/lib/taskQueryCache.js";
 
-export interface TaskListMembershipScope {
+interface TaskListMembershipScope {
   workspacePath: string;
   workspaceIdentity?: string;
 }
 
-export type TaskListMembershipService = Pick<
-  IZCodeTaskService,
+type TaskListMembershipService = Pick<
+  IXCodeTaskService,
   "listPinnedTaskIds" | "listArchivedTasks" | "listTasks" | "listPinnedTasks"
 > &
-  Partial<Pick<IZCodeTaskService, "listDeletedTaskIds">>;
+  Partial<Pick<IXCodeTaskService, "listDeletedTaskIds">>;
 
-export interface TaskListMembershipSets {
+interface TaskListMembershipSets {
   /** tasks-index 三个持久分区（active/pinned/archived）的完整 task 行并集。 */
-  taskIndexItems: ZCodeTaskMeta[];
+  taskIndexItems: XCodeTaskMeta[];
   pinnedIds: Set<string>;
   archivedIds: Set<string>;
   /** tasks-index 持久删除 tombstone；优先于所有列表 kind。 */
@@ -27,7 +27,7 @@ export interface TaskListMembershipSets {
   /** taskId → unreadAt（tasks-index 组织态；sessions-index 不携带，join 用）。 */
   unreadAtByTaskId: Map<string, number>;
   /** taskId → terminal status（tasks-index 历史终态；用于冷启动 stored summary 补红点）。 */
-  terminalStatusByTaskId: Map<string, Extract<ZCodeTaskMeta["status"], "completed" | "error">>;
+  terminalStatusByTaskId: Map<string, Extract<XCodeTaskMeta["status"], "completed" | "error">>;
   /**
    * taskId → 旧 task-index 手动标题。
    *
@@ -109,8 +109,8 @@ async function holdTaskListMembershipRefreshResultForE2E(): Promise<void> {
   await hold.released;
 }
 
-/** M5 ③：remote shard 的归属在各自 endpoint 的 tasks-index，按 endpoint 分片拉取后求并。 */
-export interface TaskListMembershipEndpoint {
+/** remote shard 的归属在各自 endpoint 的 tasks-index，按 endpoint 分片拉取后求并。 */
+interface TaskListMembershipEndpoint {
   service: TaskListMembershipService;
   scopes: TaskListMembershipScope[];
 }
@@ -144,7 +144,7 @@ async function listWithAvailability<T>(
   }
 }
 
-function collectUnreadAt(unreadAtByTaskId: Map<string, number>, tasks: ZCodeTaskMeta[]): void {
+function collectUnreadAt(unreadAtByTaskId: Map<string, number>, tasks: XCodeTaskMeta[]): void {
   for (const task of tasks) {
     if (typeof task.unreadAt === "number") {
       unreadAtByTaskId.set(task.taskId, task.unreadAt);
@@ -154,7 +154,7 @@ function collectUnreadAt(unreadAtByTaskId: Map<string, number>, tasks: ZCodeTask
 
 function collectTerminalStatuses(
   terminalStatusByTaskId: TaskListMembershipSets["terminalStatusByTaskId"],
-  tasks: ZCodeTaskMeta[],
+  tasks: XCodeTaskMeta[],
 ): void {
   for (const task of tasks) {
     if (task.status === "completed" || task.status === "error") {
@@ -165,7 +165,7 @@ function collectTerminalStatuses(
 
 function collectTitleOverrides(
   titleOverrideByTaskId: Map<string, string>,
-  tasks: ZCodeTaskMeta[],
+  tasks: XCodeTaskMeta[],
 ): void {
   for (const task of tasks) {
     if (task.titleOverridden === true && task.title.trim().length > 0) {
@@ -176,7 +176,7 @@ function collectTitleOverrides(
 
 function collectCronAutomationIds(
   cronAutomationIdByTaskId: Map<string, string>,
-  tasks: ZCodeTaskMeta[],
+  tasks: XCodeTaskMeta[],
 ): void {
   for (const task of tasks) {
     if (task.cronAutomationId) {
@@ -185,8 +185,8 @@ function collectCronAutomationIds(
   }
 }
 
-function mergeTaskIndexItems(lists: ZCodeTaskMeta[][]): ZCodeTaskMeta[] {
-  const itemByEntityKey = new Map<string, ZCodeTaskMeta>();
+function mergeTaskIndexItems(lists: XCodeTaskMeta[][]): XCodeTaskMeta[] {
+  const itemByEntityKey = new Map<string, XCodeTaskMeta>();
   for (const task of lists.flat()) {
     itemByEntityKey.set(buildTaskEntityKey(task), task);
   }
@@ -329,12 +329,12 @@ export function fetchTaskListMembershipSetsForEndpointsCached(params: {
 }
 
 /** 测试/异常恢复用：清空 membership 缓存。 */
-export function clearTaskListMembershipCache(): void {
+function clearTaskListMembershipCache(): void {
   membershipPromiseByCacheKey.clear();
 }
 
 /** 按 endpoint 并行拉取归属并求并集（taskId 为 sessionId，跨 endpoint 不冲突）。 */
-export async function fetchTaskListMembershipSetsForEndpoints(
+async function fetchTaskListMembershipSetsForEndpoints(
   endpoints: TaskListMembershipEndpoint[],
 ): Promise<TaskListMembershipSets> {
   const results = await Promise.all(
@@ -357,7 +357,7 @@ export async function fetchTaskListMembershipSetsForEndpoints(
     titleOverrideByTaskId: new Map<string, string>(),
     cronAutomationIdByTaskId: new Map<string, string>(),
   };
-  const taskIndexItemByEntityKey = new Map<string, ZCodeTaskMeta>();
+  const taskIndexItemByEntityKey = new Map<string, XCodeTaskMeta>();
   for (const result of results) {
     for (const task of result.taskIndexItems) {
       taskIndexItemByEntityKey.set(buildTaskEntityKey(task), task);

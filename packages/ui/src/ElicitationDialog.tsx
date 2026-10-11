@@ -7,7 +7,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import type { ZCodeElicitationQuestion, ZCodeElicitationRequest } from "@zcode/shared";
+import type { XCodeElicitationQuestion, XCodeElicitationRequest } from "@zcode/shared";
 import type { InteractionAutoResolution } from "@zcode/shared/zcode-protocol-v4";
 import { CheckIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge.js";
@@ -17,10 +17,10 @@ import { Textarea } from "@/components/ui/textarea.js";
 import { InteractionRequestOriginBadge } from "@/InteractionRequestOriginBadge.js";
 import { isImeComposingKeyEvent } from "@/lib/imeComposition.js";
 import type { ElicitationFormDraft } from "@/store/zcodeSessionStoreTypes.js";
-import { useZCodeIntl } from "./i18n/IntlProvider.js";
+import { useXCodeIntl } from "./i18n/IntlProvider.js";
 
 interface ElicitationDialogProps {
-  request: ZCodeElicitationRequest;
+  request: XCodeElicitationRequest;
   autoResolution?: InteractionAutoResolution;
   onRespond: (
     requestId: string,
@@ -35,16 +35,12 @@ interface ElicitationDialogProps {
   onFormDraftChange?: (requestId: string, draft: ElicitationFormDraft) => void;
 }
 
-export type ElicitationAutoResolutionSnoozeSource =
-  | "panelHover"
-  | "answer"
-  | "navigation"
-  | "countdown";
+type ElicitationAutoResolutionSnoozeSource = "panelHover" | "answer" | "navigation" | "countdown";
 
 const ELICITATION_FINAL_MINUTE_MS = 60_000;
 const PLAN_APPROVAL_APPROVE_VALUE = "approve";
 
-export function getElicitationCountdownSeconds(
+function getElicitationCountdownSeconds(
   autoResolution: InteractionAutoResolution | undefined,
   now: number,
 ): number | null {
@@ -102,18 +98,18 @@ function useElicitationCountdownSeconds(autoResolution: InteractionAutoResolutio
   return getElicitationCountdownSeconds(autoResolution, clockNow);
 }
 
-export interface NormalizedElicitationQuestion extends ZCodeElicitationQuestion {
+interface NormalizedElicitationQuestion extends XCodeElicitationQuestion {
   key: string;
 }
 
-export interface AnswerDraft {
+interface AnswerDraft {
   selectedValues: string[];
   customAnswer: string;
 }
 
-export type DraftState = Record<string, AnswerDraft>;
+type DraftState = Record<string, AnswerDraft>;
 
-export type ElicitationCustomInputKeyAction =
+type ElicitationCustomInputKeyAction =
   | "advance"
   | "submit"
   | "previous"
@@ -121,7 +117,7 @@ export type ElicitationCustomInputKeyAction =
   | "previousOption"
   | "nextOption";
 
-export function resolveElicitationCustomInputKeyAction(event: {
+function resolveElicitationCustomInputKeyAction(event: {
   key: string;
   advanceKind?: "next" | "submit";
   ctrlKey?: boolean;
@@ -161,8 +157,8 @@ export function resolveElicitationCustomInputKeyAction(event: {
   return null;
 }
 
-export function normalizeElicitationQuestions(
-  request: ZCodeElicitationRequest,
+function normalizeElicitationQuestions(
+  request: XCodeElicitationRequest,
 ): NormalizedElicitationQuestion[] {
   const sourceQuestions =
     request.questions && request.questions.length > 0
@@ -193,16 +189,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isPlanApprovalElicitationRequest(request: ZCodeElicitationRequest): boolean {
+function isPlanApprovalElicitationRequest(request: XCodeElicitationRequest): boolean {
   const schema = request.schema;
   return (
     isRecord(schema) && schema.interaction === "plan_approval" && schema.toolName === "ExitPlanMode"
   );
 }
 
-export function createInitialElicitationDrafts(
+function createInitialElicitationDrafts(
   questions: readonly NormalizedElicitationQuestion[],
-  request: ZCodeElicitationRequest,
+  request: XCodeElicitationRequest,
 ): DraftState {
   return Object.fromEntries(
     questions.map((question, index) => {
@@ -217,7 +213,7 @@ export function createInitialElicitationDrafts(
 }
 
 function normalizeInitialQuestionIndex(
-  request: ZCodeElicitationRequest,
+  request: XCodeElicitationRequest,
   questions: readonly NormalizedElicitationQuestion[],
 ) {
   if (questions.length === 0) {
@@ -269,7 +265,7 @@ function getQuestionAnswers(question: NormalizedElicitationQuestion, drafts: Dra
   return [...draft.selectedValues, ...(customAnswer ? [customAnswer] : [])];
 }
 
-export function buildElicitationResponseContent(
+function buildElicitationResponseContent(
   questions: readonly NormalizedElicitationQuestion[],
   drafts: DraftState,
 ): Record<string, unknown> {
@@ -302,7 +298,7 @@ export function buildElicitationResponseContent(
   return content;
 }
 
-export function updateElicitationDraftsForOption(
+function updateElicitationDraftsForOption(
   drafts: DraftState,
   question: NormalizedElicitationQuestion,
   optionValue: string,
@@ -325,7 +321,7 @@ export function updateElicitationDraftsForOption(
   };
 }
 
-export function getElicitationQuestionAdvanceKind(
+function getElicitationQuestionAdvanceKind(
   questions: readonly NormalizedElicitationQuestion[],
   questionIndex: number,
 ): "next" | "submit" {
@@ -348,7 +344,7 @@ function ElicitationDialogContent({
   initialFormDraft,
   onFormDraftChange,
 }: ElicitationDialogProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const questions = useMemo(() => normalizeElicitationQuestions(request), [request]);
   const [questionIndex, setQuestionIndex] = useState(
     () => initialFormDraft?.questionIndex ?? normalizeInitialQuestionIndex(request, questions),
@@ -790,7 +786,7 @@ function ElicitationDialogContent({
             {index + 1}.
           </span>
         )}
-        {/* 修复原因：界面字号可动态增大，固定 20px 行高会让大字号文字贴边或裁切。 */}
+        {/* 界面字号可动态增大，固定 20px 行高会让大字号文字贴边或裁切。*/}
         <span className="min-w-0 flex-1 text-ui-base leading-normal">
           <span className="text-ui-base font-medium leading-normal text-foreground">
             {optionLabel}
@@ -962,7 +958,7 @@ function ElicitationDialogContent({
 
   return (
     <div className="w-full shrink-0">
-      {/* Bugfix: 手机远控视口较短，长问题和多选项会把按钮顶出弹窗；卡片限高后让内容区内部滚动。 */}
+      {/* 手机远控视口较短，长问题和多选项会把按钮顶出弹窗；卡片限高后让内容区内部滚动。*/}
       <div
         ref={cardRef}
         tabIndex={activeOptionIndex < 0 ? 0 : -1}
@@ -990,7 +986,7 @@ function ElicitationDialogContent({
                     {titleHeader}
                   </Badge>
                 ) : null}
-                {/* Bugfix: 问题不能只放在会截断的标题行；移动端没有 hover，必须在 tag 后直接完整可读。 */}
+                {/* 问题不能只放在会截断的标题行；移动端没有 hover，必须在 tag 后直接完整可读。*/}
                 <span
                   title={titleQuestion}
                   className={cn(

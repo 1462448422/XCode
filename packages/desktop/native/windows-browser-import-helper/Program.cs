@@ -15,7 +15,7 @@ using Microsoft.Win32.SafeHandles;
 
 internal static class Program
 {
-    private const string Protocol = "ZCODE_BROWSER_IMPORT_V1";
+    private const string Protocol = "XCODE_BROWSER_IMPORT_V1";
     private const string HelperVersion = "2";
     private const int PipeTimeoutMs = 60000;
     private const int BrokerLifetimeMs = 90000;
@@ -46,7 +46,7 @@ internal static class Program
             {
                 string[] buildIdentity = GetBuildIdentity();
                 Console.Out.WriteLine(
-                    "ZCODE_BROWSER_IMPORT_HELPER\t" + HelperVersion + "\t" + GetProcessArchitecture() +
+                    "XCODE_BROWSER_IMPORT_HELPER\t" + HelperVersion + "\t" + GetProcessArchitecture() +
                     "\t" + buildIdentity[0] + "\t" + buildIdentity[1]);
                 return 0;
             }
@@ -116,7 +116,7 @@ internal static class Program
         }
         catch
         {
-            // Bugfix 原因：broker 初始化异常原先统一落到 helper_failed，无法区分输入/控制管道尚未建立的失败阶段。
+            // broker 初始化异常不能统一落到 helper_failed：需要区分输入/控制管道尚未建立的失败阶段。
             WriteError("broker_initialization_failed");
             return;
         }

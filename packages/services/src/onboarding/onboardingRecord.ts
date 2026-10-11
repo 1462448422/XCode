@@ -6,6 +6,7 @@ import type {
 } from "@zcode/shared";
 import { ServiceChannels, type AppSettings } from "@zcode/shared";
 import { createServiceDescriptor } from "../descriptors.js";
+import type { JobSnapshot } from "./backgroundJobRegistry.js";
 
 /** 登录态变化时按 record 回填 settings 的字段范围（settings 仍是运行时唯一事实源）。 */
 export interface OnboardingSettingsSyncPatch {
@@ -54,6 +55,10 @@ export interface IOnboardingRecordService {
   getRecords(): Promise<OnboardingRecordFile | null>;
   /** 删除记录文件（调试用）。 */
   clearRecords(): Promise<void>;
+  /** 从 ~/.zcode 迁移用户数据到 ~/.xcode（跳过账号凭证与运行时文件：credentials*、*.sqlite/-wal/-shm；配置合并覆盖）。 */
+  startMigrateZCodeData(): Promise<{ jobId: string }>;
+  /** 查询上次迁移任务的快照（运行中或最近完成的结果，host 重启后仍保留最后完成快照）。 */
+  getMigrationStatus(): Promise<JobSnapshot | null>;
 }
 
 /** 工厂入参：userId 解析注入（正式装配用 oauthCredentialRepo，测试用桩）。 */

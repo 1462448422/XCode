@@ -11,7 +11,7 @@ import type { JsonObject, OpenAiMessage, TrajectoryJsonlEntry } from "./types.js
 const DEFAULT_QUERY_SOURCE = "main_turn";
 const SESSION_TITLE_PROMPT_PREFIX = "Generate a concise title for this coding session.";
 
-export interface ModelIoJsonlEntry extends JsonObject {
+interface ModelIoJsonlEntry extends JsonObject {
   querySource?: string;
   request?: ModelIoRequest;
   response?: ModelIoResponse;
@@ -41,7 +41,7 @@ interface ModelIoToolCall {
   name?: string;
 }
 
-export interface ModelIoTrajectoryOptions {
+interface ModelIoTrajectoryOptions {
   querySource?: string;
 }
 
@@ -54,7 +54,9 @@ export async function writeModelIoAnthropicTrajectory(input: {
     querySource: input.querySource,
   });
   if (result.trajectories.length === 0) {
-    throw new Error(`No model-io records matched querySource ${input.querySource ?? DEFAULT_QUERY_SOURCE}`);
+    throw new Error(
+      `No model-io records matched querySource ${input.querySource ?? DEFAULT_QUERY_SOURCE}`,
+    );
   }
 
   const trajectoriesDir = join(input.outDir, "trajectories");
@@ -87,7 +89,7 @@ export async function writeModelIoAnthropicTrajectory(input: {
   return result;
 }
 
-export function deriveTrajectoriesFromModelIoEntries(
+function deriveTrajectoriesFromModelIoEntries(
   entries: readonly ModelIoJsonlEntry[],
   options: ModelIoTrajectoryOptions = {},
 ): DerivedTrajectoryResult {

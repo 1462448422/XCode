@@ -2,28 +2,28 @@ import { formatJson } from "@zcode/core";
 import type { Logger } from "@zcode/contracts";
 import type { RunContext, GlobalOptions } from "@zcode/shared-types";
 import type {
-  inspectZCodeSkill,
-  InspectZCodeSkillOptions,
-  listZCodeSkills,
-  ListZCodeSkillsOptions,
-  ZCodeSkillInspection,
+  inspectXCodeSkill,
+  InspectXCodeSkillOptions,
+  listXCodeSkills,
+  ListXCodeSkillsOptions,
+  XCodeSkillInspection,
 } from "@zcode/bootstrap";
 import type { CliEnv } from "./env.js";
 
 type BootstrapModule = typeof import("@zcode/bootstrap");
-type CliSkillListOutcome = Awaited<ReturnType<typeof listZCodeSkills>>;
+type CliSkillListOutcome = Awaited<ReturnType<typeof listXCodeSkills>>;
 type CliSkillListItem = CliSkillListOutcome["skills"][number];
 
 interface SkillsCommandDependencies {
   cwd?: () => string;
   env?: CliEnv;
-  inspectSkill?: (options: InspectZCodeSkillOptions) => ReturnType<typeof inspectZCodeSkill>;
-  listSkills?: (options: ListZCodeSkillsOptions) => ReturnType<typeof listZCodeSkills>;
+  inspectSkill?: (options: InspectXCodeSkillOptions) => ReturnType<typeof inspectXCodeSkill>;
+  listSkills?: (options: ListXCodeSkillsOptions) => ReturnType<typeof listXCodeSkills>;
   logger?: Logger;
   loadBootstrapModule?: () => Promise<BootstrapModule>;
 }
 
-const SKILLS_COMMAND_USAGE = "Usage: zcode skills [list|inspect <name>]";
+const SKILLS_COMMAND_USAGE = "Usage: xcode skills [list|inspect <name>]";
 
 export const runSkillsCommand = async (
   ctx: RunContext,
@@ -60,7 +60,7 @@ async function runSkillsListCommand(
     const env = deps.env ?? process.env;
     const workingDirectory = (deps.cwd ?? process.cwd)();
     const bootstrap = deps.loadBootstrapModule ?? (() => import("@zcode/bootstrap"));
-    const listSkills = deps.listSkills ?? (await bootstrap()).listZCodeSkills;
+    const listSkills = deps.listSkills ?? (await bootstrap()).listXCodeSkills;
     const outcome = await listSkills({
       env,
       logger: deps.logger,
@@ -88,7 +88,7 @@ async function runSkillsInspectCommand(
     const env = deps.env ?? process.env;
     const workingDirectory = (deps.cwd ?? process.cwd)();
     const bootstrap = deps.loadBootstrapModule ?? (() => import("@zcode/bootstrap"));
-    const inspectSkill = deps.inspectSkill ?? (await bootstrap()).inspectZCodeSkill;
+    const inspectSkill = deps.inspectSkill ?? (await bootstrap()).inspectXCodeSkill;
     const inspection = await inspectSkill({
       env,
       logger: deps.logger,
@@ -142,7 +142,7 @@ function formatHumanSkillList(outcome: CliSkillListOutcome, options: GlobalOptio
 }
 
 function formatHumanSkillInspection(
-  inspection: ZCodeSkillInspection,
+  inspection: XCodeSkillInspection,
   options: GlobalOptions,
 ): string {
   const { metadata } = inspection.skill;
@@ -204,7 +204,7 @@ const formatSkillJson = (outcome: CliSkillListOutcome, cwd: string): string =>
     totalDiscovered: outcome.totalDiscovered,
   });
 
-const formatSkillInspectionJson = (inspection: ZCodeSkillInspection, cwd: string): string =>
+const formatSkillInspectionJson = (inspection: XCodeSkillInspection, cwd: string): string =>
   formatJson({
     cwd,
     diagnostics: inspection.diagnostics.map(formatDiagnosticJson),

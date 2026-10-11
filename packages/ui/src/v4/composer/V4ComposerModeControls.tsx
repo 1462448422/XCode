@@ -4,10 +4,10 @@ import {
   TID_CHAT_MODE_SELECT_TRIGGER,
   TID_CHAT_MODE_SELECT_ITEM,
   TID_V4_COMPOSER_INPUT,
-  ZCODE_AGENT_PROVIDER,
-  getZCodeAgentAvailableModes,
+  XCODE_AGENT_PROVIDER,
+  getXCodeAgentAvailableModes,
   testId,
-  type ZCodeConfigOption,
+  type XCodeConfigOption,
 } from "@zcode/shared";
 import {
   DropdownMenu,
@@ -25,7 +25,7 @@ import {
   getModeOptionDescriptionMessageId,
   resolveModeOptionIcon,
 } from "@/chat-input-toolbar/display.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { isCoarseTouchDevice } from "@/lib/pickerFocus.js";
 import { useShortcutCommandLabel } from "@/shortcuts/useShortcutBindings.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
@@ -56,29 +56,26 @@ function V4ComposerModeSwitchImpl({
   | "onConfigPickerOpenChange"
   | "onSwitchMode"
 >) {
-  const { intl } = useZCodeIntl();
-  const displayProvider = provider ?? ZCODE_AGENT_PROVIDER;
+  const { intl } = useXCodeIntl();
+  const displayProvider = provider ?? XCODE_AGENT_PROVIDER;
   const modeShortcutLabel = useShortcutCommandLabel("cycleSessionMode");
-  const modes = getZCodeAgentAvailableModes();
+  const modes = getXCodeAgentAvailableModes();
   const permissions = modes.filter((mode) => mode.id !== "plan");
-  // 新菜单隐藏 Edit，但历史草稿仍可回显，不能因候选变化隐藏整个权限入口。
-  const selected =
-    permissions.find((mode) => mode.id === draftConfig?.mode) ??
-    (draftConfig?.mode === "edit" ? { id: "edit", name: "Edit" } : undefined);
+  const selected = permissions.find((mode) => mode.id === draftConfig?.mode);
   const label = (mode: (typeof modes)[number]) =>
     getModeOptionDisplayLabel(intl, displayProvider, { value: mode.id, name: mode.name });
   const plan = modes.find((mode) => mode.id === "plan")!;
   const planLabel = label(plan);
   // Plan 拆成独立勾选项后仍需保留原菜单说明，复用相同的国际化映射。
   const planDescriptionId = getModeOptionDescriptionMessageId(displayProvider, { value: plan.id });
-  const modeOption = useMemo<ZCodeConfigOption>(
+  const modeOption = useMemo<XCodeConfigOption>(
     () => ({
       id: "mode",
       name: "Mode",
       category: "mode",
       type: "select",
       currentValue: draftConfig?.mode ?? "build",
-      options: getZCodeAgentAvailableModes()
+      options: getXCodeAgentAvailableModes()
         .filter((mode) => mode.id !== "plan")
         .map((mode) => ({ value: mode.id, name: mode.name })),
     }),
@@ -121,8 +118,6 @@ function V4ComposerModeSwitchImpl({
               className={cn(
                 "group/mode h-7 gap-1 rounded-lg px-2 text-ui-base data-[composer-compact=true]:w-7 data-[composer-compact=true]:px-0",
                 selected.id === "yolo" && "text-warning hover:text-warning",
-                selected.id === "guarded" &&
-                  "text-icon-blue hover:text-icon-blue aria-expanded:text-icon-blue",
               )}
             >
               <Icon className="size-4" />

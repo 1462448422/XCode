@@ -4,10 +4,10 @@ import {
 } from "@/settings/pluginStoreListing.js";
 import type {
   SkillSummary,
-  ZCodeCommand,
-  ZCodeInstalledPluginSummary,
-  ZCodePluginInfo,
-  ZCodePluginScope,
+  XCodeCommand,
+  XCodeInstalledPluginSummary,
+  XCodePluginInfo,
+  XCodePluginScope,
 } from "@zcode/shared";
 import { compareDocumentPluginPriority, isPluginCommand, isUserCommand } from "@zcode/shared";
 import { pluginSearchMatches } from "@/settings/pluginSearch.js";
@@ -16,23 +16,17 @@ function canonicalPluginName(value: string): string {
   return value.trim().toLocaleLowerCase();
 }
 
-export function needsMcpAttention(resource: {
-  authorization?: { authorizationUrl?: string };
-}): boolean {
-  return Boolean(resource.authorization?.authorizationUrl);
-}
-
 export function selectBuiltInPlugins(
-  plugins: readonly ZCodePluginInfo[],
-  installedPlugins: readonly ZCodeInstalledPluginSummary[],
-): ZCodePluginInfo[] {
+  plugins: readonly XCodePluginInfo[],
+  installedPlugins: readonly XCodeInstalledPluginSummary[],
+): XCodePluginInfo[] {
   const installedIds = new Set(installedPlugins.map((plugin) => plugin.id));
   return plugins.filter((plugin) => plugin.source === "official" && !installedIds.has(plugin.id));
 }
 
-export interface PluginSettingsGroups {
-  installed: ZCodePluginInfo[];
-  builtIn: ZCodePluginInfo[];
+interface PluginSettingsGroups {
+  installed: XCodePluginInfo[];
+  builtIn: XCodePluginInfo[];
 }
 
 /**
@@ -40,7 +34,7 @@ export interface PluginSettingsGroups {
  * 进入 Installed / Built-in，否则会出现“已安装分组 + 未安装状态”的矛盾行。
  */
 export function partitionPluginsForSettings(
-  plugins: readonly ZCodePluginInfo[],
+  plugins: readonly XCodePluginInfo[],
   builtInPluginIds: ReadonlySet<string>,
 ): PluginSettingsGroups {
   const materializedPlugins = plugins.filter((plugin) => plugin.packageStatus !== "missing");
@@ -53,11 +47,11 @@ export function partitionPluginsForSettings(
 }
 
 export function filterPluginsByQuery(
-  plugins: readonly ZCodePluginInfo[],
+  plugins: readonly XCodePluginInfo[],
   query: string,
   itemsById?: ReadonlyMap<string, StorePluginItem>,
   locale = "en-US",
-): ZCodePluginInfo[] {
+): XCodePluginInfo[] {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   if (!normalizedQuery) return [...plugins];
   return plugins.filter((plugin) => {
@@ -77,10 +71,10 @@ export function filterPluginsByQuery(
 }
 
 export function selectPluginsForScope(
-  plugins: readonly ZCodePluginInfo[],
-  _installedPlugins: readonly ZCodeInstalledPluginSummary[],
-  _scope: ZCodePluginScope,
-): ZCodePluginInfo[] {
+  plugins: readonly XCodePluginInfo[],
+  _installedPlugins: readonly XCodeInstalledPluginSummary[],
+  _scope: XCodePluginScope,
+): XCodePluginInfo[] {
   // User / Workspace 已经由 plugins/list(configScope) 返回各自的配置投影。
   // 这里不能再按 enabledSource/rootSource 做“归属”过滤，否则 Workspace 会丢掉继承 User
   // 的 Host inventory，User 也会被当前 Workspace override 污染后的来源字段误删。
@@ -89,8 +83,8 @@ export function selectPluginsForScope(
 
 export function selectSkillsForScope(
   skills: readonly SkillSummary[],
-  scopedPlugins: readonly Pick<ZCodePluginInfo, "id" | "name" | "enabled">[],
-  scope: ZCodePluginScope,
+  scopedPlugins: readonly Pick<XCodePluginInfo, "id" | "name" | "enabled">[],
+  scope: XCodePluginScope,
 ): SkillSummary[] {
   const enabledPlugins = scopedPlugins.filter((plugin) => plugin.enabled);
   const scopedPluginIds = new Set(enabledPlugins.map((plugin) => plugin.id));
@@ -113,10 +107,10 @@ export function selectSkillsForScope(
 }
 
 export function selectCommandsForScope(
-  commands: readonly ZCodeCommand[],
-  scopedPlugins: readonly Pick<ZCodePluginInfo, "id" | "name" | "enabled">[],
-  scope: ZCodePluginScope,
-): ZCodeCommand[] {
+  commands: readonly XCodeCommand[],
+  scopedPlugins: readonly Pick<XCodePluginInfo, "id" | "name" | "enabled">[],
+  scope: XCodePluginScope,
+): XCodeCommand[] {
   const enabledPlugins = scopedPlugins.filter((plugin) => plugin.enabled);
   const scopedPluginIds = new Set(enabledPlugins.map((plugin) => plugin.id));
   const scopedPluginIdsByName = new Map<string, string[]>();
@@ -137,7 +131,7 @@ export function selectCommandsForScope(
   });
 }
 
-export interface SkillSourceGroup {
+interface SkillSourceGroup {
   id: string;
   label: string;
   pluginId?: string;

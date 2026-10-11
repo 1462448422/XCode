@@ -99,7 +99,7 @@ function finishSessionOpen(
   );
 }
 
-export interface UseSessionOpenArmsTelemetryParams {
+interface UseSessionOpenArmsTelemetryParams {
   sessionId: string | null;
   snapshot: ConversationSnapshot | null;
   openTiming?: ConversationOpenTiming;

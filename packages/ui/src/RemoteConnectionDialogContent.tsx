@@ -8,23 +8,17 @@ import type {
   SSHConfigAliasOption,
   WSLDistro,
 } from "@zcode/shared";
-import {
-  TID_REMOTE_KIND_DOCKER,
-  TID_REMOTE_KIND_SERVER,
-  TID_REMOTE_KIND_SSH,
-  TID_REMOTE_KIND_WSL,
-} from "@zcode/shared";
+import { TID_REMOTE_KIND_DOCKER, TID_REMOTE_KIND_SSH, TID_REMOTE_KIND_WSL } from "@zcode/shared";
 import type {
   IMcpSyncService,
   IPluginSyncService,
   IServiceAccessor,
   ISkillSyncService,
-  IZCodeAgentService,
+  IXCodeAgentService,
 } from "@zcode/services";
 import {
   AlertTriangleIcon,
   ChevronRightIcon,
-  CloudIcon,
   LoaderIcon,
   MonitorCogIcon,
   ServerIcon,
@@ -35,7 +29,7 @@ import { RemoteConnectionFields } from "@/RemoteConnectionFields.js";
 import type { SSHAuthMethod } from "@/hooks/useRemoteConnectionForm.js";
 import { Button } from "@/components/ui/button.js";
 import { cn } from "@/components/lib/utils.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   RemoteSyncDialogs,
   RemoteSyncDropdownButton,
@@ -47,8 +41,6 @@ function getKindIcon(kind: RemoteTarget["kind"]) {
   switch (kind) {
     case "ssh":
       return ServerIcon;
-    case "server":
-      return CloudIcon;
     case "docker":
       return MonitorCogIcon;
     case "wsl":
@@ -69,7 +61,7 @@ export function RemoteConnectionKindStep({
   onCancel: () => void;
   onNext: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 h-full">
@@ -83,18 +75,12 @@ export function RemoteConnectionKindStep({
               key={value}
               type="button"
               onClick={() => onKindChange(value)}
-              onDoubleClick={() => {
-                onKindChange(value);
-                onNext();
-              }}
               data-testid={
                 value === "ssh"
                   ? TID_REMOTE_KIND_SSH
-                  : value === "server"
-                    ? TID_REMOTE_KIND_SERVER
-                    : value === "wsl"
-                      ? TID_REMOTE_KIND_WSL
-                      : TID_REMOTE_KIND_DOCKER
+                  : value === "wsl"
+                    ? TID_REMOTE_KIND_WSL
+                    : TID_REMOTE_KIND_DOCKER
               }
               className={cn(
                 "flex min-h-32 flex-col items-start gap-4 rounded-2xl border p-4 text-left transition-colors",
@@ -162,10 +148,6 @@ export function RemoteConnectionSettingsStep({
   wslDistros,
   dockerContainer,
   manualDockerContainer,
-  serverUrl,
-  serverName,
-  serverToken,
-  serverWorkspacePath,
   dockerContainers,
   dockerAvailable,
   sshConfigAliases,
@@ -190,10 +172,6 @@ export function RemoteConnectionSettingsStep({
   onWslUserChange,
   onDockerContainerChange,
   onManualDockerContainerChange,
-  onServerUrlChange,
-  onServerNameChange,
-  onServerTokenChange,
-  onServerWorkspacePathChange,
   onDockerContainersRefresh,
   onApplySshConfigAlias,
   onClearSelectedSshConfigAlias,
@@ -213,10 +191,6 @@ export function RemoteConnectionSettingsStep({
   wslDistros: WSLDistro[];
   dockerContainer: string;
   manualDockerContainer: string;
-  serverUrl: string;
-  serverName: string;
-  serverToken: string;
-  serverWorkspacePath: string;
   dockerContainers: DockerContainerInfo[];
   dockerAvailable: boolean | null;
   sshConfigAliases: SSHConfigAliasOption[];
@@ -241,16 +215,12 @@ export function RemoteConnectionSettingsStep({
   onWslUserChange?: (value: string) => void;
   onDockerContainerChange: (value: string) => void;
   onManualDockerContainerChange: (value: string) => void;
-  onServerUrlChange: (value: string) => void;
-  onServerNameChange: (value: string) => void;
-  onServerTokenChange: (value: string) => void;
-  onServerWorkspacePathChange: (value: string) => void;
   onDockerContainersRefresh?: () => void;
   onApplySshConfigAlias: (value: SSHConfigAliasOption) => void;
   onClearSelectedSshConfigAlias: () => void;
   onConnect: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 h-full">
@@ -282,10 +252,6 @@ export function RemoteConnectionSettingsStep({
           wslDistros={wslDistros}
           dockerContainer={dockerContainer}
           manualDockerContainer={manualDockerContainer}
-          serverUrl={serverUrl}
-          serverName={serverName}
-          serverToken={serverToken}
-          serverWorkspacePath={serverWorkspacePath}
           dockerContainers={dockerContainers}
           dockerAvailable={dockerAvailable}
           sshConfigAliases={sshConfigAliases}
@@ -308,10 +274,6 @@ export function RemoteConnectionSettingsStep({
           setWslUser={onWslUserChange}
           setDockerContainer={onDockerContainerChange}
           setManualDockerContainer={onManualDockerContainerChange}
-          setServerUrl={onServerUrlChange}
-          setServerName={onServerNameChange}
-          setServerToken={onServerTokenChange}
-          setServerWorkspacePath={onServerWorkspacePathChange}
           refreshDockerContainers={onDockerContainersRefresh}
         />
       </div>
@@ -365,8 +327,8 @@ export function RemoteConnectionDirectoryStep({
   remoteMcpSyncService,
   localPluginSyncService,
   remotePluginSyncService,
-  localZCodeAgentService,
-  remoteZCodeAgentService,
+  localXCodeAgentService,
+  remoteXCodeAgentService,
   localWorkspacePath,
   selecting = false,
   onSelect,
@@ -384,8 +346,8 @@ export function RemoteConnectionDirectoryStep({
   remoteMcpSyncService?: IMcpSyncService | null;
   localPluginSyncService?: IPluginSyncService;
   remotePluginSyncService?: IPluginSyncService | null;
-  localZCodeAgentService?: IZCodeAgentService;
-  remoteZCodeAgentService?: IZCodeAgentService | null;
+  localXCodeAgentService?: IXCodeAgentService;
+  remoteXCodeAgentService?: IXCodeAgentService | null;
   localWorkspacePath?: string;
   selecting?: boolean;
   onSelect: (path: string) => void;
@@ -395,7 +357,7 @@ export function RemoteConnectionDirectoryStep({
   onMcpSynced?: () => Promise<void> | void;
   onPluginsSynced?: () => Promise<void> | void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const [selectedPath, setSelectedPath] = useState("");
   const [remoteSkillSyncOpen, setRemoteSkillSyncOpen] = useState(false);
   const [remoteMcpSyncOpen, setRemoteMcpSyncOpen] = useState(false);
@@ -455,7 +417,7 @@ export function RemoteConnectionDirectoryStep({
             onOpenPluginSync={() => setRemotePluginSyncOpen(true)}
           />
         </div>
-        {/* Bugfix: 该容器之前不是 flex，导致子级 DirectoryBrowser 的 flex-1 无法拿到有效高度，
+        {/* 该容器之前不是 flex，导致子级 DirectoryBrowser 的 flex-1 无法拿到有效高度，
             目录项变多时 overflow-y-auto 不生效，列表不能垂直滚动。 */}
         <div
           className={cn(
@@ -516,8 +478,8 @@ export function RemoteConnectionDirectoryStep({
         remoteMcpSyncService={remoteMcpSyncService}
         localPluginSyncService={localPluginSyncService}
         remotePluginSyncService={remotePluginSyncService}
-        localZCodeAgentService={localZCodeAgentService}
-        remoteZCodeAgentService={remoteZCodeAgentService}
+        localXCodeAgentService={localXCodeAgentService}
+        remoteXCodeAgentService={remoteXCodeAgentService}
         remoteTarget={remoteTarget}
         skillWorkspacePath=""
         mcpWorkspacePath={selectedPath.trim()}

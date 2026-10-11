@@ -15,7 +15,7 @@ import {
 } from "@zcode/shared/workspace-hook-mutation";
 import type { WorkspaceHookReviewMutationPort } from "./workspace-hook-review-controller.js";
 
-export interface WorkspaceHookReviewMutationPortOptions {
+interface WorkspaceHookReviewMutationPortOptions {
   workingDirectory: string;
   workspaceIdentity: string;
   projectConfigPath?: string;
@@ -28,7 +28,7 @@ export function createWorkspaceHookReviewMutationPort(
   options: WorkspaceHookReviewMutationPortOptions,
 ): WorkspaceHookReviewMutationPort {
   const workingDirectory = resolve(options.workingDirectory);
-  const editableConfigPath = resolve(workingDirectory, ".zcode", "config.json");
+  const editableConfigPath = resolve(workingDirectory, ".xcode", "config.json");
   const lockKey = editableConfigPath;
 
   return {

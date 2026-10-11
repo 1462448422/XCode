@@ -1,6 +1,6 @@
 import { formatJson } from "@zcode/core";
 import type { GlobalOptions, RunContext } from "@zcode/shared-types";
-import type { SetZCodePluginEnabledResult, ZCodePluginInstallData } from "@zcode/bootstrap";
+import type { SetXCodePluginEnabledResult, XCodePluginInstallData } from "@zcode/bootstrap";
 import {
   formatAvailablePluginJson,
   formatDiagnosticJson,
@@ -38,7 +38,7 @@ export type {
   PluginsCommandOverrides,
 } from "./plugins-command-shared.js";
 
-const PLUGINS_COMMAND_USAGE = `Usage: zcode plugins <command> [options]
+const PLUGINS_COMMAND_USAGE = `Usage: xcode plugins <command> [options]
 
 Commands:
   list [--json] [--available]                  List installed plugins; --available also lists the marketplace catalog
@@ -55,7 +55,7 @@ Commands:
   marketplace remove <name>                    Remove a configured marketplace
   marketplace update [name]                    Refresh one marketplace, or all when omitted
 
-Scopes: user (default), project. \`zcode plugin\` is an alias of \`zcode plugins\`.`;
+Scopes: user (default), project. \`xcode plugin\` is an alias of \`xcode plugins\`.`;
 
 export async function runPluginsCommand(
   ctx: RunContext,
@@ -213,7 +213,7 @@ async function runPluginsUpdateCommand(
 function reportInstallOutcome(
   ctx: RunContext,
   options: GlobalOptions,
-  result: ZCodePluginInstallData,
+  result: XCodePluginInstallData,
   pluginId: string,
 ): number {
   const failed = hasErrors(result.diagnostics);
@@ -286,7 +286,7 @@ async function runPluginsDisableCommand(
   const base = baseOptions(deps);
   const listPlugins = await resolveDep(deps, "listPlugins");
   const setPluginEnabled = await resolveDep(deps, "setPluginEnabled");
-  const entries: Array<{ plugin: PluginListItem; result?: SetZCodePluginEnabledResult; error?: string }> = [];
+  const entries: Array<{ plugin: PluginListItem; result?: SetXCodePluginEnabledResult; error?: string }> = [];
   for (const plugin of listPlugins(base).plugins) {
     if (!plugin.enabled) continue;
     try {

@@ -1,18 +1,18 @@
 import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { materializeZCodeBuiltinProviderConfig, NodeZCodeBuiltinProviderConfigSource, PERSONAL_PROVIDER_CONFIG_FILE_NAME, resolveZCodeBuiltinCachePaths, resolveZCodeBuiltinClientPlatform, ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV, ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV, ZCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV, } from "@zcode/provider-node";
-import { resolveRuntimeZCodeEndpointOrigin, ZCODE_VERSION } from "@zcode/shared";
-export const SEA_ZCODE_BUILTIN_PROVIDER_CONFIG_ASSET_KEY = "zcode-provider/zcode-builtin.json";
+import { materializeXCodeBuiltinProviderConfig, NodeXCodeBuiltinProviderConfigSource, PERSONAL_PROVIDER_CONFIG_FILE_NAME, resolveXCodeBuiltinCachePaths, resolveXCodeBuiltinClientPlatform, XCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV, XCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV, XCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV, } from "@zcode/provider-node";
+import { resolveRuntimeXCodeEndpointOrigin, XCODE_VERSION } from "@zcode/shared";
+export const SEA_XCODE_BUILTIN_PROVIDER_CONFIG_ASSET_KEY = "zcode-provider/zcode-builtin.json";
 export function createCliProviderRefreshReporter(stderr = process.stderr) {
     return {
         onBuiltinRefreshError(error) {
-            stderr.write(`ZCode Built-in 刷新失败: ${error instanceof Error ? error.message : "unknown error"}\n`);
+            stderr.write(`XCode Built-in 刷新失败: ${error instanceof Error ? error.message : "unknown error"}\n`);
         },
         onBuiltinRefreshResult(event) {
             // TTL 检查不是生产事件；成功更新才默认留痕，不能输出 CDN URL 查询参数或内容。
             if (event.result === "updated" || process.env.NODE_ENV !== "production") {
-                stderr.write(`ZCode Built-in ${event.result}${event.reason ? ` (${event.reason})` : ""}${event.revision === undefined ? "" : ` revision=${event.revision} source=CDN`}\n`);
+                stderr.write(`XCode Built-in ${event.result}${event.reason ? ` (${event.reason})` : ""}${event.revision === undefined ? "" : ` revision=${event.revision} source=CDN`}\n`);
             }
         },
     };
@@ -21,32 +21,32 @@ export function createCliProviderRefreshReporter(stderr = process.stderr) {
 export async function prepareCliProviderRuntimeEnv(options) {
     if (!requiresProviderRuntime(options.argv))
         return {};
-    const explicitZCodeBuiltin = options.env[ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]?.trim();
-    const explicitPersonal = options.env[ZCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV]?.trim();
-    const dataBaseDir = options.dataBaseDir ?? options.env.ZCODE_DATA_BASE_DIR?.trim() ?? homedir();
-    if (explicitZCodeBuiltin && explicitPersonal) {
+    const explicitXCodeBuiltin = options.env[XCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]?.trim();
+    const explicitPersonal = options.env[XCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV]?.trim();
+    const dataBaseDir = options.dataBaseDir ?? options.env.XCODE_DATA_BASE_DIR?.trim() ?? homedir();
+    if (explicitXCodeBuiltin && explicitPersonal) {
         return {
-            [ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]: explicitZCodeBuiltin,
-            [ZCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV]: explicitPersonal,
+            [XCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]: explicitXCodeBuiltin,
+            [XCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV]: explicitPersonal,
         };
     }
-    const zcodeBuiltinFilePath = explicitZCodeBuiltin ??
-        (await resolveBundledZCodeBuiltinProviderConfig({
+    const zcodeBuiltinFilePath = explicitXCodeBuiltin ??
+        (await resolveBundledXCodeBuiltinProviderConfig({
             dataBaseDir,
             entrypoint: options.entrypoint ?? process.argv[1],
             sea: options.sea ?? getSeaProviderConfigAssets(),
         }));
-    const personalFilePath = explicitPersonal ?? join(dataBaseDir, ".zcode", "v2", PERSONAL_PROVIDER_CONFIG_FILE_NAME);
-    const appVersion = options.appVersion ?? ZCODE_VERSION;
-    const platform = options.platform ?? resolveZCodeBuiltinClientPlatform();
-    const zcodeEndpointOrigin = resolveRuntimeZCodeEndpointOrigin(options.env);
-    const cachePaths = resolveZCodeBuiltinCachePaths({
-        environmentConfigRoot: join(dataBaseDir, ".zcode", "v2"),
+    const personalFilePath = explicitPersonal ?? join(dataBaseDir, ".xcode", "v2", PERSONAL_PROVIDER_CONFIG_FILE_NAME);
+    const appVersion = options.appVersion ?? XCODE_VERSION;
+    const platform = options.platform ?? resolveXCodeBuiltinClientPlatform();
+    const zcodeEndpointOrigin = resolveRuntimeXCodeEndpointOrigin(options.env);
+    const cachePaths = resolveXCodeBuiltinCachePaths({
+        environmentConfigRoot: join(dataBaseDir, ".xcode", "v2"),
         platform,
         appVersion,
         zcodeEndpointOrigin,
     });
-    const source = new NodeZCodeBuiltinProviderConfigSource({
+    const source = new NodeXCodeBuiltinProviderConfigSource({
         bundledFilePath: zcodeBuiltinFilePath,
         activeFilePath: cachePaths.activeFilePath,
         watch: false,
@@ -59,9 +59,9 @@ export async function prepareCliProviderRuntimeEnv(options) {
         source.dispose();
     }
     return {
-        [ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]: cachePaths.activeFilePath,
-        [ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV]: zcodeBuiltinFilePath,
-        [ZCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV]: personalFilePath,
+        [XCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]: cachePaths.activeFilePath,
+        [XCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV]: zcodeBuiltinFilePath,
+        [XCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV]: personalFilePath,
     };
 }
 function requiresProviderRuntime(argv) {
@@ -83,17 +83,17 @@ function requiresProviderRuntime(argv) {
         command === "login" ||
         command === "logout");
 }
-async function resolveBundledZCodeBuiltinProviderConfig(input) {
+async function resolveBundledXCodeBuiltinProviderConfig(input) {
     if (input.sea?.isSea()) {
-        const content = input.sea.getAsset(SEA_ZCODE_BUILTIN_PROVIDER_CONFIG_ASSET_KEY, "utf8");
-        return materializeZCodeBuiltinProviderConfig({
-            environmentConfigRoot: join(input.dataBaseDir, ".zcode", "v2"),
+        const content = input.sea.getAsset(SEA_XCODE_BUILTIN_PROVIDER_CONFIG_ASSET_KEY, "utf8");
+        return materializeXCodeBuiltinProviderConfig({
+            environmentConfigRoot: join(input.dataBaseDir, ".xcode", "v2"),
             content,
         });
     }
     const entrypoint = input.entrypoint?.trim();
     if (!entrypoint)
-        throw new Error("无法定位 CLI ZCode Built-in Provider Config：缺少入口路径");
+        throw new Error("无法定位 CLI XCode Built-in Provider Config：缺少入口路径");
     // 全局 bin 可以是软链接，随包配置必须相对真实入口定位。
     const entryDirectory = dirname(realpathSync(resolve(entrypoint)));
     const candidates = [
@@ -103,7 +103,7 @@ async function resolveBundledZCodeBuiltinProviderConfig(input) {
     const candidate = candidates.find((filePath) => existsSync(filePath));
     if (candidate)
         return candidate;
-    throw new Error(`无法定位 CLI ZCode Built-in Provider Config：${candidates.join(", ")}`);
+    throw new Error(`无法定位 CLI XCode Built-in Provider Config：${candidates.join(", ")}`);
 }
 function getSeaProviderConfigAssets() {
     const getBuiltinModule = process.getBuiltinModule;

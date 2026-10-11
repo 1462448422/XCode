@@ -9,7 +9,7 @@ import type {
 
 const DAY_MS = 86_400_000;
 
-export interface BuildAppUsageOptions {
+interface BuildAppUsageOptions {
   range: AppUsageRange;
   timeZone: string;
   tzOffsetMs: number;

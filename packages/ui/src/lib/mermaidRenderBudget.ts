@@ -1,21 +1,16 @@
-export const MERMAID_AUTO_RENDER_MAX_SOURCE_CHARS = 20_000;
-export const MERMAID_AUTO_RENDER_MAX_LINES = 600;
-export const MERMAID_AUTO_RENDER_MAX_COMPLEXITY_SCORE = 1_500;
+const MERMAID_AUTO_RENDER_MAX_SOURCE_CHARS = 20_000;
+const MERMAID_AUTO_RENDER_MAX_LINES = 600;
+const MERMAID_AUTO_RENDER_MAX_COMPLEXITY_SCORE = 1_500;
 
-export type MermaidDocumentVisibilityState =
-  | "visible"
-  | "hidden"
-  | "prerender"
-  | "unloaded"
-  | "unknown";
+type MermaidDocumentVisibilityState = "visible" | "hidden" | "prerender" | "unloaded" | "unknown";
 
-export type MermaidAutoRenderSkipReason =
+type MermaidAutoRenderSkipReason =
   | "document-hidden"
   | "source-too-large"
   | "line-count-too-large"
   | "complexity-too-large";
 
-export interface MermaidAutoRenderMetrics {
+interface MermaidAutoRenderMetrics {
   sourceChars: number;
   lineCount: number;
   edgeLikeTokenCount: number;
@@ -23,7 +18,7 @@ export interface MermaidAutoRenderMetrics {
   complexityScore: number;
 }
 
-export type MermaidAutoRenderDecision =
+type MermaidAutoRenderDecision =
   | {
       shouldRender: true;
       metrics: MermaidAutoRenderMetrics;

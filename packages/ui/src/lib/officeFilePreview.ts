@@ -135,7 +135,7 @@ function sanitizeDocumentLinkElement(element: Element): void {
   }
 }
 
-export function sanitizeDocumentLinks(root: ParentNode): void {
+function sanitizeDocumentLinks(root: ParentNode): void {
   if (root instanceof Element && root.matches(DOCUMENT_LINK_SELECTOR)) {
     sanitizeDocumentLinkElement(root);
   }

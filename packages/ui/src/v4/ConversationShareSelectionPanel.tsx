@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { cn } from "@/components/lib/utils.js";
 import { Checkbox } from "@/components/ui/checkbox.js";
 import { ScrollArea } from "@/components/ui/scroll-area.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { resolveConversationShareSelectionPanelMotion } from "@/v4/conversationShareModeMotion.js";
 import {
   CONVERSATION_SHARE_SELECTION_PANEL_CENTER_Y_PROPERTY,
@@ -12,7 +12,7 @@ import {
 import { resolveConversationShareScrollbarIndicatorMetrics } from "@/v4/conversationShareScrollbarMetrics.js";
 import type { ConversationTurnNavigatorItem } from "@/v4/conversationTurnNavigatorHelpers.js";
 
-export interface ConversationShareSelectionPanelProps {
+interface ConversationShareSelectionPanelProps {
   visible: boolean;
   items: readonly ConversationTurnNavigatorItem[];
   selectedRowIds: ReadonlySet<number>;
@@ -35,7 +35,7 @@ function ConversationShareSelectionPanelImpl({
   onToggle,
   onInspect,
 }: ConversationShareSelectionPanelProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const prefersReducedMotion = useReducedMotion() === true;
   const motionConfig = resolveConversationShareSelectionPanelMotion(prefersReducedMotion);
   const panelRef = useRef<HTMLElement>(null);
@@ -126,8 +126,8 @@ function ConversationShareSelectionPanelImpl({
           exit={motionConfig.exit}
           transition={motionConfig.transition}
         >
-          {/* Bugfix：Radix 默认的 table wrapper 会被长文本撑宽，必须锁回 viewport 宽度，否则右侧间距、截断和 hover 都会失真。 */}
-          {/* Bug 根因：auto 会按滚动事件挂载/卸载 scrollbar，无法让整个面板 hover 稳定控制可见性；始终挂载后只切 opacity。 */}
+          {/* Radix 默认的 table wrapper 会被长文本撑宽，必须锁回 viewport 宽度，否则右侧间距、截断和 hover 都会失真。*/}
+          {/* auto 会按滚动事件挂载/卸载 scrollbar，无法让整个面板 hover 稳定控制可见性；始终挂载后只切 opacity。*/}
           <div ref={scrollShellRef} className="relative min-h-0 flex-1">
             <ScrollArea
               type="always"
@@ -156,7 +156,7 @@ function ConversationShareSelectionPanelImpl({
                         )}
                       >
                         <div className="relative flex size-6 shrink-0 items-center justify-center">
-                          {/* Bugfix：原先只有 14px Checkbox 本体接收点击，24px 槽位只是布局容器；用不占布局的 32px label 扩大热区，避免改变列表间距和视觉尺寸。 */}
+                          {/* 不能只有 14px Checkbox 本体接收点击、24px 槽位只当布局容器；用不占布局的 32px label 扩大热区，避免改变列表间距和视觉尺寸。*/}
                           <label
                             data-conversation-share-checkbox-hit-area="true"
                             className="absolute flex size-8 cursor-pointer items-center justify-center"

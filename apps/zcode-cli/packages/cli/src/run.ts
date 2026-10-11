@@ -2,7 +2,7 @@ import { extractDisallowedToolsArgs, parseGlobalArgs } from "./arguments.js";
 import { createNodeLoggerFactory } from "@zcode/adapters";
 import { getRuntimeInfo, type PresentationSurface } from "@zcode/core";
 import { color, formatJson, supportsColor } from "@zcode/core";
-import { getZCodeCopy, isUiLocale, type UiLocale } from "@zcode/i18n";
+import { getXCodeCopy, isUiLocale, type UiLocale } from "@zcode/i18n";
 import type { RunContext, GlobalOptions, GlobalOutputFormat } from "@zcode/shared-types";
 import {
   applyCliRuntimeEnvSanitization,
@@ -25,11 +25,6 @@ import { runPrompt } from "./prompt-command.js";
 import { runPluginsCommand, type PluginsCommandFlags } from "./plugins-command.js";
 import { runSkillsCommand } from "./skills-command.js";
 import { runTuiCommand } from "./tui-command.js";
-import {
-  DEFAULT_CLI_WORKFLOW_MODE,
-  normalizeWorkflowModeOption,
-  WORKFLOW_MODE_SCOPE_ERROR,
-} from "./workflow-mode.js";
 import type {
   CliPermissionMode,
   CliResumeRequest,
@@ -56,6 +51,8 @@ const BROWSER_USE_SCOPE_ERROR =
 const SURFACE_SCOPE_ERROR =
   "--surface can only be used with --prompt, --target, app-server, or agent-server.";
 const MEMORY_BENCH_SCOPE_ERROR = "--memory-bench can only be used with -p/--prompt.";
+const ENABLE_WORKFLOW_SCOPE_ERROR =
+  "--enable-workflow can only be used with -p/--prompt or --target.";
 
 const pluginsCommandFlags = (
   values: ReturnType<typeof parseGlobalArgs>["values"],
@@ -104,6 +101,7 @@ const globalOptions = (
     browserExecutable,
     browserUse,
     detectedLocale,
+    ...(values["enable-workflow"] === true ? { enableWorkflow: true } : {}),
     force: values.force === true,
     json: values.json === true,
     locale,
@@ -132,23 +130,14 @@ const normalizeOutputFormat = (value: string | undefined): GlobalOutputFormat | 
 const normalizeLocaleOption = (value: string | undefined): UiLocale | undefined => {
   if (value === undefined) return undefined;
   if (isUiLocale(value)) return value;
-  throw new Error(getZCodeCopy().cli.errors.localeUnsupported(value));
+  throw new Error(getXCodeCopy().cli.errors.localeUnsupported(value));
 };
 
 const normalizePromptMode = (value: string | undefined): CliPermissionMode | undefined => {
   if (value === undefined) return undefined;
   const mode = value.toLowerCase();
-  if (
-    mode === "build" ||
-    mode === "plan" ||
-    mode === "edit" ||
-    mode === "yolo" ||
-    mode === "guarded"
-  )
-    return mode;
-  throw new Error(
-    `Unsupported --mode value: ${value}. Supported modes: build, edit, plan, yolo, guarded.`,
-  );
+  if (mode === "build" || mode === "plan" || mode === "edit" || mode === "yolo") return mode;
+  throw new Error(`Unsupported --mode value: ${value}. Supported modes: build, edit, plan, yolo.`);
 };
 
 const normalizeBrowserUse = (value: string | undefined): GlobalOptions["browserUse"] => {
@@ -228,7 +217,7 @@ const runDoctor = (ctx: RunContext, options: GlobalOptions, workingDirectory: st
   }
 
   const colors = supportsColor(ctx.stdout, options.noColor);
-  ctx.stdout.write(`${color.bold("zcode doctor", colors)}\n`);
+  ctx.stdout.write(`${color.bold("xcode doctor", colors)}\n`);
   ctx.stdout.write(`version: ${payload.cli.version}\n`);
   ctx.stdout.write(`process: ${payload.runtime.processTitle}\n`);
   ctx.stdout.write(`node: ${payload.runtime.node}\n`);
@@ -244,7 +233,7 @@ const runDoctor = (ctx: RunContext, options: GlobalOptions, workingDirectory: st
   return 0;
 };
 
-const runZCodeProtocolCommand = async (
+const runXCodeProtocolCommand = async (
   ctx: RunContext,
   options: GlobalOptions,
   deps: RunDependencies,
@@ -256,7 +245,7 @@ const runZCodeProtocolCommand = async (
     const workingDirectory = (deps.cwd ?? process.cwd)();
     // 打包态 app-server 是 desktop host 的内部协议子进程。
     // 如果这里继续从 workspace 向上读取用户 .env，读文件失败或环境污染会在协议建立前
-    // 直接退出，外层只能看到 ZCode agent transport closed。
+    // 直接退出，外层只能看到 XCode agent transport closed。
     const dotenvResult = shouldLoadCliDotenvForProtocolServer(env)
       ? (deps.loadDotenv ?? loadCliDotenv)({
           cwd: workingDirectory,
@@ -275,7 +264,7 @@ const runZCodeProtocolCommand = async (
     }
 
     const runProtocolAgent =
-      deps.runZCodeProtocolAgent ?? (await loadBootstrapModule()).runZCodeProtocolAgent;
+      deps.runXCodeProtocolAgent ?? (await loadBootstrapModule()).runXCodeProtocolAgent;
     await runProtocolAgent({
       lifecycle: deps.protocolLifecycle,
       cwd: workingDirectory,
@@ -345,14 +334,10 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
   }
 
   let mode: CliPermissionMode | undefined;
-  let workflowModeOption: ReturnType<typeof normalizeWorkflowModeOption>;
   let browserUse: GlobalOptions["browserUse"];
   let presentationSurface: PresentationSurface;
   try {
     mode = normalizePromptMode(parsed.values.mode as string | undefined);
-    workflowModeOption = normalizeWorkflowModeOption(
-      parsed.values["workflow-mode"] as string | undefined,
-    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     ctx.stderr.write(`${message}\n`);
@@ -444,6 +429,15 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
   }
 
   if (
+    options.enableWorkflow &&
+    (parsed.positionals.length > 0 ||
+      (typeof parsed.values.prompt !== "string" && targetRequest === undefined))
+  ) {
+    ctx.stderr.write(`${ENABLE_WORKFLOW_SCOPE_ERROR}\n`);
+    return 1;
+  }
+
+  if (
     options.memoryBench &&
     (typeof parsed.values.prompt !== "string" || parsed.positionals.length > 0)
   ) {
@@ -462,21 +456,6 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
     ctx.stderr.write(`${BROWSER_USE_SCOPE_ERROR}\n`);
     return 1;
   }
-
-  // app-server 的 mode 归 Host 决定（launch.md「The standalone CLI: `--workflow-mode`」），
-  // 其余子命令不建会话；作用域与 --force-mcs 相同：只有 --prompt、--target 与 TUI。
-  if (
-    workflowModeOption !== undefined &&
-    !isForceMcsSupportedInvocation({
-      positionals: parsed.positionals,
-      prompt: parsed.values.prompt as string | undefined,
-      targetRequest,
-    })
-  ) {
-    ctx.stderr.write(`${WORKFLOW_MODE_SCOPE_ERROR}\n`);
-    return 1;
-  }
-  const workflowMode = workflowModeOption ?? DEFAULT_CLI_WORKFLOW_MODE;
 
   if (
     forceMcs &&
@@ -529,7 +508,6 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
       toolDisallowlist,
       forceMcs,
       presentationSurface,
-      workflowMode,
     );
   }
 
@@ -546,7 +524,6 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
       toolDisallowlist,
       forceMcs,
       presentationSurface,
-      workflowMode,
     );
   }
 
@@ -559,7 +536,7 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
       return 0;
     case "agent-server":
     case "app-server":
-      return await runZCodeProtocolCommand(
+      return await runXCodeProtocolCommand(
         ctx,
         options,
         commandDeps,
@@ -601,7 +578,6 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
         resumeRequest,
         toolDisallowlist,
         forceMcs,
-        workflowMode,
       );
     default:
       ctx.stderr.write(`Unknown command: ${commandName(parsed.positionals)}\n\n`);

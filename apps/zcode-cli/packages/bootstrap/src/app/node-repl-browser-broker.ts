@@ -55,7 +55,7 @@ export function createNodeReplBrowserBroker(input: {
     socketPath,
     token,
     close: async () => {
-      // createZCodeApp 是同步工厂，极短生命周期下 close 可能先于 listen 回调；
+      // createXCodeApp 是同步工厂，极短生命周期下 close 可能先于 listen 回调；
       // 直接检查 server.listening 会漏关随后才绑定成功的 socket。
       await ready.catch(() => undefined);
       await closeServer(server);
@@ -167,8 +167,10 @@ function authorizeRequest(request: NodeReplBrowserBrokerRequest, input: { token:
   }
   // 共享 MCP 子进程不能再绑定某一个 session，但 top-level MCP metadata 也不能
   // 直接取得 Browser 权限。私有 socket token 先证明请求来自宿主启动的 node_repl；sessionId
-  // 随后由 BrowserControlPort 的 requireSession 做权威校验——subagent 的子会话只有经父 runtime
-  // forChildSession 登记后才能解析到客户端会话，未登记的一律拒绝。
+  // 随后由 BrowserControlPort 的 requireSession 做权威校验，subagent 在到达端口前直接拒绝。
+  if (request.runtimeScope === "subagent") {
+    throw new Error("Browser is not available in subagent");
+  }
 }
 
 async function executeRequest(

@@ -3,15 +3,15 @@ import {
   TID_CHAT_THOUGHT_LEVEL_SELECT_ITEM,
   TID_CHAT_THOUGHT_LEVEL_SELECT_TRIGGER,
   testId,
-  type ZCodeConfigOption,
-  type ZCodeProvider,
+  type XCodeConfigOption,
+  type XCodeProvider,
 } from "@zcode/shared";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { cn } from "@/components/lib/utils.js";
 import { Button } from "@/components/ui/button.js";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select.js";
-import type { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import type { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   isCoarseTouchDevice,
   shouldRestoreChatInputFocusAfterPickerClose,
@@ -50,10 +50,10 @@ export function ThoughtLevelCycleControl({
   composerCollapsePriority?: number;
   interactionMode?: ThoughtLevelInteractionMode;
   indicatorClassName?: string;
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   labelVisibilityClassName?: string;
-  option: ZCodeConfigOption;
-  provider?: ZCodeProvider;
+  option: XCodeConfigOption;
+  provider?: XCodeProvider;
   showInvalidCurrentValue?: boolean;
   restoreFocusSelector?: string | null;
   shortcutLabel?: string;
@@ -247,7 +247,7 @@ export function ThoughtLevelCycleControl({
           data-composer-collapse-priority={composerCollapsePriority}
           data-testid={TID_CHAT_THOUGHT_LEVEL_SELECT_TRIGGER}
         >
-          {/* Bugfix: 单档模型（只有一个思考档位）没有可切换状态，不能继续渲染带箭头的 Select。 */}
+          {/* 单档模型（如 Kimi K3）没有可切换状态，不能继续渲染带箭头的 Select。*/}
           {triggerContent}
         </span>
       </ControlHintTooltip>

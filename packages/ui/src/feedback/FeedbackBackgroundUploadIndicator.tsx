@@ -19,7 +19,7 @@ import {
   type FeedbackSubmissionProgressState,
 } from "@/feedback/feedbackSubmissionJob.js";
 import { useFeedbackStore } from "@/feedback/feedbackStore.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 
 const SUCCESS_DISMISS_DELAY_MS = 5_000;
@@ -28,7 +28,7 @@ interface FeedbackBackgroundUploadIndicatorProps {
   feedbackDialogOpen: boolean;
 }
 
-export interface FeedbackBackgroundUploadIndicatorViewProps {
+interface FeedbackBackgroundUploadIndicatorViewProps {
   status: FeedbackSubmissionJobStatus;
   progress: FeedbackSubmissionProgressState;
   ticketId?: string;
@@ -39,18 +39,18 @@ export interface FeedbackBackgroundUploadIndicatorViewProps {
   defaultExpanded?: boolean;
 }
 
-export function shouldOpenExistingFeedbackTicket(
+function shouldOpenExistingFeedbackTicket(
   status: FeedbackSubmissionJobStatus,
   ticketId: string | undefined,
 ): ticketId is string {
   return Boolean(ticketId) && (status === "success" || status === "error");
 }
 
-export type FeedbackBackgroundOpenTarget =
+type FeedbackBackgroundOpenTarget =
   | { kind: "submission"; jobId: string }
   | { kind: "ticket"; ticketId: string };
 
-export function getFeedbackBackgroundOpenTarget(
+function getFeedbackBackgroundOpenTarget(
   job: Pick<FeedbackSubmissionJobSnapshot, "id" | "status" | "ticketId">,
 ): FeedbackBackgroundOpenTarget {
   if (shouldOpenExistingFeedbackTicket(job.status, job.ticketId)) {
@@ -141,7 +141,7 @@ function FeedbackBackgroundUploadJobCard({
   );
 }
 
-export function FeedbackBackgroundUploadIndicatorView({
+function FeedbackBackgroundUploadIndicatorView({
   status,
   progress,
   ticketId,
@@ -151,7 +151,7 @@ export function FeedbackBackgroundUploadIndicatorView({
   onDismiss,
   defaultExpanded = false,
 }: FeedbackBackgroundUploadIndicatorViewProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const progressValue = Math.max(0, Math.min(progress.progress ?? 0, 100));
   const isPaused = status === "paused-log";
   const isSuccess = status === "success";
@@ -238,7 +238,7 @@ export function FeedbackBackgroundUploadIndicatorView({
           >
             {expanded ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />}
           </Button>
-          {/* Bugfix: paused-log 只能继续上传；如果允许隐藏，会把等待用户动作的后台 job 变成不可恢复的悬挂状态。 */}
+          {/* paused-log 只能继续上传；如果允许隐藏，会把等待用户动作的后台 job 变成不可恢复的悬挂状态。*/}
           {!isPaused ? (
             <Button
               type="button"

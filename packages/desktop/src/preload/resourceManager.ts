@@ -1,15 +1,14 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { PlatformChannels, formatZCodeRendererProcessName } from "@zcode/shared";
+import { PlatformChannels, formatXCodeRendererProcessName } from "@zcode/shared";
 import type {
   ResourceUsageSnapshot,
-  NetworkCaptureBridge,
   StorageCleanRequest,
   StorageCleanResult,
   StorageManagementBridge,
   StorageUsageSnapshot,
 } from "@zcode/shared";
 
-process.title = formatZCodeRendererProcessName("Resource Manager");
+process.title = formatXCodeRendererProcessName("Resource Manager");
 
 const storage: StorageManagementBridge = {
   startScan: (): Promise<{ jobId: string }> =>
@@ -29,11 +28,6 @@ const storage: StorageManagementBridge = {
   },
 };
 
-const network: NetworkCaptureBridge = {
-  getSnapshot: () => ipcRenderer.invoke(PlatformChannels.GetNetworkCaptureSnapshot),
-  clear: () => ipcRenderer.invoke(PlatformChannels.ClearNetworkCapture),
-};
-
 /**
  * 资源管理器窗口专用 preload —— 资源快照拉取 + 存储管理命令面。
  * 不需要 MessagePort 转发，因为资源管理器窗口不使用 RPC 服务，也不接入桌面 continuous 主链路；
@@ -45,5 +39,4 @@ contextBridge.exposeInMainWorld("resourceManager", {
   getSnapshot: (): Promise<ResourceUsageSnapshot> =>
     ipcRenderer.invoke(PlatformChannels.GetResourceUsageSnapshot),
   storage,
-  network,
 });

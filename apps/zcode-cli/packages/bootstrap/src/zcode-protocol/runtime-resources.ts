@@ -1,15 +1,15 @@
-import type { ZCodeApp } from "../app/types.js";
-import type { ZCodeProtocolAgentDependencies } from "./server-types.js";
+import type { XCodeApp } from "../app/types.js";
+import type { XCodeProtocolAgentDependencies } from "./server-types.js";
 
 /** 持有 app 资源而非业务 session；临时 workspace app、尚未登记的 app 也归此 owner。 */
 export class ProtocolRuntimeResources {
   private stopping = false;
-  private readonly apps = new Set<ZCodeApp>();
+  private readonly apps = new Set<XCodeApp>();
   private closePromise?: Promise<void>;
 
-  constructor(private readonly factory: ZCodeProtocolAgentDependencies["createZCodeApp"]) {}
+  constructor(private readonly factory: XCodeProtocolAgentDependencies["createXCodeApp"]) {}
 
-  readonly create: ZCodeProtocolAgentDependencies["createZCodeApp"] = async (options) => {
+  readonly create: XCodeProtocolAgentDependencies["createXCodeApp"] = async (options) => {
     this.assertServing();
     const app = await this.factory(options);
     const originalClose = app.close?.bind(app);
@@ -34,7 +34,7 @@ export class ProtocolRuntimeResources {
   };
 
   assertServing(): void {
-    if (this.stopping) throw new Error("ZCode Protocol runtime is stopping");
+    if (this.stopping) throw new Error("XCode Protocol runtime is stopping");
   }
 
   close(): Promise<void> {
@@ -49,7 +49,7 @@ export class ProtocolRuntimeResources {
     return this.closePromise;
   }
 
-  private async stopApp(app: ZCodeApp): Promise<void> {
+  private async stopApp(app: XCodeApp): Promise<void> {
     try {
       app.runtime.beginShutdown();
       app.runtime.stopActiveForegroundExecution?.({ reason: "Protocol runtime stopping" });

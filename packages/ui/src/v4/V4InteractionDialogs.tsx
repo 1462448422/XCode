@@ -1,19 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ZCodeElicitationRequest, ZCodePermissionOption, ZCodeProvider } from "@zcode/shared";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { XCodeElicitationRequest, XCodePermissionOption, XCodeProvider } from "@zcode/shared";
 import type { ConversationSnapshot } from "@zcode/shared/zcode-protocol-v4";
 import { ElicitationDialog } from "@/ElicitationDialog.js";
 import { PermissionDialog } from "@/PermissionDialog.js";
-import { workflowSessionModelOf } from "@/components/workflow-timeline/workflowRunSettings.js";
 import { useOptionalPlatform } from "@/hooks/usePlatform.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { usePendingInteractionTaskNotifications } from "@/hooks/useTaskNotifications.js";
 import { logger } from "@/logger.js";
-import { useZCodeStoreWithDefault } from "@/store/StoreProvider.js";
+import { useXCodeStoreWithDefault } from "@/store/StoreProvider.js";
 import { useWorkspaceHookReviewStore } from "@/store/workspaceHookReviewStore.js";
 import {
   getTaskUiState,
   getWorkspaceState,
-  useZCodeSessionStore,
+  useXCodeSessionStore,
 } from "@/store/zcodeSessionStore.js";
 import type { ElicitationFormDraft } from "@/store/zcodeSessionStoreTypes.js";
 import { createCommandEnvelope } from "@/v4/commandFactory.js";
@@ -27,29 +26,28 @@ import {
 import { V4UserInputDialog } from "@/v4/V4UserInputDialog.js";
 import { useV4Conversation } from "@/v4/V4ConversationContext.js";
 
-export interface V4InteractionDialogsProps {
+interface V4InteractionDialogsProps {
   sessionId: string;
   workspacePath: string;
   workspaceIdentity?: string;
   remoteSessionId?: string;
-  isWebRemoteControl?: boolean;
-  provider?: ZCodeProvider;
+  provider?: XCodeProvider;
   snapshot: ConversationSnapshot | null;
   onCommandSettled?: (commandId: string) => void;
   onPlanInteractionAccepted?: (interactionId: string) => void;
 }
 
-export function getCurrentSessionInteractionSnapshot(
+function getCurrentSessionInteractionSnapshot(
   sessionId: string,
   snapshot: ConversationSnapshot | null,
 ): ConversationSnapshot | null {
   return snapshot?.sessionId === sessionId ? snapshot : null;
 }
 
-export function resolveV4ElicitationRequest(
-  projected: ZCodeElicitationRequest | null,
-  botProgress: ZCodeElicitationRequest | null,
-): ZCodeElicitationRequest | null {
+function resolveV4ElicitationRequest(
+  projected: XCodeElicitationRequest | null,
+  botProgress: XCodeElicitationRequest | null,
+): XCodeElicitationRequest | null {
   // Bugfix：V4 snapshot 只保留原始阻塞请求，Bot 代答后的逐题进度必须覆盖同一 request 的投影。
   if (projected && botProgress?.requestId === projected.requestId) {
     return botProgress;
@@ -57,17 +55,17 @@ export function resolveV4ElicitationRequest(
   return projected;
 }
 
-export function buildV4ElicitationProgressKey(request: ZCodeElicitationRequest): string {
+function buildV4ElicitationProgressKey(request: XCodeElicitationRequest): string {
   return `${request.requestId}:${request.currentQuestionIndex ?? 0}:${JSON.stringify(request.answerDrafts ?? {})}`;
 }
 
-export interface InteractionAutoResolutionIntentTracker {
+interface InteractionAutoResolutionIntentTracker {
   markInteracted(interactionId: string): void;
   consumeSnooze(interactionId: string, autoResolutionReady: boolean): boolean;
   releaseSnooze(interactionId: string): void;
 }
 
-export function createInteractionAutoResolutionIntentTracker(): InteractionAutoResolutionIntentTracker {
+function createInteractionAutoResolutionIntentTracker(): InteractionAutoResolutionIntentTracker {
   const interactedIds = new Set<string>();
   const sentIds = new Set<string>();
   return {
@@ -96,7 +94,6 @@ export function V4InteractionDialogs({
   workspacePath,
   workspaceIdentity,
   remoteSessionId,
-  isWebRemoteControl = false,
   provider,
   snapshot,
   onCommandSettled,
@@ -108,16 +105,11 @@ export function V4InteractionDialogs({
   const upsertWorkspaceHookReview = useWorkspaceHookReviewStore((state) => state.upsert);
   const clearWorkspaceHookReview = useWorkspaceHookReviewStore((state) => state.clear);
   const platform = useOptionalPlatform();
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   // task 切换时 sessionId 会先更新，旧 task snapshot 可能再保留一帧。
   // 若直接使用旧 snapshot，会把当前 task 的 renderer-local 问答草稿误判为过期并清理。
   const currentSnapshot = getCurrentSessionInteractionSnapshot(sessionId, snapshot);
-  // 工作流确认窗里「会话模型」那一项的名字（与 run 卡「配置」弹层同一个来源）。
-  const workflowSessionModel = useMemo(
-    () => workflowSessionModelOf(currentSnapshot?.config),
-    [currentSnapshot?.config],
-  );
-  // Bug 根因：workspaceHookReview 是 Settings/Hooks 处理的特殊交互，不能由通用 Dialog 渲染；
+  // workspaceHookReview 是 Settings/Hooks 处理的特殊交互，不能由通用 Dialog 渲染；
   // 但它可以和 permission/userInput 共存，固定读取 [0] 会遮挡后续真正需要弹窗的交互。
   // 这里只选择本组件可渲染的首个交互，同时保留 permission/userInput 的队列顺序。
   const pending =
@@ -128,13 +120,13 @@ export function V4InteractionDialogs({
   const workspaceHookReview = currentSnapshot?.pendingInteractions.find(
     (interaction) => interaction.payload.kind === "workspaceHookReview",
   );
-  const notificationEnabled = useZCodeStoreWithDefault((state) => state.notificationEnabled, true);
-  const botElicitationProgress = useZCodeSessionStore(
+  const notificationEnabled = useXCodeStoreWithDefault((state) => state.notificationEnabled, true);
+  const botElicitationProgress = useXCodeSessionStore(
     (state) =>
       getTaskUiState(getWorkspaceState(state, workspacePath, workspaceIdentity), sessionId)
         .elicitationRequest,
   );
-  const localElicitationDraft = useZCodeSessionStore((state) => {
+  const localElicitationDraft = useXCodeSessionStore((state) => {
     if (!pending || pending.payload.kind !== "userInput") return undefined;
     return getTaskUiState(getWorkspaceState(state, workspacePath, workspaceIdentity), sessionId)
       .elicitationFormDraftsByRequestId[pending.interactionId];
@@ -251,7 +243,7 @@ export function V4InteractionDialogs({
 
   const persistElicitationDraft = useCallback(
     (requestId: string, draft: ElicitationFormDraft) => {
-      useZCodeSessionStore
+      useXCodeSessionStore
         .getState()
         .setTaskElicitationFormDraft(workspacePath, sessionId, requestId, draft, workspaceIdentity);
     },
@@ -260,7 +252,7 @@ export function V4InteractionDialogs({
 
   const removeElicitationDraft = useCallback(
     (requestId: string) => {
-      useZCodeSessionStore
+      useXCodeSessionStore
         .getState()
         .removeTaskElicitationFormDraft(workspacePath, sessionId, requestId, workspaceIdentity);
     },
@@ -275,7 +267,7 @@ export function V4InteractionDialogs({
         .map((interaction) => interaction.interactionId),
     );
     const taskUiState = getTaskUiState(
-      getWorkspaceState(useZCodeSessionStore.getState(), workspacePath, workspaceIdentity),
+      getWorkspaceState(useXCodeSessionStore.getState(), workspacePath, workspaceIdentity),
       sessionId,
     );
     for (const requestId of Object.keys(taskUiState.elicitationFormDraftsByRequestId)) {
@@ -335,10 +327,6 @@ export function V4InteractionDialogs({
         key={pending.interactionId}
         request={request}
         workspacePath={workspacePath}
-        {...(workspaceIdentity === undefined ? {} : { workspaceIdentity })}
-        {...(remoteSessionId === undefined ? {} : { remoteSessionId })}
-        {...(workflowSessionModel === undefined ? {} : { workflowSessionModel })}
-        isWebRemoteControl={isWebRemoteControl}
         provider={provider}
         responding={
           permissionResponse?.interactionId === pending.interactionId && permissionResponse.pending
@@ -348,17 +336,14 @@ export function V4InteractionDialogs({
             ? intl.formatMessage({ id: "chat.permission.responseFailed" })
             : undefined
         }
-        onRespond={(_requestId, option: ZCodePermissionOption, feedback, content) => {
+        onRespond={(_requestId, option: XCodePermissionOption, feedback?: string) => {
           if (permissionResponseFlight.current === pending.interactionId) return;
           const interactionId = pending.interactionId;
           permissionResponseFlight.current = interactionId;
           setPermissionResponse({ interactionId, pending: true, failed: false });
-          // content：工作流确认窗里改过的设置，只在放行应答上（docs/dynamic-workflow/launch.md
-          // 「Adjusting the settings in the window」）。
           void resolveInteraction(interactionId, {
             optionId: option.optionId,
             ...(feedback ? { freeText: feedback } : {}),
-            ...(content === undefined ? {} : { content }),
           }).then((accepted) => {
             if (permissionResponseFlight.current !== interactionId) return;
             permissionResponseFlight.current = null;

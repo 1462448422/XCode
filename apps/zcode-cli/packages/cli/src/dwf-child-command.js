@@ -8,7 +8,7 @@
  * `run.ts` 在 parseArgs **之前**分派到这里。
  *
  * payload 不再走 argv（Windows 命令行上限
- * 32,767 字符），harness 写一份自包含的入口文件 `<cwd>/.zcode/workflow-runs/<runId>.mjs`，argv
+ * 32,767 字符），harness 写一份自包含的入口文件 `<cwd>/.xcode/workflow-runs/<runId>.mjs`，argv
  * 末位只是它的路径。入口文件自带 childMain 与 payload，这里只 `import()` 它并把 CLI 进程的
  * vm/readline/stdio 注入它导出的 `start`——本模块因此**不再依赖 `@zcode/dynamic-workflow-runtime`**。
  * 堆上限的 best-effort `v8.setFlagsFromString` 也随 payload 挪进了入口文件。
@@ -17,9 +17,9 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 import { createContext, runInContext } from "node:vm";
-import { ZCODE_DWF_CHILD_COMMAND } from "@zcode/contracts";
+import { XCODE_DWF_CHILD_COMMAND } from "@zcode/contracts";
 export function isDwfChildInvocation(argv) {
-    return argv[0] === ZCODE_DWF_CHILD_COMMAND;
+    return argv[0] === XCODE_DWF_CHILD_COMMAND;
 }
 /**
  * 跑沙箱子进程直到脚本终结。`argv` 是去掉子命令名后的剩余参数，**末位**是入口文件路径。
@@ -30,7 +30,7 @@ export function isDwfChildInvocation(argv) {
 export async function runDwfChildCommand(ctx, argv) {
     const entryPath = argv[argv.length - 1];
     if (argv.length === 0 || entryPath === undefined) {
-        ctx.stderr.write(`Usage: ${ZCODE_DWF_CHILD_COMMAND} <entry path>\n`);
+        ctx.stderr.write(`Usage: ${XCODE_DWF_CHILD_COMMAND} <entry path>\n`);
         return 1;
     }
     try {

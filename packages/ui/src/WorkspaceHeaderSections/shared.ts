@@ -1,7 +1,7 @@
 import type {
-  ZCodeTaskMeta,
-  ZCodeProvider,
-  ZCodeTaskChangeSummary,
+  XCodeTaskMeta,
+  XCodeProvider,
+  XCodeTaskChangeSummary,
   EditorInfo,
   GitRepositorySummary,
   RemoteTarget,
@@ -9,14 +9,14 @@ import type {
 } from "@zcode/shared";
 
 export interface WorkspaceHeaderState {
-  selectedProvider: ZCodeProvider;
+  selectedProvider: XCodeProvider;
 }
 
 export type WorkspaceHeaderVariant = "task" | "draft";
 
 export interface WorkspaceHeaderReloadSessionOptions {
   resumeTaskId?: string | null;
-  provider?: ZCodeProvider | null;
+  provider?: XCodeProvider | null;
 }
 
 export interface WorkspaceHeaderTitleSectionProps {
@@ -29,22 +29,19 @@ export interface WorkspaceHeaderTitleSectionProps {
   localWorkspacePath?: string;
   projectName: string;
   activeTaskTitle: string;
-  activeTaskChangeSummary?: ZCodeTaskChangeSummary | null;
+  activeTaskChangeSummary?: XCodeTaskChangeSummary | null;
   activeTaskId: string | null;
   activeTraceId: string | null;
   activeSessionId: string | null;
-  activeTaskProvider: ZCodeProvider | null;
-  resolvedActiveTaskMeta?: ZCodeTaskMeta | null;
+  activeTaskProvider: XCodeProvider | null;
+  resolvedActiveTaskMeta?: XCodeTaskMeta | null;
   gitSummary: GitRepositorySummary;
   gitDirtyFileCount: number;
   sessionLogPath: string | null;
-  nativeSessionLogProvider: ZCodeProvider | null;
+  nativeSessionLogProvider: XCodeProvider | null;
   nativeSessionLogPath: string | null;
   nativeSessionLogExists: boolean;
   nativeSessionLogLoading: boolean;
-  providerWorkspaceConfigPath: string | null;
-  providerWorkspaceConfigExists: boolean;
-  providerWorkspaceConfigLoading: boolean;
   onReloadSession?: (options?: WorkspaceHeaderReloadSessionOptions) => void | Promise<void>;
   reloadSessionDisabled?: boolean;
   reloadSessionPending?: boolean;
@@ -53,7 +50,6 @@ export interface WorkspaceHeaderTitleSectionProps {
   isMacDesktop?: boolean;
   isMacFullscreen?: boolean;
   isWindowsDesktop?: boolean;
-  isWebRemoteControl?: boolean;
   simplifyForNarrowRemote?: boolean;
   selectedEditor: EditorInfo | null;
   compact?: boolean;
@@ -68,7 +64,6 @@ export interface WorkspaceHeaderActionSectionProps {
   workspaceIdentity?: string;
   remoteSessionId?: string;
   remoteTarget?: RemoteTarget;
-  isWebRemoteControl?: boolean;
   isDesktop?: boolean;
   isTerminalOpen: boolean;
   isSidePaneOpen: boolean;

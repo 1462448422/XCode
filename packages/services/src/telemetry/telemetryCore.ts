@@ -1,24 +1,28 @@
 /* oxlint-disable eslint(max-lines) -- telemetry state lock、deviceMid 编排和上报路径共享同一状态文件，拆分会增加锁语义漂移风险。 */
 import {
   createUuid,
-  ZCODE_VERSION,
-  ZCODE_ENV,
-  ZCODE_TELEMETRY_REPORT_ENDPOINT,
-  buildZCodeSourceHeadersFromContext,
-  rewriteZCodeEndpointUrl,
+  XCODE_VERSION,
+  XCODE_ENV,
+  XCODE_TELEMETRY_ENABLED,
+  XCODE_TELEMETRY_REPORT_ENDPOINT,
+  buildXCodeSourceHeadersFromContext,
+  rewriteXCodeEndpointUrl,
   sanitizeTelemetryEventDetail,
   type TelemetryEventPayload,
   type TelemetryRendererContext,
   type OAuthLoginAttribution,
 } from "@zcode/shared";
+import {
+  ensureDeviceMid,
+  ensureDeviceMidInLockedState,
+  type EnsureDeviceMidOptions,
+} from "../device/deviceMid.js";
 import { mkdir, open, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { version } from "node:os";
 import { dirname, join } from "node:path";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import { getAppConfigDir } from "../paths.js";
-
-const REPORT_ENDPOINT = ZCODE_TELEMETRY_REPORT_ENDPOINT;
 
 function sessionCreateEventId(userId: string, sessionId: string): string {
   const bytes = createHash("sha256")
@@ -53,7 +57,7 @@ interface TelemetryCoreDependencies {
   releaseChannel?: string;
   osVersion?: string;
   homeDir?: string;
-  resolveZCodeEndpointOrigin?: () => Promise<string> | string;
+  resolveXCodeEndpointOrigin?: () => Promise<string> | string;
   requestTimeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
   warn?: (message: string) => void;
@@ -96,8 +100,6 @@ interface TelemetryLockOwner {
   createdAt: number;
 }
 
-const deviceMidCacheByStateFile = new Map<string, Promise<string>>();
-
 function normalizeOsCategory(platform: NodeJS.Platform): string {
   switch (platform) {
     case "darwin":
@@ -125,14 +127,14 @@ function toLocalDateKey(timestamp: number, timeZone: string): string {
 
 function resolveTelemetryStateFile(homeDir?: string): string {
   if (homeDir) {
-    return join(homeDir, ".zcode", "v2", "telemetry-state.json");
+    return join(homeDir, ".xcode", "v2", "telemetry-state.json");
   }
   return join(getAppConfigDir(), "telemetry-state.json");
 }
 
 function resolveTelemetryLockFile(homeDir?: string): string {
   if (homeDir) {
-    return join(homeDir, ".zcode", "v2", "telemetry-state.lock");
+    return join(homeDir, ".xcode", "v2", "telemetry-state.lock");
   }
   return join(getAppConfigDir(), "telemetry-state.lock");
 }
@@ -272,65 +274,12 @@ async function withTelemetryStateLock<T>(
   throw new Error("Telemetry state lock timeout");
 }
 
-export interface EnsureTelemetryDeviceMidOptions {
-  homeDir?: string;
-  randomUUID?: () => string;
-}
+// 设备身份的持久化唯一所有者是 device/deviceMid 模块：同一 telemetry-state 文件、同一把锁。
+// 这里保留旧导出名作为上报入口的稳定别名，内部直接委托，避免出现第二条写入路径。
+export type { EnsureDeviceMidOptions as EnsureTelemetryDeviceMidOptions } from "../device/deviceMid.js";
 
-function rememberDeviceMid(telemetryStateFile: string, deviceMid: string): string {
-  deviceMidCacheByStateFile.set(telemetryStateFile, Promise.resolve(deviceMid));
-  return deviceMid;
-}
-
-/** 调用方必须已持有 telemetry-state.lock；只在 state 缺失 deviceMid 时生成并写回。 */
-async function ensureDeviceMidInLockedState(
-  state: TelemetryState,
-  options: EnsureTelemetryDeviceMidOptions,
-): Promise<string> {
-  const telemetryStateFile = resolveTelemetryStateFile(options.homeDir);
-  if (state.deviceMid) {
-    return rememberDeviceMid(telemetryStateFile, state.deviceMid);
-  }
-
-  // device_mid 独立生成，不再复用首条事件的 eventId：让它表达「设备标识」而非
-  // 「某次上报」，并与 ARMS 侧（desktopDeviceMid）读取的同一字段保持同值。
-  const deviceMid = (options.randomUUID ?? createUuid)();
-  state.deviceMid = deviceMid;
-  await writeTelemetryState(state, options.homeDir);
-  return rememberDeviceMid(telemetryStateFile, deviceMid);
-}
-
-/**
- * 确保 telemetry-state.json 里存在 deviceMid 并返回它。
- *
- * Bug 根因：远端 zcode-server 所在主机没有 Desktop main 进程，过去没有任何进程会在那里写
- * telemetry-state.json；buildZCodeSourceHeaders() 又只读不生成，于是远端发往 ZCode endpoint 的
- * 请求永远缺 X-Device-Mid，billing/balance 被服务端拒绝为 parameter error，Start Plan 在远程
- * 工作区被判成未开通。这里把 telemetry 上报内部的 ensure 逻辑抽成独立入口，供远端 server 启动时
- * 调用：同一个文件、同一个字段、同一把 telemetry-state.lock，与同机 CLI 得到同一个设备身份。
- */
-export function ensureTelemetryDeviceMid(
-  options: EnsureTelemetryDeviceMidOptions = {},
-): Promise<string> {
-  const telemetryStateFile = resolveTelemetryStateFile(options.homeDir);
-  const cached = deviceMidCacheByStateFile.get(telemetryStateFile);
-  if (cached) {
-    return cached;
-  }
-
-  // Bugfix: message_completion / agent_step 等高频埋点之前每条都抢 telemetry-state.lock，
-  // 即使 deviceMid 已经落盘也会在 burst 场景里把 2 秒锁等待打满。这里按 state 文件缓存
-  // deviceMid 的读取 promise，只在首次缺失或首次读取时进入文件锁。
-  const pending = withTelemetryStateLock(options.homeDir, async (state) =>
-    ensureDeviceMidInLockedState(state, options),
-  ).catch((error) => {
-    if (deviceMidCacheByStateFile.get(telemetryStateFile) === pending) {
-      deviceMidCacheByStateFile.delete(telemetryStateFile);
-    }
-    throw error;
-  });
-  deviceMidCacheByStateFile.set(telemetryStateFile, pending);
-  return pending;
+export function ensureTelemetryDeviceMid(options: EnsureDeviceMidOptions = {}): Promise<string> {
+  return ensureDeviceMid(options);
 }
 
 export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}) {
@@ -342,13 +291,13 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
   let didWarnMarketingParamsLoadFailure = false;
   const randomUUID = dependencies.randomUUID ?? (() => createUuid());
   const now = dependencies.now ?? Date.now;
-  const appVersion = dependencies.appVersion ?? ZCODE_VERSION;
+  const appVersion = dependencies.appVersion ?? XCODE_VERSION;
   const platform = dependencies.platform ?? process.platform;
   const osVersion = dependencies.osVersion ?? version();
   const requestTimeoutMs = dependencies.requestTimeoutMs ?? REPORT_REQUEST_TIMEOUT_MS;
   const retrySleep = dependencies.sleep ?? sleep;
   const pendingReports = new Set<Promise<void>>();
-  const deviceMidOptions: EnsureTelemetryDeviceMidOptions = {
+  const deviceMidOptions: EnsureDeviceMidOptions = {
     homeDir: dependencies.homeDir,
     randomUUID,
   };
@@ -415,8 +364,10 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
     userId: string,
     deviceMid: string,
   ): Promise<void> {
-    // 构建期未配置事件上报端点时不上报（见 docs/desktop/build-time-optional-capabilities.md）
-    if (!REPORT_ENDPOINT) return;
+    // 总开关关闭或上报端点未配置时，事件到此终止。
+    if (!XCODE_TELEMETRY_ENABLED || !XCODE_TELEMETRY_REPORT_ENDPOINT) {
+      return;
+    }
     let marketingParams: OAuthLoginAttribution | null = null;
     try {
       marketingParams = await loadMarketingParams();
@@ -455,18 +406,18 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
     });
 
     const endpoint = String(
-      rewriteZCodeEndpointUrl(
-        REPORT_ENDPOINT,
-        (await dependencies.resolveZCodeEndpointOrigin?.()) ?? REPORT_ENDPOINT,
+      rewriteXCodeEndpointUrl(
+        XCODE_TELEMETRY_REPORT_ENDPOINT,
+        (await dependencies.resolveXCodeEndpointOrigin?.()) ?? XCODE_TELEMETRY_REPORT_ENDPOINT,
       ),
     );
 
-    const headers = buildZCodeSourceHeadersFromContext({
+    const headers = buildXCodeSourceHeadersFromContext({
       appVersion,
       platform,
       arch: dependencies.arch ?? process.arch,
       osVersion,
-      releaseChannel: dependencies.releaseChannel ?? ZCODE_ENV,
+      releaseChannel: dependencies.releaseChannel ?? XCODE_ENV,
       clientLanguage: context.clientLanguage,
       clientTimezone: context.clientTimezone,
       deviceMid,

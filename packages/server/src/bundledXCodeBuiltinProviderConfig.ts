@@ -1,4 +1,4 @@
-import { materializeZCodeBuiltinProviderConfig } from "@zcode/services/node";
+import { materializeXCodeBuiltinProviderConfig } from "@zcode/services/node";
 
 declare const __XCODE_BUILTIN_PROVIDER_CONFIG_JSON__: string | undefined;
 
@@ -22,5 +22,5 @@ export function readBundledXCodeBuiltinProviderConfig(): string {
 export async function materializeBundledXCodeBuiltinProviderConfig(
   options: MaterializeBundledXCodeBuiltinProviderConfigOptions,
 ): Promise<string> {
-  return materializeZCodeBuiltinProviderConfig(options);
+  return materializeXCodeBuiltinProviderConfig(options);
 }

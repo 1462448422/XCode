@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { useClaudeSessionMigration } from "@/hooks/useClaudeSessionMigration.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useSettingsSync } from "@/hooks/useSettingsSync.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { getPathLeaf } from "@/lib/path.js";
 import { logger } from "@/logger.js";
 import {
@@ -24,7 +24,7 @@ import {
   type OnboardingWorkspaceCandidate,
 } from "@/onboarding/OnboardingFlowParts.js";
 import { OnboardingAgentsFileStep } from "@/onboarding/OnboardingAgentsFileStep.js";
-import { useZCodeStore } from "@/store/StoreProvider.js";
+import { useXCodeStore } from "@/store/StoreProvider.js";
 import {
   shouldAutoScanOnboardingSessions,
   useOnboardingMigration,
@@ -52,7 +52,7 @@ export function OnboardingDialog(props: {
   workspaceIdentity?: string;
   isDesktop?: boolean;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const confirmDialog = useConfirmDialog();
   const settingsSync = useSettingsSync({
     workspacePath: props.workspacePath,
@@ -62,8 +62,8 @@ export function OnboardingDialog(props: {
     workspacePath: props.workspacePath ?? null,
     isDesktop: props.isDesktop,
   });
-  const onboardingDialogRequested = useZCodeStore((state) => state.onboardingDialogRequested);
-  const clearOnboardingDialogRequest = useZCodeStore((state) => state.clearOnboardingDialogRequest);
+  const onboardingDialogRequested = useXCodeStore((state) => state.onboardingDialogRequested);
+  const clearOnboardingDialogRequest = useXCodeStore((state) => state.clearOnboardingDialogRequest);
   const [view, setView] = useState<OnboardingView>("welcome");
   const [wizardStep, setWizardStep] = useState<OnboardingWizardStep>("session");
   const [selectedWorkspacePaths, setSelectedWorkspacePaths] = useState<string[]>([]);
@@ -237,8 +237,6 @@ export function OnboardingDialog(props: {
   }, [sessionMigration.candidates]);
 
   const selectedWorkspaceCount = selectedWorkspacePaths.length;
-  // 暂时隐藏数据迁移向导里的代理设置步骤，同时不把默认选中的代理设置暗中计入迁移任务。
-  const settingsTaskCount = 0;
   /** 既无会话也无外部导入项时，禁止进入迁移步骤。 */
   const beginMigrationDisabled =
     selectedWorkspaceCount === 0 &&
@@ -254,7 +252,6 @@ export function OnboardingDialog(props: {
   const totalExecutionTaskCount =
     finishExecution.sessionTotalCount +
     finishExecution.agentsFileTotalCount +
-    settingsTaskCount +
     externalImportSelections.length;
   const completedExecutionTaskCount =
     finishExecution.sessionCompletedCount +
@@ -320,7 +317,7 @@ export function OnboardingDialog(props: {
           { id: "onboarding.agentsFile.confirmDescription" },
           {
             source: agentsFileMigration.status?.sourcePath ?? "~/.claude/CLAUDE.md",
-            target: agentsFileMigration.status?.targetPath ?? "~/.zcode/AGENTS.md",
+            target: agentsFileMigration.status?.targetPath ?? "~/.xcode/AGENTS.md",
           },
         ),
         confirmLabel: intl.formatMessage({ id: "onboarding.agentsFile.confirmAction" }),
@@ -493,7 +490,6 @@ export function OnboardingDialog(props: {
               <OnboardingWizardFooter
                 currentStep={wizardStep}
                 selectedWorkspaceCount={selectedWorkspaceCount}
-                settingsTaskCount={settingsTaskCount}
                 finishRunning={finishExecution.running}
                 finishReady={finishExecution.finished}
                 onBackToWelcome={() => setView("welcome")}
@@ -503,12 +499,6 @@ export function OnboardingDialog(props: {
                 onFinish={settingsSync.actions.finish}
                 beginMigrationDisabled={beginMigrationDisabled}
               />
-              {/*
-                暂时隐藏数据迁移向导里的代理设置步骤，批量选择按钮随步骤一起隐藏。
-                onAgentSettingsBulkToggle={toggleAgentSettingsBulk}
-                agentSettingsBulkToggleDisabled={agentSettingsBulkToggleDisabled}
-                agentSettingsBulkIsClear={agentSettingsFullySelected}
-              */}
             </div>
           </div>
         )}

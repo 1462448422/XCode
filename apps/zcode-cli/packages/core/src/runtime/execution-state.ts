@@ -16,7 +16,7 @@ export function readRuntimeExecutionState(runtime: AgentRuntimeInternal): Execut
   return resolveExecutionState(runtime.config);
 }
 
-export async function persistExecutionState(
+async function persistExecutionState(
   runtime: AgentRuntimeInternal,
   state = readRuntimeExecutionState(runtime),
 ): Promise<void> {

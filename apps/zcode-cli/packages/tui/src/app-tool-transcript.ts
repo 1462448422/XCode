@@ -100,10 +100,6 @@ export function applyToolTranscriptEvent(
   }
 }
 
-export function summarizeToolInput(toolName: string, input: unknown): string[] {
-  return buildToolTranscriptProjection(toolName, input).detailLines;
-}
-
 export function buildToolTranscriptProjection(
   toolName: string,
   input: unknown,

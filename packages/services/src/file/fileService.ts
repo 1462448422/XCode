@@ -101,7 +101,7 @@ function isProbablyBinary(buffer: Buffer): boolean {
   }
   return suspiciousBytes / buffer.length > 0.3;
 }
-const SCRATCH_WORKSPACE_ROOT_NAME = "ZCodeProject";
+const SCRATCH_WORKSPACE_ROOT_NAME = "XCodeProject";
 function validateScratchWorkspaceName(name: string): string {
   const trimmedName = name.trim();
   if (!trimmedName) {
@@ -115,7 +115,7 @@ function validateScratchWorkspaceName(name: string): string {
 function normalizeRelativePath(rootPath: string, targetPath: string): string {
   return relative(rootPath, targetPath).split(sep).join("/");
 }
-export function isSkippableWorkspaceFileListError(error: unknown): boolean {
+function isSkippableWorkspaceFileListError(error: unknown): boolean {
   const code = (error as { code?: unknown } | null)?.code;
   return code === "EACCES" || code === "EPERM" || code === "ENOENT";
 }
@@ -125,7 +125,7 @@ interface FileExistenceCacheEntry {
   expiresAt: number;
 }
 
-export class FileExistenceCache {
+class FileExistenceCache {
   private readonly entries = new Map<string, FileExistenceCacheEntry>();
 
   get size(): number {

@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { createHmac, randomUUID } from "node:crypto";
-import type { ZCodeMcpTelemetryEvent } from "@zcode/shared";
+import type { XCodeMcpTelemetryEvent } from "@zcode/shared";
 import {
   createMcpResourceTelemetry,
   type McpResourceTelemetryOptions,
@@ -11,13 +11,13 @@ const BUILTIN_NODE_REPL_SERVER_NAME = "node_repl";
 const MCP_ID_SAFE_CHARACTER_PATTERN = /^[A-Za-z0-9._~-]$/;
 const PLUGIN_MCP_NAMESPACE_PREFIX = "plugin:";
 
-export type McpTelemetryEvent = ZCodeMcpTelemetryEvent;
+type McpTelemetryEvent = XCodeMcpTelemetryEvent;
 export type McpTelemetrySource = Extract<
-  ZCodeMcpTelemetryEvent,
+  XCodeMcpTelemetryEvent,
   { kind: "process_start" }
 >["mcpSource"];
 export type McpTelemetryIsolation = Extract<
-  ZCodeMcpTelemetryEvent,
+  XCodeMcpTelemetryEvent,
   { kind: "process_start" }
 >["mcpIsolation"];
 export interface McpProcessTelemetryIdentity {
@@ -72,12 +72,12 @@ export interface McpTelemetryTracker {
   stop(): void;
 }
 
-export interface CreateMcpTelemetryTrackerOptions {
-  arch?: ZCodeMcpTelemetryEvent["arch"];
+interface CreateMcpTelemetryTrackerOptions {
+  arch?: XCodeMcpTelemetryEvent["arch"];
   idSalt: string;
   now?: () => number;
   onEvent(event: McpTelemetryEvent): void;
-  platform?: ZCodeMcpTelemetryEvent["platform"];
+  platform?: XCodeMcpTelemetryEvent["platform"];
   randomId?: () => string;
   onResourceSamples?: McpResourceTelemetryOptions["onResourceSamples"];
   processProbe?: McpResourceTelemetryOptions["processProbe"];
@@ -104,9 +104,9 @@ interface TrackedConnection {
 export function createMcpTelemetryTracker(
   options: CreateMcpTelemetryTrackerOptions,
 ): McpTelemetryTracker {
-  const arch = options.arch ?? (process.arch as ZCodeMcpTelemetryEvent["arch"]);
+  const arch = options.arch ?? (process.arch as XCodeMcpTelemetryEvent["arch"]);
   const now = options.now ?? Date.now;
-  const platform = options.platform ?? (process.platform as ZCodeMcpTelemetryEvent["platform"]);
+  const platform = options.platform ?? (process.platform as XCodeMcpTelemetryEvent["platform"]);
   const randomId = options.randomId ?? randomUUID;
   const connections = new Map<string, TrackedConnection>();
   const emit = (event: McpTelemetryEvent): void => {

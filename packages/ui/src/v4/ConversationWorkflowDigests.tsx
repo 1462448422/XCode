@@ -4,7 +4,7 @@ import type { WorkflowRunSettingsHost } from "@/components/workflow-timeline/Wor
 import { WorkflowSettingsChangeRow } from "@/components/workflow-timeline/WorkflowSettingsChangeRow.js";
 import { isWorkflowRunConfigurable } from "@/components/workflow-timeline/workflowRunSettings.js";
 import { useWorkflowSubagentModelProviderName } from "@/hooks/useWorkflowSubagentModelProviderName.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type { ConversationRowRenderContext } from "@/v4/conversationRowContext.js";
 import type { WorkflowTurnDigest } from "@/v4/workflowTurnDigests.js";
 import { resolveWorkflowRunOpenToolCallId } from "@/v4/workflowRunCardJoin.js";
@@ -24,7 +24,7 @@ export function ConversationWorkflowDigests({
   context: ConversationRowRenderContext;
   turnKey: string;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   // 子代理模型名里的 provider 名从会话的模型清单来（卡本身不碰 store，宿主把查找函数递进去）。
   const subagentModelProviderName = useWorkflowSubagentModelProviderName(
     context.workspacePath,
@@ -38,7 +38,7 @@ export function ConversationWorkflowDigests({
         const { runId, summary } = digest;
         const name = digest.name ?? fallbackName;
         const sessionId = context.sessionId;
-        // 就地生效的设置轮（docs/dynamic-workflow/presentation.md「The settings turn」）：那一行就是
+        // 就地生效的设置轮：那一行就是
         // 全部呈现。提前返回，下面整套卡的接线（打开、Resume、Stop、药丸、「配置」）一条都不建——
         // 那些都是卡上的控件，而这一轮没有卡。
         if (digest.rowOnly && digest.settings !== undefined) {
@@ -149,7 +149,6 @@ export function ConversationWorkflowDigests({
         const card = (
           <WorkflowRunDigest
             graph={digest.graph}
-            {...(digest.holeLabels === undefined ? {} : { holeLabels: digest.holeLabels })}
             key={digest.key}
             name={name}
             pendingQuestions={pendingQuestions}

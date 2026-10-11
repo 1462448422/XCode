@@ -2,22 +2,22 @@ import { existsSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, parse, resolve } from "node:path";
 import { config as loadDotenv } from "dotenv";
-import { ZCODE_RUNTIME_ENV_KEY, buildZCodeToolEnvPassthroughEnv, normalizeZCodeRuntimeEnv, sanitizeZCodeRuntimeEnv, sanitizeZCodeRuntimeEnvInPlace, } from "@zcode/shared/runtime-env";
+import { XCODE_RUNTIME_ENV_KEY, buildXCodeToolEnvPassthroughEnv, normalizeXCodeRuntimeEnv, sanitizeXCodeRuntimeEnv, sanitizeXCodeRuntimeEnvInPlace, } from "@zcode/shared/runtime-env";
 export function prepareCliRuntimeEnv(env = process.env, argv = process.argv) {
     const prepared = {
-        ...sanitizeZCodeRuntimeEnv(env),
-        ...buildZCodeToolEnvPassthroughEnv(env),
+        ...sanitizeXCodeRuntimeEnv(env),
+        ...buildXCodeToolEnvPassthroughEnv(env),
     };
     applyCliRuntimeEnvDefaults(prepared, argv);
     return prepared;
 }
 export function applyCliRuntimeEnvSanitization(env, argv = process.argv) {
-    const toolEnvPassthrough = buildZCodeToolEnvPassthroughEnv(env);
-    sanitizeZCodeRuntimeEnvInPlace(env);
+    const toolEnvPassthrough = buildXCodeToolEnvPassthroughEnv(env);
+    sanitizeXCodeRuntimeEnvInPlace(env);
     Object.assign(env, toolEnvPassthrough);
     applyCliRuntimeEnvDefaults(env, argv);
 }
-export const findDotenv = (startDir) => {
+const findDotenv = (startDir) => {
     let current = resolve(startDir);
     const root = parse(current).root;
     while (true) {
@@ -72,11 +72,11 @@ export function shouldLoadCliDotenvForProtocolServer(env) {
     return resolveCliRuntimeEnv(env, process.argv) === "development";
 }
 function applyCliRuntimeEnvDefaults(env, argv) {
-    env[ZCODE_RUNTIME_ENV_KEY] = resolveCliRuntimeEnv(env, argv);
+    env[XCODE_RUNTIME_ENV_KEY] = resolveCliRuntimeEnv(env, argv);
     applyBetaStorageDefault(env, argv);
 }
 function resolveCliRuntimeEnv(env, argv) {
-    const explicit = normalizeZCodeRuntimeEnv(env[ZCODE_RUNTIME_ENV_KEY]);
+    const explicit = normalizeXCodeRuntimeEnv(env[XCODE_RUNTIME_ENV_KEY]);
     if (explicit) {
         return explicit;
     }
@@ -88,11 +88,11 @@ function resolveCliRuntimeEnv(env, argv) {
         : "production";
 }
 function applyBetaStorageDefault(env, argv) {
-    if (env.ZCODE_STORAGE_DIR?.trim())
+    if (env.XCODE_STORAGE_DIR?.trim())
         return;
-    const explicitBeta = env.ZCODE_BETA === "1" || env.ZCODE_ENV === "beta";
-    const invokedAsBeta = argv.some((arg) => /(^|[/\\])zcode-beta(?:$|\.)/u.test(arg));
+    const explicitBeta = env.XCODE_BETA === "1" || env.XCODE_ENV === "beta";
+    const invokedAsBeta = argv.some((arg) => /(^|[/\\])xcode-beta(?:$|\.)/u.test(arg));
     if (!explicitBeta && !invokedAsBeta)
         return;
-    env.ZCODE_STORAGE_DIR = join(homedir(), ".zcode-beta");
+    env.XCODE_STORAGE_DIR = join(homedir(), ".xcode-beta");
 }

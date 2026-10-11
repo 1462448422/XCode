@@ -17,8 +17,8 @@ import { Switch } from "@/components/ui/switch.js";
 import { toast } from "@/components/ui/toast.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { useServices } from "@/hooks/useServices.js";
-import { useZCodeSessionService } from "@/hooks/useZCodeSessionService.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeSessionService } from "@/hooks/useXCodeSessionService.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { invalidateDeferredDraftSessionForSkillChange } from "@/lib/zcodeDraftSkillInvalidation.js";
 import { logger } from "@/logger.js";
 import { startUserAction } from "@/lib/userActionTelemetry.js";
@@ -79,10 +79,10 @@ export function BrowserSettingsSection({
   embeddedBrowserAllowInsecureCertificates = false,
   onEmbeddedBrowserAllowInsecureCertificatesChange = async () => {},
 }: BrowserSettingsSectionProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const platform = usePlatform();
   const { pluginManagementService, skillsService } = useServices();
-  const zcodeSessionService = useZCodeSessionService(
+  const zcodeSessionService = useXCodeSessionService(
     workspacePath ?? undefined,
     undefined,
     workspaceIdentity,

@@ -2,14 +2,10 @@
  * slashCommandHelpers — 纯函数辅助工具，供 SlashCommandPlugin.tsx 使用
  */
 import { $getRoot, $getSelection, $isRangeSelection, $isTextNode } from "lexical";
-import type { AgentSummary, Locale, SkillSummary, ZCodeSlashCommand } from "@zcode/shared";
+import type { AgentSummary, Locale, SkillSummary, XCodeSlashCommand } from "@zcode/shared";
 import type { MentionItem } from "@/mentions/mentionTypes.js";
 import { mapSubagentsToMentionItemsForTest } from "@/mentions/providers/subagentsMentionProvider.js";
 import { mapSkillsToMentionItemsForTest } from "@/mentions/providers/skillsMentionProvider.js";
-import {
-  extractActivePromptInputTrigger,
-  getActivePromptInputTokenTailLength,
-} from "./lib/promptInputTriggers.js";
 import type { PromptInputSuggestionItem } from "./lib/promptInputTriggers.js";
 
 export interface SlashCommandPluginProps {
@@ -82,12 +78,12 @@ export function shouldOfferSideSlashCommand(options: {
 }
 
 export function normalizeSlashCommandValue(name: string): string {
-  // ZCode Agent 在远端可能直接返回 "/init" 作为命令名。
+  // XCode Agent 在远端可能直接返回 "/init" 作为命令名。
   // UI 的 value 需要去掉前导斜杠，否则插入 markdown 时会变成 "//init"，并影响 / 面板匹配。
   return name.trim().replace(/^\/+/, "");
 }
 
-export function buildSlashSuggestions(commands: ZCodeSlashCommand[]): PromptInputSuggestionItem[] {
+export function buildSlashSuggestions(commands: XCodeSlashCommand[]): PromptInputSuggestionItem[] {
   return commands.flatMap((command) => {
     const value = normalizeSlashCommandValue(command.name);
     // UI 曾同时维护内建白名单、GLM `/goal` fallback 和 v4 追加目录，
@@ -148,30 +144,6 @@ function mapSubagentMentionItemToSuggestion(item: MentionItem): PromptInputSugge
     description: item.description,
     keywords: [...new Set([...(item.keywords ?? []), "subagent", "agent"])],
     data: item.data,
-  };
-}
-
-export function replaceActiveSlashToken(
-  textBeforeCursor: string,
-  textAfterCursor: string,
-  replacementToken: string,
-) {
-  const activeTrigger = extractActivePromptInputTrigger(textBeforeCursor);
-  if (!activeTrigger || activeTrigger.trigger !== "/") {
-    return null;
-  }
-
-  const tokenStart = textBeforeCursor.length - activeTrigger.query.length - 1;
-  const tailLength = getActivePromptInputTokenTailLength(
-    activeTrigger,
-    textAfterCursor,
-    replacementToken,
-  );
-  const prefix = textBeforeCursor.slice(0, tokenStart);
-  const suffix = textAfterCursor.slice(tailLength);
-  return {
-    cursorOffset: prefix.length + replacementToken.length + 1,
-    text: `${prefix}${replacementToken} ${suffix}`,
   };
 }
 

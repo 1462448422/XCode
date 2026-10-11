@@ -3,7 +3,7 @@ import type {
   GitDiffResult,
   GitFileChange,
   Locale,
-  ZCodeWorkspaceGenerateTextParams,
+  XCodeWorkspaceGenerateTextParams,
 } from "@zcode/shared";
 import type { ServiceLogger } from "#src/logger/serviceLogger.js";
 
@@ -20,30 +20,30 @@ const COMMIT_MESSAGE_QUERY_SOURCE = "git_commit_message";
 const CONVENTIONAL_COMMIT_RE =
   /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .{1,100}$/;
 
-export interface GitCommitMessageCurrentModelProvider {
+interface GitCommitMessageCurrentModelProvider {
   readCurrentModel(params: {
     workspacePath: string;
     workspaceIdentity?: string;
-  }): Promise<ZCodeWorkspaceGenerateTextParams["selection"] | null>;
+  }): Promise<XCodeWorkspaceGenerateTextParams["selection"] | null>;
 }
 
-export interface GitCommitMessageTextGenerator {
+interface GitCommitMessageTextGenerator {
   generateText(params: {
     workspacePath: string;
     workspaceIdentity?: string;
-    selection: ZCodeWorkspaceGenerateTextParams["selection"];
+    selection: XCodeWorkspaceGenerateTextParams["selection"];
     prompt: string;
     querySource: string;
-  }): Promise<{ text: string; selection: ZCodeWorkspaceGenerateTextParams["selection"] }>;
+  }): Promise<{ text: string; selection: XCodeWorkspaceGenerateTextParams["selection"] }>;
 }
 
-export interface GitCommitMessageGeneratorOptions {
+interface GitCommitMessageGeneratorOptions {
   currentModelProvider: GitCommitMessageCurrentModelProvider;
   textGenerator: GitCommitMessageTextGenerator;
   logger?: ServiceLogger;
 }
 
-export class GitCommitMessageGenerationError extends Error {
+class GitCommitMessageGenerationError extends Error {
   constructor(
     message: string,
     readonly reason: "model-unavailable" | "request-failed" | "invalid-output",
@@ -120,7 +120,7 @@ export class GitCommitMessageGenerator {
   private async resolveCurrentModel(params: {
     workspacePath: string;
     workspaceIdentity?: string;
-  }): Promise<ZCodeWorkspaceGenerateTextParams["selection"]> {
+  }): Promise<XCodeWorkspaceGenerateTextParams["selection"]> {
     const currentModel = await this.options.currentModelProvider.readCurrentModel({
       workspacePath: params.workspacePath,
       workspaceIdentity: params.workspaceIdentity,
@@ -147,7 +147,7 @@ export class GitCommitMessageGenerator {
   private async complete(params: {
     workspacePath: string;
     workspaceIdentity?: string;
-    selection: ZCodeWorkspaceGenerateTextParams["selection"];
+    selection: XCodeWorkspaceGenerateTextParams["selection"];
     prompt: string;
   }): Promise<string> {
     try {

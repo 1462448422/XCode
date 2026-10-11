@@ -1,13 +1,13 @@
-import type { IZCodeSessionService } from "@zcode/services";
+import type { IXCodeSessionService } from "@zcode/services";
 import { logger } from "@/logger.js";
-import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 
 interface DeferredDraftRuntimeChangeParams {
   logScope: string;
   reason: string;
   workspacePath?: string | null;
   workspaceIdentity?: string | null;
-  zcodeSessionService: Pick<IZCodeSessionService, "closeSession">;
+  zcodeSessionService: Pick<IXCodeSessionService, "closeSession">;
 }
 
 export async function invalidateDeferredDraftSessionForRuntimeChange(
@@ -18,7 +18,7 @@ export async function invalidateDeferredDraftSessionForRuntimeChange(
   }
 
   const workspaceIdentity = params.workspaceIdentity?.trim() || undefined;
-  const store = useZCodeSessionStore.getState();
+  const store = useXCodeSessionStore.getState();
   const draftSessionId = store.getWorkspaceState(
     params.workspacePath,
     workspaceIdentity,

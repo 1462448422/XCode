@@ -2,7 +2,7 @@ import type {
   V4InteractionAnswer,
   V4InteractionRegistrationOptions,
 } from "../zcode-protocol-v4/interaction-registry.js";
-import type { ZCodeProtocolAgentServerContext } from "./server-types.js";
+import type { XCodeProtocolAgentServerContext } from "./server-types.js";
 
 /**
  * 让 legacy 反向 RPC（interaction/requestPermission 等）与 v4 resolveInteraction 命令
@@ -18,13 +18,12 @@ import type { ZCodeProtocolAgentServerContext } from "./server-types.js";
  *   （resolveInteraction handler 幂等收口）。
  */
 export async function raceClientRequestWithV4Interaction<T>(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   interactionId: string,
   outerSignal: AbortSignal | undefined,
   startRequest: (signal: AbortSignal) => Promise<T>,
   mapAnswer: (answer: V4InteractionAnswer) => T,
   registrationOptions?: V4InteractionRegistrationOptions,
-  onRegistered?: () => void,
 ): Promise<T> {
   const controller = new AbortController();
   // 每次尝试独立等待失败通知；成功仍由 registry 的 V4 answer 解除等待。
@@ -81,7 +80,6 @@ export async function raceClientRequestWithV4Interaction<T>(
   };
 
   try {
-    onRegistered?.();
     const result = await startRequest(controller.signal);
     if (fullAccessFailure) {
       await waitForFullAccess();

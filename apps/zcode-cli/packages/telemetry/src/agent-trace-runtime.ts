@@ -1,4 +1,3 @@
-import { recordRequestObservation } from "./request-security-edition/index.js";
 /* oxlint-disable eslint(max-lines) -- concrete Writer 在同一文件显式维护各自 canonical key，避免运行时 Schema/Registry 再造一层映射。 */
 import {
   context,
@@ -43,7 +42,6 @@ import type {
   ToolExecutionSpanWriter,
   ToolTraceStart,
 } from "@zcode/contracts/telemetry";
-import type { ModelRequestObservation } from "@zcode/contracts/model";
 import {
   activeWriterContext,
   BaseSpanWriter,
@@ -1429,16 +1427,6 @@ class ModelAttemptWriter extends TrackedBaseWriter implements ModelAttemptSpanWr
     this.addEvent("stream_stalled", { idle_ms: normalized });
   }
 
-  recordRequestObservation(observation: ModelRequestObservation): void {
-    recordRequestObservation(
-      {
-        setAttribute: (name, value) => this.setAttribute(name, value),
-        addEvent: (name, attributes) => this.addEvent(name, attributes),
-      },
-      observation,
-    );
-  }
-
   finishCompleted(): void {
     this.finishCompletedIfOpen();
   }
@@ -1629,7 +1617,6 @@ const NOOP_MODEL_ATTEMPT_WRITER: ModelAttemptSpanWriter = {
   markFirstProviderEvent() {},
   markFirstText() {},
   markStreamStalled() {},
-  recordRequestObservation() {},
   setCacheReadTokens() {},
   setCacheWriteTokens() {},
   setEffectiveReasoningBudgetTokens() {},

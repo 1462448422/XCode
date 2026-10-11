@@ -3,9 +3,9 @@ import { readdir, readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import os from "node:os";
 import {
-  formatZCodeAgentProcessName,
+  formatXCodeAgentProcessName,
   type HostResourceUsageProcess,
-  type ZCodeProcessChildProcess,
+  type XCodeProcessChildProcess,
 } from "@zcode/shared";
 
 /**
@@ -27,7 +27,7 @@ const WINDOWS_100NS_PER_MS = 10_000;
 /** 上一轮 cputime 基线在这么久没被再次看到后丢弃（pid 复用防护） */
 const CPU_BASELINE_TTL_MS = 60_000;
 
-export interface ProcessResourceRow {
+interface ProcessResourceRow {
   pid: number;
   ppid: number;
   rssKb: number;
@@ -37,7 +37,7 @@ export interface ProcessResourceRow {
   command: string;
 }
 
-export type ProcessResourceTableReader = (
+type ProcessResourceTableReader = (
   signal?: AbortSignal,
 ) => Promise<ProcessResourceRow[] | undefined>;
 
@@ -73,7 +73,7 @@ function parseNonNegativeInteger(text: string | undefined): number | undefined {
  * 解析 ps 的 cputime 文本：macOS `[[dd-]hh:]mm:ss.cc`、Linux `[dd-]hh:mm:ss`。
  * 返回毫秒；无法解析返回 undefined。
  */
-export function parseCpuTimeText(text: string): number | undefined {
+function parseCpuTimeText(text: string): number | undefined {
   const trimmed = text.trim();
   if (!trimmed) return undefined;
   let days = 0;
@@ -96,7 +96,7 @@ export function parseCpuTimeText(text: string): number | undefined {
 }
 
 /** `ps -axo pid=,ppid=,rss=,cputime=,comm=` 的输出；comm 可能含空格，取前 4 列后剩余全部为 comm */
-export function parseDarwinProcessTable(stdout: string): ProcessResourceRow[] {
+function parseDarwinProcessTable(stdout: string): ProcessResourceRow[] {
   const rows: ProcessResourceRow[] = [];
   for (const line of stdout.split(/\r?\n/)) {
     const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/.exec(line);
@@ -113,7 +113,7 @@ export function parseDarwinProcessTable(stdout: string): ProcessResourceRow[] {
 }
 
 /** 解析 `/proc/<pid>/stat`：comm 用括号包裹且可含空格/括号，按最后一个 `)` 切分 */
-export function parseLinuxProcStat(
+function parseLinuxProcStat(
   content: string,
 ): { pid: number; ppid: number; command: string; cpuTimeMs: number } | undefined {
   const open = content.indexOf("(");
@@ -153,7 +153,7 @@ export function parseLinuxVmRssKb(content: string): number {
 }
 
 /** PowerShell 输出：`pid ppid workingSetBytes cpu100ns name...` */
-export function parseWindowsProcessTable(stdout: string): ProcessResourceRow[] {
+function parseWindowsProcessTable(stdout: string): ProcessResourceRow[] {
   const rows: ProcessResourceRow[] = [];
   for (const line of stdout.split(/\r?\n/)) {
     const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*(.*)$/.exec(line);
@@ -176,7 +176,7 @@ export function parseWindowsProcessTable(stdout: string): ProcessResourceRow[] {
   return rows;
 }
 
-export interface CreateProcessResourceTableReaderOptions {
+interface CreateProcessResourceTableReaderOptions {
   platform?: NodeJS.Platform;
   execFile?: ExecFileFn;
   readdir?: (path: string) => Promise<string[]>;
@@ -272,7 +272,7 @@ export interface ProcessResourceSampler {
   sample(signal?: AbortSignal): Promise<Map<number, ProcessResourceSample> | undefined>;
 }
 
-export interface CreateProcessResourceSamplerOptions {
+interface CreateProcessResourceSamplerOptions {
   readTable: ProcessResourceTableReader;
   now?: () => number;
   logicalCpuCount?: number;
@@ -334,10 +334,10 @@ export interface HostResourceUsageAgent {
   provider: string;
   workspacePath: string;
   /** CLI `process/childProcesses` 的回报；请求失败时为空数组，其后代全部归入 cli */
-  children: readonly ZCodeProcessChildProcess[];
+  children: readonly XCodeProcessChildProcess[];
 }
 
-export interface AttributeHostProcessTreeOptions {
+interface AttributeHostProcessTreeOptions {
   samples: ReadonlyMap<number, ProcessResourceSample>;
   hostPid: number;
   agents: readonly HostResourceUsageAgent[];
@@ -347,7 +347,7 @@ export interface AttributeHostProcessTreeOptions {
 
 type Owner =
   | { kind: "agent"; agent: HostResourceUsageAgent }
-  | { kind: "mcp"; child: ZCodeProcessChildProcess }
+  | { kind: "mcp"; child: XCodeProcessChildProcess }
   | { kind: "builtin"; pluginName: string };
 
 function commandDisplayName(command: string): string {
@@ -377,7 +377,7 @@ function ownerToRow(
     return {
       pid: sample.pid,
       name: isOwnerRoot
-        ? formatZCodeAgentProcessName(owner.agent.provider, owner.agent.workspacePath)
+        ? formatXCodeAgentProcessName(owner.agent.provider, owner.agent.workspacePath)
         : commandDisplayName(sample.command),
       category: "base",
       groupKey: "cli",

@@ -245,7 +245,7 @@ export const CronDeleteInputJsonSchema = toToolJsonSchema(CronDeleteInputSchema)
 
 /**
  * 自定义重复规则的 contract 层镜像 schema（zod v3）。
- * 与 @zcode/shared 的 ZCodeAutomationScheduleRule 结构同步——此处不 import shared，
+ * 与 @zcode/shared 的 XCodeAutomationScheduleRule 结构同步——此处不 import shared，
  * 避免 agent contracts 的 zod v3 与 shared zod v4 交叉依赖（同 browser-control 镜像约定）。
  * cronExpr 保留为兼容展示，调度以本字段为权威；会话侧长间隔 carrier 归一化后由本字段承载。
  */
@@ -279,7 +279,7 @@ export const CronAutomationSchema = z
     recurring: z.boolean(),
     maxRuns: z.number().int().positive().optional(),
     modelSelection: cronModelSelectionSchema.optional(),
-    mode: z.enum(["build", "edit", "plan", "yolo", "guarded"]).optional(),
+    mode: z.enum(["build", "edit", "plan", "yolo"]).optional(),
     // 自定义重复规则；缺省时调度回退到解析 cronExpr。会话卡片必须读到本字段才能展示
     // cron 无法表达的真实间隔（如每50小时、每40天，兼容 cronExpr 只是 0 * * * *）。
     scheduleRule: CronAutomationScheduleRuleSchema.optional(),

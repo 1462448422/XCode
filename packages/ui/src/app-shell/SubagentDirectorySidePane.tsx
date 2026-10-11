@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import type { ZCodeSessionEndedSubagent } from "@zcode/shared";
+import type { XCodeSessionEndedSubagent } from "@zcode/shared";
 import type { RunningSubagentSummary } from "@zcode/shared/zcode-protocol-v4";
 import {
   BanIcon,
@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
 import { useSessionSubagents } from "@/hooks/useSessionSubagents.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type {
   OpenScopedSubagentSideTabRequest,
   SubagentDirectorySidePaneTab,
@@ -19,17 +19,14 @@ import type {
 import { formatTaskRelativeTime } from "@/lib/taskListItemPresentation.js";
 import type { PaneWorkspaceScope } from "@/v4/paneLayoutStore.js";
 import type { SessionLease } from "@/v4/sessionDataLayer.js";
-import {
-  V4PaneConversationProvider,
-  useV4Conversation,
-} from "@/v4/V4ConversationContext.js";
+import { V4PaneConversationProvider, useV4Conversation } from "@/v4/V4ConversationContext.js";
 import { useConversationProjection } from "@/v4/useConversationProjection.js";
 
-type DirectoryItem = RunningSubagentSummary | ZCodeSessionEndedSubagent;
+type DirectoryItem = RunningSubagentSummary | XCodeSessionEndedSubagent;
 
 const EMPTY_RUNNING: readonly RunningSubagentSummary[] = [];
 
-export function buildSubagentDirectoryOpenRequest(
+function buildSubagentDirectoryOpenRequest(
   tab: SubagentDirectorySidePaneTab,
   item: DirectoryItem,
 ): OpenScopedSubagentSideTabRequest {
@@ -71,7 +68,7 @@ const DirectoryRow = memo(function DirectoryRow({
   item: DirectoryItem;
   onOpen: (item: DirectoryItem) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const timestamp = "endedAt" in item ? item.endedAt : item.startedAt;
   return (
     <button
@@ -121,10 +118,7 @@ export const SubagentDirectorySidePane = memo(function SubagentDirectorySidePane
   );
   return (
     <V4PaneConversationProvider scope={scope}>
-      <SubagentDirectoryContents
-        tab={tab}
-        onOpenSubagentSession={onOpenSubagentSession}
-      />
+      <SubagentDirectoryContents tab={tab} onOpenSubagentSession={onOpenSubagentSession} />
     </V4PaneConversationProvider>
   );
 });
@@ -136,7 +130,7 @@ const SubagentDirectoryContents = memo(function SubagentDirectoryContents({
   tab: SubagentDirectorySidePaneTab;
   onOpenSubagentSession: (request: OpenScopedSubagentSideTabRequest) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { layer } = useV4Conversation();
   const [lease, setLease] = useState<SessionLease | null>(null);
   const projection = useConversationProjection(lease);

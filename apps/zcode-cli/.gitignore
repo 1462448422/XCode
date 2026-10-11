@@ -20,4 +20,3 @@ packages/**/tests/**/*.js.map
 packages/**/tests/**/*.d.ts.map
 .VSCodeCounter
 vendor
-!packages/visualize-plugin/skills/visualize/assets/vendor/

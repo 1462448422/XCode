@@ -1,4 +1,4 @@
-import { resolveZCodeRuntimeEnv } from "@zcode/shared";
+import { resolveXCodeRuntimeEnv } from "@zcode/shared";
 import { createNodeClipboardImageReader } from "./clipboard-image.js";
 import { createNodeClipboardTextWriter } from "./clipboard-text.js";
 import { listSlashCommandSuggestions } from "./command-center.js";
@@ -10,20 +10,19 @@ import { resolveTuiStartupLocale } from "./tui-startup-locale.js";
 import { createWorkspacePathSuggestionProvider } from "./tui-workspace-paths.js";
 import { resolveWorkspaceGitBranch } from "./tui-workspace-git.js";
 import { createCliModeState, currentCliMode } from "./tui-command-state.js";
-import { DEFAULT_CLI_WORKFLOW_MODE } from "./workflow-mode.js";
-export const runTuiCommand = async (ctx, options, deps, version, mode, resumeRequest, toolDisallowlist, forceMcs = false, workflowMode = DEFAULT_CLI_WORKFLOW_MODE) => {
+export const runTuiCommand = async (ctx, options, deps, version, mode, resumeRequest, toolDisallowlist, forceMcs = false) => {
     try {
         const modeState = createCliModeState(mode);
         const runTui = deps.runTui ?? (await loadTuiRuntime()).runTui;
         const workspaceDirectory = (deps.cwd ?? process.cwd)();
         const env = deps.env ?? process.env;
-        const developerMode = resolveZCodeRuntimeEnv(env) === "development";
+        const developerMode = resolveXCodeRuntimeEnv(env) === "development";
         const startupLocale = resolveTuiStartupLocale({
             deps,
             options,
             workingDirectory: workspaceDirectory,
         });
-        const promptHandler = createTuiSubmitPrompt(deps, modeState, version, resumeRequest, options.locale, options.detectedLocale, startupLocale, toolDisallowlist, forceMcs, options.browserUse, options.browserExecutable, workflowMode);
+        const promptHandler = createTuiSubmitPrompt(deps, modeState, version, resumeRequest, options.locale, options.detectedLocale, startupLocale, toolDisallowlist, forceMcs, options.browserUse, options.browserExecutable);
         const unregisterShutdownHandlers = registerCliShutdownHandlers({
             cleanup: async () => {
                 await promptHandler.close?.();
@@ -51,7 +50,7 @@ export const runTuiCommand = async (ctx, options, deps, version, mode, resumeReq
                         theme: metadata.theme ?? "auto",
                         modelOptions: metadata.modelOptions,
                         effortOptions: metadata.effortOptions,
-                        slashCommands: listSlashCommandSuggestions(customCommands, { workflowMode }),
+                        slashCommands: listSlashCommandSuggestions(customCommands),
                         workspaceGitBranch,
                     };
                 },

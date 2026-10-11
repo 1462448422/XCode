@@ -1,23 +1,21 @@
 import type {
   PluginStoreModeOrder,
-  ZCodeAvailablePluginSummary,
-  ZCodeInstalledPluginSummary,
-  ZCodePluginInfo,
-  ZCodePluginMarketplaceSummary,
-  ZCodePluginStoreListing,
+  XCodeAvailablePluginSummary,
+  XCodeInstalledPluginSummary,
+  XCodePluginInfo,
+  XCodePluginMarketplaceSummary,
+  XCodePluginStoreListing,
 } from "@zcode/shared";
 import {
   sortPluginStoreEntries,
   compareDocumentPluginPriority,
   resolvePluginStoreCategory as resolveStoreCategory,
   FALLBACK_PLUGIN_STORE_CATEGORY as FALLBACK_CATEGORY,
-  formatCanonicalPluginName,
   isPublicStoreMarketplaceId,
   resolveLocalizedText,
   resolvePluginDisplayName,
-  ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
+  XCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
 } from "@zcode/shared";
-import { DEFAULT_MARKETPLACE_ID } from "@/settings/recommendedPlugins.js";
 import { pluginSearchMatches } from "@/settings/pluginSearch.js";
 
 export {
@@ -26,8 +24,8 @@ export {
   resolvePluginDisplayName,
 } from "@zcode/shared";
 
-export { isPublicStoreMarketplaceId };
 export { isTrustedImageUrl } from "@/lib/trustedImageUrl.js";
+export { isPublicStoreMarketplaceId };
 
 /**
  * 仅在名称唯一时允许从目录条目回退解析 listing。
@@ -35,11 +33,11 @@ export { isTrustedImageUrl } from "@/lib/trustedImageUrl.js";
  * 会把第三方条目的品牌和图标误挂到另一个 marketplace，安全降级为 slug 更可靠。
  */
 export function resolveUniquePluginListingByName(
-  plugins: readonly Pick<ZCodeAvailablePluginSummary, "name" | "listing">[],
+  plugins: readonly Pick<XCodeAvailablePluginSummary, "name" | "listing">[],
   name: string,
-): ZCodePluginStoreListing | undefined {
+): XCodePluginStoreListing | undefined {
   const normalizedName = name.trim().toLocaleLowerCase();
-  let match: ZCodePluginStoreListing | undefined;
+  let match: XCodePluginStoreListing | undefined;
   let count = 0;
   for (const plugin of plugins) {
     if (plugin.name.trim().toLocaleLowerCase() !== normalizedName) continue;
@@ -62,14 +60,14 @@ export interface StorePluginItem {
   restorable: boolean;
   /** 已安装但原 marketplace 已移除；仍可运行和管理，但不能更新。 */
   orphaned: boolean;
-  listing?: ZCodePluginStoreListing;
-  summary?: ZCodeAvailablePluginSummary;
+  listing?: XCodePluginStoreListing;
+  summary?: XCodeAvailablePluginSummary;
   /** 运行时信息（仅已发现的已安装插件有）：启用态、组件、manifest 回退字段。 */
-  info?: ZCodePluginInfo;
-  installedMeta?: ZCodeInstalledPluginSummary;
+  info?: XCodePluginInfo;
+  installedMeta?: XCodeInstalledPluginSummary;
 }
 
-export type PluginUpdateStatus = NonNullable<ZCodeInstalledPluginSummary["updateStatus"]>;
+export type PluginUpdateStatus = NonNullable<XCodeInstalledPluginSummary["updateStatus"]>;
 
 export function isPluginUpdatePending(
   updateStatus: PluginUpdateStatus | undefined,
@@ -104,10 +102,6 @@ export function resolveLocalizedList(
   return base && base.length > 0 ? base : undefined;
 }
 
-export function formatCanonicalMarketplaceName(name: string, locale: string): string {
-  return formatCanonicalPluginName(name, locale);
-}
-
 export function resolveItemDisplayName(item: StorePluginItem, locale: string): string {
   return resolvePluginDisplayName(item, locale);
 }
@@ -120,7 +114,7 @@ export function resolveItemDescription(item: StorePluginItem, locale: string): s
 
 /** 管理列表与商店复用完整 ID 关联的展示信息，避免英文 manifest 绕过本地化。 */
 export function resolveManagedPluginDisplay(
-  plugin: ZCodePluginInfo,
+  plugin: XCodePluginInfo,
   item: StorePluginItem | undefined,
   locale: string,
 ): { name: string; description: string | undefined } {
@@ -143,12 +137,12 @@ export const KNOWN_CATEGORY_LABEL_IDS: Record<string, string> = {
 };
 
 export {
-  resolvePluginStoreCategory as resolveStoreCategory,
   FALLBACK_PLUGIN_STORE_CATEGORY as FALLBACK_CATEGORY,
   PLUGIN_STORE_CATEGORY_ORDER as KNOWN_CATEGORY_ORDER,
+  resolvePluginStoreCategory as resolveStoreCategory,
 } from "@zcode/shared";
 
-export interface StoreCategoryGroup {
+interface StoreCategoryGroup {
   category: string;
   items: StorePluginItem[];
 }
@@ -160,19 +154,16 @@ export interface PersonalMarketplaceGroup {
   items: StorePluginItem[];
 }
 
-const OFFICIAL_MARKETPLACE_ORDER = [
-  ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
-  DEFAULT_MARKETPLACE_ID,
-] as const;
+const OFFICIAL_MARKETPLACE_ORDER: readonly string[] = [XCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID];
 
 /**
  * 市场源管理排序：官方源固定置顶；自定义源按最近刷新时间倒序，未刷新过的沉底。
  * 同一时间使用本地化名称稳定兜底，避免市场源顺序随持久化数组历史漂移。
  */
 export function sortMarketplaceSources(
-  marketplaces: readonly ZCodePluginMarketplaceSummary[],
+  marketplaces: readonly XCodePluginMarketplaceSummary[],
   locale: string,
-): ZCodePluginMarketplaceSummary[] {
+): XCodePluginMarketplaceSummary[] {
   const officialRank = new Map(OFFICIAL_MARKETPLACE_ORDER.map((id, index) => [id, index]));
   return marketplaces.toSorted((left, right) => {
     const leftRank = officialRank.get(left.id);
@@ -198,7 +189,7 @@ export function sortMarketplaceSources(
  */
 export function sortPersonalMarketplaceGroups(
   groups: PersonalMarketplaceGroup[],
-  marketplaces: readonly ZCodePluginMarketplaceSummary[],
+  marketplaces: readonly XCodePluginMarketplaceSummary[],
   locale: string,
 ): PersonalMarketplaceGroup[] {
   const lastUpdatedById = new Map(
@@ -220,12 +211,12 @@ export function sortPersonalMarketplaceGroups(
  * 条目宇宙 = availablePlugins ∪ restorableBuiltins ∪ 实际发现的插件包（覆盖 inline/孤儿插件）。
  */
 export function buildStoreItems(input: {
-  marketplaces: ZCodePluginMarketplaceSummary[];
+  marketplaces: XCodePluginMarketplaceSummary[];
   marketplaceAvailabilityKnown: boolean;
-  availablePlugins: ZCodeAvailablePluginSummary[];
-  installedPlugins: ZCodeInstalledPluginSummary[];
-  plugins: ZCodePluginInfo[];
-  restorableBuiltins: ZCodeAvailablePluginSummary[];
+  availablePlugins: XCodeAvailablePluginSummary[];
+  installedPlugins: XCodeInstalledPluginSummary[];
+  plugins: XCodePluginInfo[];
+  restorableBuiltins: XCodeAvailablePluginSummary[];
 }): StorePluginItem[] {
   const infoById = new Map(input.plugins.map((plugin) => [plugin.id, plugin]));
   const metaById = new Map(input.installedPlugins.map((item) => [item.id, item]));
@@ -307,7 +298,7 @@ export function buildStoreItems(input: {
 /** 公开分段：Featured（CDN featured 名单按序）+ 分类聚合（无分类归 other，排最后）。 */
 export function selectFeaturedItems(
   publicItems: StorePluginItem[],
-  marketplaces: ZCodePluginMarketplaceSummary[],
+  marketplaces: XCodePluginMarketplaceSummary[],
 ): StorePluginItem[] {
   const byName = new Map<string, StorePluginItem>();
   for (const item of publicItems) {

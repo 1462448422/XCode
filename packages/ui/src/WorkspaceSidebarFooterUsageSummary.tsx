@@ -16,7 +16,7 @@ import {
 } from "@/CodingPlanUsageRemainingPanel.js";
 import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
 import { useUsageEntitlement } from "@/hooks/useUsageEntitlement.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { useSettings } from "@/hooks/useSettingService.js";
 import {
   resolveEntitledAccountProviderAccess,
@@ -38,7 +38,7 @@ import {
   buildCodingPlanUsageSources,
   resolveSidebarCurrentCodingPlanUsageSource,
 } from "@/lib/codingPlanUsageSources.js";
-import { selectWorkspaceZCodeState, useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { selectWorkspaceXCodeState, useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import { parseCustomProviderIdFromSupplierKey } from "@/lib/modelConfigSync.js";
 import { setPendingSettingsUsageIntent } from "@/lib/settingsNavigation.js";
 import {
@@ -99,9 +99,9 @@ export function useWorkspaceSidebarFooterUsageSummaryState({
     providerSettingsRead.state.status === "ready" ? providerSettingsRead.state.view : null;
   // 首次读取失败也不能被解释成“已经加载且没有套餐”；只有 Ready 才能消费 Provider 事实。
   const providerSourcesLoading = providerSettingsRead.state.status !== "ready";
-  const selectedSupplierKey = useZCodeSessionStore((state) =>
+  const selectedSupplierKey = useXCodeSessionStore((state) =>
     workspacePath
-      ? selectWorkspaceZCodeState(state, workspacePath, workspaceIdentity).selectedSupplierKey
+      ? selectWorkspaceXCodeState(state, workspacePath, workspaceIdentity).selectedSupplierKey
       : "",
   );
   const availableCodingPlanProviders = useMemo(
@@ -169,16 +169,12 @@ export function useWorkspaceSidebarFooterUsageSummaryState({
     // footer badge 和升级入口都需要识别 Team Plan。
     // Team 项目上下文只在企业 pricing/customerInfo 返回，账号级头像徽标也不能被当前连接方式卡住。
     enabled:
-      enabled &&
-      !providerSourcesLoading &&
-      bigmodelFamilyAllowed &&
-      Boolean(bigmodelTeamProvider),
+      enabled && !providerSourcesLoading && bigmodelFamilyAllowed && Boolean(bigmodelTeamProvider),
     authenticated: true,
     family: "bigmodel",
   });
   const zaiEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled:
-      enabled && !providerSourcesLoading && zaiFamilyAllowed && Boolean(zaiTeamProvider),
+    enabled: enabled && !providerSourcesLoading && zaiFamilyAllowed && Boolean(zaiTeamProvider),
     authenticated: true,
     family: "zai",
   });
@@ -415,7 +411,7 @@ export function useWorkspaceSidebarFooterUsageSummaryState({
   };
 }
 
-export type WorkspaceSidebarFooterUsageSummaryState = ReturnType<
+type WorkspaceSidebarFooterUsageSummaryState = ReturnType<
   typeof useWorkspaceSidebarFooterUsageSummaryState
 >;
 
@@ -431,7 +427,7 @@ export function WorkspaceSidebarFooterUsageSummaryContent({
     funnelContext: CodingPlanFunnelContext,
   ) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const entryGate = useCodingPlanEntryGate();
   const { providerEntitlements, upgradeTargetProviderId } = state;
   const upgradeProviderSnapshot =
@@ -490,7 +486,7 @@ export function WorkspaceSidebarFooterPlanBadge({
 }: {
   state: WorkspaceSidebarFooterUsageSummaryState;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const label =
     state.profilePlanBadge?.audience === "team"
       ? intl.formatMessage({ id: "sidebar.usage.plan.audienceTeam" })

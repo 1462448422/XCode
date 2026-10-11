@@ -3,9 +3,9 @@ import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join, normalize, resolve, sep } from "node:path";
-import type { ZCodeImportableSessionCandidate } from "@zcode/shared";
+import type { XCodeImportableSessionCandidate } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
-import { getDataBaseDir, getZCodeDataRootDir, getZcodeHomeRoots } from "#src/paths.js";
+import { getDataBaseDir, getXCodeDataRootDir, getZcodeHomeRoots } from "#src/paths.js";
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
@@ -66,7 +66,7 @@ export function getSourceZcodeSessionDbPath(): string | null {
 
 export function getDestZcodeSessionDbPath(): string {
   // 目标会话库由 CLI 运行时创建；导入只写已存在的库，绝不整库覆盖或新建空库。
-  return join(getZCodeDataRootDir(), "cli", "db", "db.sqlite");
+  return join(getXCodeDataRootDir(), "cli", "db", "db.sqlite");
 }
 
 function quoteIdentifier(name: string): string {
@@ -119,7 +119,7 @@ export function scanImportableZcodeSessions(params: {
   workspacePath?: string;
   modifiedSince?: number;
   limit?: number;
-}): ZCodeImportableSessionCandidate[] {
+}): XCodeImportableSessionCandidate[] {
   const sourcePath = getSourceZcodeSessionDbPath();
   if (!sourcePath) {
     return [];
@@ -148,7 +148,7 @@ export function scanImportableZcodeSessions(params: {
       time_updated: number;
     }>;
     const workspaceFilter = params.workspacePath?.trim();
-    const candidates: ZCodeImportableSessionCandidate[] = [];
+    const candidates: XCodeImportableSessionCandidate[] = [];
     for (const row of rows) {
       const workspacePath = row.directory?.trim() || row.path?.trim() || "";
       if (workspaceFilter && !isSameOrInsidePath(workspacePath, workspaceFilter)) {

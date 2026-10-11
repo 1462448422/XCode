@@ -1,6 +1,6 @@
-export type TaskLifecycleEventType = "archived" | "deleted";
+type TaskLifecycleEventType = "archived" | "deleted";
 
-export interface TaskLifecycleEvent {
+interface TaskLifecycleEvent {
   type: TaskLifecycleEventType;
   taskId: string;
   workspaceKey: string;

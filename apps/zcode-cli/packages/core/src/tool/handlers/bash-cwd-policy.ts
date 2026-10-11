@@ -9,7 +9,7 @@ import {
 } from "../path-normalization.js";
 import type { ToolRuntimeScope } from "../types.js";
 
-export interface BashCwdPolicyInput {
+interface BashCwdPolicyInput {
   resolvedCwd: string | undefined;
   status: ExecutionResult["status"];
   exitCode: number | undefined;
@@ -18,7 +18,7 @@ export interface BashCwdPolicyInput {
   runtimeScope?: ToolRuntimeScope;
 }
 
-export interface BashCwdPolicyDecision {
+interface BashCwdPolicyDecision {
   nextWorkingDirectory?: string;
   stderrSuffix?: string;
 }

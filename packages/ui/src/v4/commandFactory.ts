@@ -38,7 +38,7 @@ export function getV4ClientId(): string {
   return clientId;
 }
 
-export interface CreateCommandEnvelopeInput<T extends CommandType> {
+interface CreateCommandEnvelopeInput<T extends CommandType> {
   type: T;
   payload: CommandPayloadMap[T];
   /** createSession 时为 null。 */
@@ -52,9 +52,7 @@ export function createCommandEnvelope<T extends CommandType>(
   input: CreateCommandEnvelopeInput<T>,
 ): CommandEnvelope {
   if (COMMANDS_REQUIRING_BASE_REVISION.has(input.type) && input.baseRevision === undefined) {
-    throw new Error(
-      `command ${input.type} 是 CAS 命令，必须携带 baseRevision（10-protocol-spec §6.4）`,
-    );
+    throw new Error(`command ${input.type} 是 CAS 命令，必须携带 baseRevision`);
   }
   if (ROW_TARGETING_COMMANDS.has(input.type) && !input.baseLogEpoch) {
     throw new Error(`command ${input.type} 是 row target 命令，必须携带 baseLogEpoch`);

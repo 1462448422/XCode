@@ -6,7 +6,7 @@ interface WorkspaceShellTargetTab {
   workspaceIdentity?: string;
 }
 
-export interface RootWorkspaceShellTarget {
+interface RootWorkspaceShellTarget {
   workspaceShellPath: string | null;
   workspaceIdentity?: string;
   workspaceRemoteSessionId?: string;

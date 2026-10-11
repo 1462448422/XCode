@@ -7,7 +7,7 @@ import { completeNewModelSelection } from "@zcode/provider";
 import {
   TID_SUBAGENT_BUILT_IN_MODEL_TRIGGER,
   TID_SUBAGENT_ROW,
-  ZCODE_AGENT_PROVIDER,
+  XCODE_AGENT_PROVIDER,
   testId,
   type AgentColor,
   type AgentsCapability,
@@ -42,7 +42,7 @@ import { settingsResourceRowInteraction } from "@/settings/settingsResourceRowIn
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useModelSelectionServiceView } from "@/hooks/useModelSelectionView.js";
 import { useBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   buildRegistryModelSelectGroups,
   resolveModelDisplayName,
@@ -104,13 +104,13 @@ interface AgentGroups {
   user: AgentSummary[];
 }
 
-export function projectSettingsSubagents(result: AgentsListResult): AgentSummary[] {
-  // Bugfix：result.agents 是运行时调用投影，插件 agent 可能同时有规范名称与裸名称别名；
+function projectSettingsSubagents(result: AgentsListResult): AgentSummary[] {
+  // result.agents 是运行时调用投影，插件 agent 可能同时有规范名称与裸名称别名；
   // 设置页按已安装资源展示，插件部分必须改用一文件一条的 pluginAgents 投影。
   return [...result.agents.filter((agent) => agent.source !== "plugin"), ...result.pluginAgents];
 }
 
-export interface SubagentFormInitialState {
+interface SubagentFormInitialState {
   name: string;
   description: string;
   color: AgentColor;
@@ -213,9 +213,9 @@ function toSubagentModelSelection(
   };
 }
 
-export type SubagentThoughtOptionState = SubagentReasoningFieldState;
+type SubagentThoughtOptionState = SubagentReasoningFieldState;
 
-export function resolveSubagentThoughtOptionState(params: {
+function resolveSubagentThoughtOptionState(params: {
   model: string;
   modelAvailable: boolean;
   modelSelectionView?: ModelSelectionView | null;
@@ -251,7 +251,7 @@ export function resolveSubagentThoughtOptionState(params: {
   return { kind: "unsupported" };
 }
 
-export function isSubagentThoughtLevelAvailable(
+function isSubagentThoughtLevelAvailable(
   state: SubagentThoughtOptionState,
   thoughtLevel: string | undefined,
 ): boolean {
@@ -277,7 +277,7 @@ function resolvedSubagentThoughtLevel(state: SubagentThoughtOptionState): string
     : undefined;
 }
 
-export function isSubagentModelAvailable(
+function isSubagentModelAvailable(
   modelGroups: readonly ModelSelectGroup[],
   model: string | undefined,
   modelSelectionLoading = false,
@@ -292,7 +292,7 @@ export function isSubagentModelAvailable(
   return modelGroups.some((group) => group.items.some((item) => item.value === trimmedModel));
 }
 
-export function createSubagentFormInitialState(
+function createSubagentFormInitialState(
   initial?: Pick<
     AgentSummary,
     | "name"
@@ -387,9 +387,7 @@ function groupAgentsByScope(agents: readonly AgentSummary[]): AgentGroups {
 }
 
 /** 按完整插件 ID 分组，避免同名 marketplace 的子智能体互相合并。 */
-export function groupPluginAgentsById(
-  agents: readonly AgentSummary[],
-): Array<[string, AgentSummary[]]> {
+function groupPluginAgentsById(agents: readonly AgentSummary[]): Array<[string, AgentSummary[]]> {
   const groups = new Map<string, AgentSummary[]>();
   for (const agent of agents) {
     const key =
@@ -472,7 +470,7 @@ function AgentListRow({
   onEdit: (agent: AgentSummary) => void;
   onToggle: (agent: AgentSummary, enabled: boolean) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const editable = isEditableUserAgent(agent);
   const showEnabledToggle = supportsEnabledToggle(agent);
   const rowEditable = editable && !isOperating;
@@ -607,7 +605,7 @@ function SubagentModelOverrideControl({
   ) => Promise<void>;
 }) {
   const recommendStartPlan = useStartPlanRecommendation(modelSelectionView, "subagent");
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const [pending, setPending] = useState(false);
   const [config, setConfig] = useState<{
     model?: string;
@@ -815,7 +813,7 @@ function SubagentForm({
   onScopeKeyChange: (scopeKey: string) => void;
 }) {
   const recommendStartPlan = useStartPlanRecommendation(modelSelectionView, "subagent");
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const initialFormStateKey = createSubagentFormInitialStateKey(initial);
   const initialFormState = useMemo(
     () => createSubagentFormInitialState(initial),
@@ -1266,7 +1264,7 @@ function SubagentForm({
 }
 
 export function SubagentsSection({ onManageModels }: SubagentsSectionProps) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const confirmDialog = useConfirmDialog();
   const plugins = usePluginManagementStore((state) => state.plugins);
   const availablePlugins = usePluginManagementStore((state) => state.availablePlugins);
@@ -1316,7 +1314,7 @@ export function SubagentsSection({ onManageModels }: SubagentsSectionProps) {
   const pluginInventoryWorkspacePath = targetWorkspacePath || workspaceTabs[0]?.workspacePath;
   const chatModelSelectGroups = useMemo(() => {
     if (!modelSelectionView) return [];
-    return buildRegistryModelSelectGroups(ZCODE_AGENT_PROVIDER, modelSelectionView, {
+    return buildRegistryModelSelectGroups(XCODE_AGENT_PROVIDER, modelSelectionView, {
       startPlanBadgeLabel: intl.formatMessage({
         id: "settings.modelProvider.connectionMode.startPlanBadge",
       }),
@@ -1339,7 +1337,7 @@ export function SubagentsSection({ onManageModels }: SubagentsSectionProps) {
         const result = await subagentsService.list({
           workspacePath: targetWorkspacePath ?? "",
           workspaceIdentity: targetWorkspaceIdentity,
-          provider: ZCODE_AGENT_PROVIDER,
+          provider: XCODE_AGENT_PROVIDER,
           mode: activeScope === "user" ? "settingsUserOnly" : "allRuntimeScopes",
         });
         if (requestId !== latestRequestIdRef.current) {
@@ -1418,7 +1416,7 @@ export function SubagentsSection({ onManageModels }: SubagentsSectionProps) {
             agentId: editingAgent.id,
             config,
             oldFilePath: editingAgent.path,
-            provider: ZCODE_AGENT_PROVIDER,
+            provider: XCODE_AGENT_PROVIDER,
             scope: editingAgent.scope === "workspace" ? "workspace" : "user",
             workspacePath: editingAgent.projectPath ?? targetWorkspacePath ?? undefined,
             workspaceIdentity: targetWorkspaceIdentity,
@@ -1426,7 +1424,7 @@ export function SubagentsSection({ onManageModels }: SubagentsSectionProps) {
         } else {
           await subagentsService.createAgent({
             config,
-            provider: ZCODE_AGENT_PROVIDER,
+            provider: XCODE_AGENT_PROVIDER,
             scope: activeScope,
             workspacePath: targetWorkspacePath ?? undefined,
             workspaceIdentity: targetWorkspaceIdentity,

@@ -1,28 +1,28 @@
 import {
-  ZCODE_PROTOCOL_NAME,
-  ZCODE_PROTOCOL_VERSION,
-  getZCodeGoalActiveIterationCount,
+  XCODE_PROTOCOL_NAME,
+  XCODE_PROTOCOL_VERSION,
+  getXCodeGoalActiveIterationCount,
   zcodeApiRetryFromModelNetworkStatusPayload,
   zcodeApiRetryFromStreamRecoveryPayload,
   zcodeContextUsageBreakdownSchema,
-  type ZCodeActiveToolCall,
-  type ZCodeContextUsageBreakdownItem,
-  type ZCodeDeliveryKind,
-  type ZCodePendingPermission,
-  type ZCodeSessionContextUsage,
-  type ZCodeSessionEvent,
-  type ZCodeSessionGoal,
-  type ZCodeSessionGoalVerification,
-  type ZCodeSessionGoalVerificationTimeline,
-  type ZCodeSessionGoalStats,
-  type ZCodeSessionInfo,
-  type ZCodeSessionKind,
-  type ZCodeSessionProjection,
-  type ZCodeSessionRuntimeState,
-  type ZCodeSessionSettingsState,
-  type ZCodeSessionStateSnapshot,
-  type ZCodeSessionTodoGroup,
-  type ZCodeWorkspaceRef,
+  type XCodeActiveToolCall,
+  type XCodeContextUsageBreakdownItem,
+  type XCodeDeliveryKind,
+  type XCodePendingPermission,
+  type XCodeSessionContextUsage,
+  type XCodeSessionEvent,
+  type XCodeSessionGoal,
+  type XCodeSessionGoalVerification,
+  type XCodeSessionGoalVerificationTimeline,
+  type XCodeSessionGoalStats,
+  type XCodeSessionInfo,
+  type XCodeSessionKind,
+  type XCodeSessionProjection,
+  type XCodeSessionRuntimeState,
+  type XCodeSessionSettingsState,
+  type XCodeSessionStateSnapshot,
+  type XCodeSessionTodoGroup,
+  type XCodeWorkspaceRef,
   isMainAgentToolProjectionSource,
 } from "@zcode/shared";
 import {
@@ -42,7 +42,7 @@ import {
   type TodoItem,
   type ToolState,
 } from "@zcode/contracts";
-import type { ZCodeApp } from "../app/types.js";
+import type { XCodeApp } from "../app/types.js";
 import { mapMessageWithParts } from "./message-mapper.js";
 import { formatProtocolModelSelection, optionalModelSelectionFromString } from "./model-mapper.js";
 import {
@@ -57,8 +57,8 @@ import {
 const SNAPSHOT_INLINE_IMAGE_DATA_URL_MAX_BYTES = 20 * 1024 * 1024;
 
 export async function buildSessionSnapshot(input: {
-  app: ZCodeApp;
-  deliveryKind?: ZCodeDeliveryKind;
+  app: XCodeApp;
+  deliveryKind?: XCodeDeliveryKind;
   eventSeq: number;
   fallbackCreatedAt?: number;
   fallbackUpdatedAt?: number;
@@ -72,8 +72,8 @@ export async function buildSessionSnapshot(input: {
   slashCommandOptions?: ListProtocolSlashCommandsOptions;
   target?: SessionGoal | null;
   todos?: TodoItem[];
-  workspace: ZCodeWorkspaceRef;
-}): Promise<ZCodeSessionStateSnapshot> {
+  workspace: XCodeWorkspaceRef;
+}): Promise<XCodeSessionStateSnapshot> {
   const runtimeProjection = await input.app.runtime.getProjection();
   const activeTurn = input.app.runtime.getActiveTurnInfo();
   const persistedGoalProjection = mergePersistedGoalVerificationEvents(
@@ -101,8 +101,8 @@ export async function buildSessionSnapshot(input: {
     messages,
     projection: mapSessionProjection(projection),
     protocol: {
-      name: ZCODE_PROTOCOL_NAME,
-      version: ZCODE_PROTOCOL_VERSION,
+      name: XCODE_PROTOCOL_NAME,
+      version: XCODE_PROTOCOL_VERSION,
     },
     runtime: mapRuntimeState({
       activeTurn,
@@ -136,7 +136,7 @@ export async function buildSessionSnapshot(input: {
 }
 
 async function mapSnapshotMessages(
-  app: Pick<ZCodeApp, "readToolResultArtifact">,
+  app: Pick<XCodeApp, "readToolResultArtifact">,
   messages: readonly MessageWithParts[],
 ) {
   const mapped = messages.map(mapMessageWithParts);
@@ -149,7 +149,7 @@ async function mapSnapshotMessages(
 }
 
 async function hydrateSnapshotFilePartUrl(
-  app: Pick<ZCodeApp, "readToolResultArtifact">,
+  app: Pick<XCodeApp, "readToolResultArtifact">,
   part: ReturnType<typeof mapMessageWithParts>["parts"][number],
 ) {
   // 历史图片附件持久化后只剩 zcode-artifact:// 引用，UI/手机端不能直接渲染。
@@ -213,12 +213,12 @@ function isUsableDataUrl(value: string): boolean {
 }
 
 export async function mapSessionSettings(
-  app: ZCodeApp,
+  app: XCodeApp,
   options: {
     currentModelContextWindow?: number;
     modelAvailability?: "all" | "current";
   } = {},
-): Promise<ZCodeSessionSettingsState> {
+): Promise<XCodeSessionSettingsState> {
   const thoughtLevels = app.listThoughtLevels();
   const rawCurrentThoughtLevel = app.getThoughtLevel();
   // setModel 后 runtime 可能短暂保留上一个模型的 thoughtLevel。
@@ -277,15 +277,15 @@ export async function mapSessionSettings(
 }
 
 export function mapSessionInfo(input: {
-  app?: Pick<ZCodeApp, "getMode" | "getModel" | "sessionId" | "traceId">;
+  app?: Pick<XCodeApp, "getMode" | "getModel" | "sessionId" | "traceId">;
   fallbackCreatedAt?: number;
   fallbackUpdatedAt?: number;
   projection?: SessionProjection;
   session?: SessionInfo | null;
   taskType?: SessionInfo["taskType"];
   parentSessionId?: string;
-  workspace: ZCodeWorkspaceRef;
-}): ZCodeSessionInfo {
+  workspace: XCodeWorkspaceRef;
+}): XCodeSessionInfo {
   const sessionId = String(input.session?.id ?? input.app?.sessionId ?? "unknown");
   // 刚创建的 protocol session 可能还没有持久化 session 行。
   // 此时 runtime projection 的时间可能继承 workspace 预热 draft，不能作为正式 session 时间。
@@ -307,7 +307,7 @@ export function mapSessionInfo(input: {
     parentSessionId: input.session?.parentID ?? input.parentSessionId,
     traceId: input.session?.traceID ?? input.app?.traceId,
     sessionId,
-    sessionKind: (input.session?.taskType ?? input.taskType ?? "interactive") as ZCodeSessionKind,
+    sessionKind: (input.session?.taskType ?? input.taskType ?? "interactive") as XCodeSessionKind,
     status: input.projection?.status ?? "idle",
     target: mapSessionGoal(input.projection?.target),
     title: input.session?.title ?? "",
@@ -319,9 +319,9 @@ export function mapSessionInfo(input: {
 
 export function mapSessionEvent(
   event: SessionEvent,
-  deliveryKind?: ZCodeDeliveryKind,
+  deliveryKind?: XCodeDeliveryKind,
   options: { seq?: number } = {},
-): ZCodeSessionEvent {
+): XCodeSessionEvent {
   return {
     deliveryKind,
     eventId: String(event.id),
@@ -337,9 +337,9 @@ export function mapSessionEvent(
 
 export function mapSessionEventForProtocol(
   event: SessionEvent,
-  deliveryKind?: ZCodeDeliveryKind,
+  deliveryKind?: XCodeDeliveryKind,
   options: { seq?: number } = {},
-): ZCodeSessionEvent | null {
+): XCodeSessionEvent | null {
   if (!shouldExposeSessionEventToProtocol(event)) {
     return null;
   }
@@ -348,11 +348,11 @@ export function mapSessionEventForProtocol(
 
 export function mapSessionEvents(
   events: readonly SessionEvent[],
-  deliveryKind?: ZCodeDeliveryKind,
-): ZCodeSessionEvent[] {
+  deliveryKind?: XCodeDeliveryKind,
+): XCodeSessionEvent[] {
   return events
     .map((event) => mapSessionEventForProtocol(event, deliveryKind))
-    .filter((event): event is ZCodeSessionEvent => event !== null);
+    .filter((event): event is XCodeSessionEvent => event !== null);
 }
 
 export function shouldExposeSessionEventToProtocol(event: SessionEvent): boolean {
@@ -467,16 +467,9 @@ function protocolInstantValue(value: unknown): number | string | undefined {
 
 function mapModelRequestPayload(payload: unknown): Record<string, unknown> {
   const record = asRecord(payload);
-  // 内存 event store 淘汰 sealed turn 时把 messages 瘦身为 messageCount（session-event-store-retention.md），
-  // 两种形态都要映射出同一个 messageCount。
-  const messageCount =
-    typeof record.messageCount === "number"
-      ? record.messageCount
-      : Array.isArray(record.messages)
-        ? record.messages.length
-        : 0;
+  const messages = Array.isArray(record.messages) ? record.messages : [];
   const result: Record<string, unknown> = {
-    messageCount,
+    messageCount: messages.length,
   };
   for (const key of [
     "providerId",
@@ -539,7 +532,7 @@ function mapStreamRecoveryPayload(payload: unknown): Record<string, unknown> {
   };
 }
 
-export function mapSessionProjection(projection: SessionProjection): ZCodeSessionProjection {
+function mapSessionProjection(projection: SessionProjection): XCodeSessionProjection {
   return {
     activeToolCalls: projection.activeToolCalls.map(mapActiveToolCall),
     backgroundJobs: projection.backgroundTasks.map(mapBackgroundTask),
@@ -558,14 +551,14 @@ export function mapSessionProjection(projection: SessionProjection): ZCodeSessio
 }
 
 function mapRuntimeState(input: {
-  activeTurn?: ReturnType<ZCodeApp["runtime"]["getActiveTurnInfo"]>;
-  deliveryKind?: ZCodeDeliveryKind;
+  activeTurn?: ReturnType<XCodeApp["runtime"]["getActiveTurnInfo"]>;
+  deliveryKind?: XCodeDeliveryKind;
   eventSeq: number;
   messages: MessageWithParts[];
   persistedContextUsageBreakdownEvents?: readonly SessionEvent[];
   projection: SessionProjection;
   stateRevision: number;
-}): ZCodeSessionRuntimeState {
+}): XCodeSessionRuntimeState {
   // projection.currentTurnId 是投影最后处理过的 turn，不代表当前仍在运行。
   // session 恢复/subscribe 快照如果把它回填成 runtime.activeTurnId，会让已 idle/complete 的任务误显示为 thinking。
   const activeTurnId = input.activeTurn?.turnId;
@@ -594,7 +587,7 @@ function mapRuntimeState(input: {
 }
 
 interface ContextUsageBreakdownCandidate {
-  breakdown: ZCodeContextUsageBreakdownItem[];
+  breakdown: XCodeContextUsageBreakdownItem[];
   contextWindow?: number;
   used: number;
 }
@@ -609,7 +602,7 @@ export function resolveSessionContextUsage(input: {
   messages: readonly MessageWithParts[];
   persistedContextUsageBreakdownEvents?: readonly SessionEvent[];
   projection: SessionProjection;
-}): ZCodeSessionContextUsage | undefined {
+}): XCodeSessionContextUsage | undefined {
   const persistedContextUsage = contextUsageFromPersistedMessages(
     input.messages,
     input.projection.contextWindow,
@@ -626,9 +619,9 @@ export function resolveSessionContextUsage(input: {
 }
 
 function applyContextUsageBreakdown(
-  contextUsage: ZCodeSessionContextUsage | undefined,
+  contextUsage: XCodeSessionContextUsage | undefined,
   candidate: ContextUsageBreakdownCandidate | undefined,
-): ZCodeSessionContextUsage | undefined {
+): XCodeSessionContextUsage | undefined {
   if (!contextUsage || !candidate || candidate.breakdown.length === 0) {
     return contextUsage;
   }
@@ -679,7 +672,7 @@ function latestContextUsageBreakdownFromEvents(
 
 function mapGoalVerifications(
   verifications: SessionProjection["targetCompletionVerifications"] | undefined,
-): ZCodeSessionGoalVerification[] {
+): XCodeSessionGoalVerification[] {
   return (verifications ?? []).map((verification) => ({
     nextAction: verification.nextAction ?? null,
     passed: verification.passed,
@@ -689,7 +682,7 @@ function mapGoalVerifications(
 
 function mapGoalVerificationTimeline(
   timeline: SessionProjection["targetCompletionVerificationTimeline"] | undefined,
-): ZCodeSessionGoalVerificationTimeline[] {
+): XCodeSessionGoalVerificationTimeline[] {
   return (timeline ?? []).map((item) => ({
     version: 1,
     kind: "synthetic",
@@ -719,8 +712,8 @@ function mapGoalVerificationTimeline(
 
 function contextUsageFromProjection(
   projection: SessionProjection,
-  cache: ZCodeSessionContextUsage["cache"] | undefined,
-): ZCodeSessionContextUsage | undefined {
+  cache: XCodeSessionContextUsage["cache"] | undefined,
+): XCodeSessionContextUsage | undefined {
   if (projection.contextUsed <= 0 || projection.contextWindow <= 0) {
     return undefined;
   }
@@ -735,7 +728,7 @@ function contextUsageFromProjection(
 function contextUsageFromPersistedMessages(
   messages: readonly MessageWithParts[],
   contextWindow: number,
-): ZCodeSessionContextUsage | undefined {
+): XCodeSessionContextUsage | undefined {
   if (contextWindow <= 0) {
     return undefined;
   }
@@ -813,7 +806,7 @@ function contextUsedFromTokens(
 
 function contextCacheUsageFromMessages(
   messages: readonly MessageWithParts[],
-): ZCodeSessionContextUsage["cache"] | undefined {
+): XCodeSessionContextUsage["cache"] | undefined {
   let inputTokens = 0;
   let cacheReadTokens = 0;
   let cacheWriteTokens = 0;
@@ -857,9 +850,7 @@ function contextCacheUsageFromMessages(
   };
 }
 
-function mapPendingPermission(
-  permission: PendingPermission,
-): ZCodePendingPermission {
+function mapPendingPermission(permission: PendingPermission): XCodePendingPermission {
   // display / optionsPolicy 刻意不进 legacy v3 输出。
   // 根因不是"扩 schema 只能单向兼容"，而是 strict schema 随 packages/shared 打进每个桌面端
   // 的产物：今天把 zcodePendingPermissionSchema（shared/src/zcode-protocol/index.ts:1139）和
@@ -886,9 +877,7 @@ function mapPendingPermission(
   };
 }
 
-function mapPermissionRequestedPayload(
-  payload: unknown,
-): Record<string, unknown> {
+function mapPermissionRequestedPayload(payload: unknown): Record<string, unknown> {
   // 同 mapPendingPermission：这个 payload 是整体 spread 出去的，新字段必须在这里显式解构
   // 剔除，否则会直接漏进 strict 的 zcodePermissionRequestedEventPayloadSchema。
   const { display: _display, optionsPolicy, ...record } = asRecord(payload);
@@ -896,7 +885,6 @@ function mapPermissionRequestedPayload(
   return {
     ...record,
     options: buildProtocolPermissionOptions({
-      approvalMode: record.approvalMode === "user-once" ? "user-once" : undefined,
       input: record.input,
       suggestedPermissionUpdates: Array.isArray(record.suggestedPermissionUpdates)
         ? (record.suggestedPermissionUpdates as PendingPermission["suggestedPermissionUpdates"])
@@ -907,7 +895,7 @@ function mapPermissionRequestedPayload(
   };
 }
 
-function mapActiveToolCall(toolCall: ActiveToolCall): ZCodeActiveToolCall {
+function mapActiveToolCall(toolCall: ActiveToolCall): XCodeActiveToolCall {
   return {
     startedAt: toolCall.startedAt?.getTime(),
     status: toolCall.status,
@@ -1052,7 +1040,7 @@ function normalizeText(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function mapSessionGoal(goal: SessionGoal | null | undefined): ZCodeSessionGoal | null | undefined {
+function mapSessionGoal(goal: SessionGoal | null | undefined): XCodeSessionGoal | null | undefined {
   if (goal === undefined) return undefined;
   if (goal === null) return null;
   return {
@@ -1095,7 +1083,7 @@ interface GoalIterationBucket {
 function buildGoalStats(
   projection: SessionProjection,
   messages: readonly MessageWithParts[],
-): ZCodeSessionGoalStats | undefined {
+): XCodeSessionGoalStats | undefined {
   const target = projection.target;
   if (!target) {
     return undefined;
@@ -1137,10 +1125,10 @@ function buildTodoGroups(
   messages: readonly MessageWithParts[],
   currentTodos: readonly TodoItem[],
   projection: SessionProjection,
-): ZCodeSessionTodoGroup[] {
+): XCodeSessionTodoGroup[] {
   const target = projection.target;
   const timeline = getTargetGoalVerificationTimeline(projection, target);
-  const groups = new Map<string, ZCodeSessionTodoGroup>();
+  const groups = new Map<string, XCodeSessionTodoGroup>();
   const todoOwners = new Map<string, { fingerprint: string; groupId: string }>();
   const sortedMessages = [...messages].sort(compareMessagesByCreatedTime);
 
@@ -1214,7 +1202,7 @@ function buildTodoGroups(
 }
 
 function ensureTodoGroup(
-  groups: Map<string, ZCodeSessionTodoGroup>,
+  groups: Map<string, XCodeSessionTodoGroup>,
   input: {
     goalIteration: number | undefined;
     groupId: string;
@@ -1222,13 +1210,13 @@ function ensureTodoGroup(
     targetId?: string;
     updatedAt: number;
   },
-): ZCodeSessionTodoGroup {
+): XCodeSessionTodoGroup {
   const existing = groups.get(input.groupId);
   if (existing) {
     existing.updatedAt = Math.max(existing.updatedAt ?? 0, input.updatedAt);
     return existing;
   }
-  const group: ZCodeSessionTodoGroup = {
+  const group: XCodeSessionTodoGroup = {
     id: input.groupId,
     source: input.goalIteration ? "goal_iteration" : "session",
     ...(input.goalIteration ? { goalIteration: input.goalIteration } : {}),
@@ -1242,7 +1230,7 @@ function ensureTodoGroup(
 }
 
 function addOrUpdateTodoInGroup(
-  group: ZCodeSessionTodoGroup,
+  group: XCodeSessionTodoGroup,
   fingerprint: string,
   todo: TodoItem,
 ): void {
@@ -1262,7 +1250,7 @@ function getGoalActiveIterationCount(
   target?: SessionGoal | null,
 ): number {
   const timeline = getTargetGoalVerificationTimeline(projection, target);
-  return getZCodeGoalActiveIterationCount({
+  return getXCodeGoalActiveIterationCount({
     targetStatus: target?.status ?? null,
     timeline,
   });
@@ -1487,7 +1475,7 @@ function compareMessagesByCreatedTime(left: MessageWithParts, right: MessageWith
   return String(left.info.id).localeCompare(String(right.info.id));
 }
 
-function mapSessionEventType(type: SessionEvent["type"]): ZCodeSessionEvent["type"] {
+function mapSessionEventType(type: SessionEvent["type"]): XCodeSessionEvent["type"] {
   switch (type) {
     case SessionEventType.SessionCreated:
       return "session.created";

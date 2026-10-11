@@ -10,7 +10,7 @@ const DEFAULT_LOCK_OWNERLESS_GRACE_MS = 100;
 const DEFAULT_LOCK_MAX_WAIT_MS = 8_000;
 const DEFAULT_TEMP_FILE_STALE_MS = 60_000;
 
-export interface AtomicWriteTextOptions {
+interface AtomicWriteTextOptions {
   renameRetryDelaysMs?: readonly number[];
   lockRetryDelaysMs?: readonly number[];
   lockOwnerlessGraceMs?: number;
@@ -19,27 +19,6 @@ export interface AtomicWriteTextOptions {
   useFileLock?: boolean;
   beforeRename?: () => void | Promise<void>;
   runRename?: (renameFile: () => Promise<void>) => Promise<void>;
-}
-
-export async function withAtomicFileLock<T>(
-  filePath: string,
-  task: () => Promise<T>,
-  options?: Pick<
-    AtomicWriteTextOptions,
-    "lockRetryDelaysMs" | "lockOwnerlessGraceMs" | "lockMaxWaitMs"
-  >,
-): Promise<T> {
-  const releaseLock = await acquireFileLock(
-    filePath,
-    options?.lockRetryDelaysMs ?? DEFAULT_LOCK_RETRY_DELAYS_MS,
-    options?.lockOwnerlessGraceMs ?? DEFAULT_LOCK_OWNERLESS_GRACE_MS,
-    options?.lockMaxWaitMs ?? DEFAULT_LOCK_MAX_WAIT_MS,
-  );
-  try {
-    return await task();
-  } finally {
-    await releaseLock();
-  }
 }
 
 function getErrorCode(error: unknown): string | undefined {
@@ -138,7 +117,7 @@ export async function atomicWriteText(
   await mkdir(dir, { recursive: true });
   // Windows 上多个窗口/host process 可能同时保存同一个 task JSON，
   // 进程内 writeChains 无法覆盖这种抢写，最终在 rename 替换目标文件时高频 EPERM。
-  // 这里用同目录 lock 文件做 ZCode 进程间协作串行化，再保留 rename 重试处理杀软/索引器的短暂占用。
+  // 这里用同目录 lock 文件做 XCode 进程间协作串行化，再保留 rename 重试处理杀软/索引器的短暂占用。
   const releaseLock =
     options?.useFileLock === false
       ? null

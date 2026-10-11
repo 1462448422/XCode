@@ -33,14 +33,14 @@ function copyFileIfChanged(sourcePath: string, targetPath: string): boolean {
   return true;
 }
 
-export function shouldInstallAppImageDesktopIcon(params: {
+function shouldInstallAppImageDesktopIcon(params: {
   env?: { APPIMAGE?: string };
   iconSourcePath?: string;
 }): boolean {
   return Boolean(params.env?.APPIMAGE?.trim() && params.iconSourcePath);
 }
 
-export function installLinuxAppImageDesktopIcon(params: {
+function installLinuxAppImageDesktopIcon(params: {
   dataDir: string;
   iconSourcePath: string;
   logger: LinuxDeepLinkRegistrationLogger;

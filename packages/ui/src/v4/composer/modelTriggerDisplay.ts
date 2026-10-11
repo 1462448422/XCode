@@ -5,7 +5,7 @@ import {
 import type { IntlInstance } from "@/i18n/IntlProvider.js";
 import type { ModelSelectGroup } from "@/ModelConfigSelect.js";
 
-export interface V4ModelTriggerDisplay {
+interface V4ModelTriggerDisplay {
   fullLabel: string;
   modelLabel: string;
   providerPrefix?: string;

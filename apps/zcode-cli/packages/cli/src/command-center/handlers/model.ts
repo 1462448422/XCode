@@ -59,7 +59,7 @@ export async function handleModelCommand(
 }
 
 /** A deliberate new selection uses the catalog default; restored selections never pass here. */
-export function resolveTuiModelSelection(
+function resolveTuiModelSelection(
   args: string,
   options: readonly CommandCenterModelOption[],
   selectedRef?: ModelSelection,

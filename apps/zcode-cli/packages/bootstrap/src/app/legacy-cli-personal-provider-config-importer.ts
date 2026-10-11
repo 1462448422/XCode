@@ -50,11 +50,11 @@ function resolveLegacyProviderApiType(
 }
 
 /** 把旧 CLI 用户文件中的显式 Provider 定义迁移到新的 Personal Overlay。 */
-export function importLegacyCliPersonalProviderConfig(
+function importLegacyCliPersonalProviderConfig(
   input: LegacyCliPersonalProviderConfigImportInput,
 ): ProviderConfigLayerUpdate {
   const runtimePatch = parseLegacyCliModelConfig(input.input);
-  // 通用 ZCodeConfigFileSchema 刻意把旧 provider 留在 passthrough unknown，
+  // 通用 XCodeConfigFileSchema 刻意把旧 provider 留在 passthrough unknown，
   // 迁移器却从该结果取类型，导致 Bootstrap build 无法证明 model/provider 结构。
   // 这里只消费专用旧格式 parser 的已校验投影，保持兼容逻辑封闭在读取边界。
   let providers = ProviderConfigMap.empty();
@@ -143,7 +143,7 @@ export async function readLegacyCliPersonalProviderConfig(input: {
 }
 
 /** 旧 CLI 用户文件中的 main model 只迁移为 Environment 默认选择。 */
-export function importLegacyCliConfiguredDefault(input: unknown): ModelSelection | null {
+function importLegacyCliConfiguredDefault(input: unknown): ModelSelection | null {
   const main = parseLegacyCliModelConfig(input).model?.main;
   if (!main || main.provider === RETIRED_ZAPI_PROVIDER_ID) return null;
   return Object.freeze({

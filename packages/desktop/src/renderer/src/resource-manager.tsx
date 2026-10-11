@@ -1,13 +1,9 @@
 import { createRoot } from "react-dom/client";
-import type {
-  NetworkCaptureBridge,
-  ResourceUsageSnapshot,
-  StorageManagementBridge,
-} from "@zcode/shared";
+import type { ResourceUsageSnapshot, StorageManagementBridge } from "@zcode/shared";
 import "@zcode/ui/styles.css";
 import {
   ResourceManagerApp,
-  ZCodeIntlProvider,
+  XCodeIntlProvider,
   applyUiFontSizePx,
   loadUiFontSizePx,
   subscribeToUiFontSizeStorageChanges,
@@ -19,7 +15,6 @@ declare global {
       getSnapshot: () => Promise<ResourceUsageSnapshot>;
       setSamplingActive: (active: boolean) => void;
       storage?: StorageManagementBridge;
-      network?: NetworkCaptureBridge;
     };
   }
 }
@@ -61,15 +56,14 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     // 语言沿用主窗口写入 localStorage 的偏好；不接 settingService，避免独立窗口再起一份 RPC。
-    <ZCodeIntlProvider>
+    <XCodeIntlProvider>
       <ResourceManagerApp
         setSamplingActive={window.resourceManager?.setSamplingActive}
         getSnapshot={
           window.resourceManager ? () => window.resourceManager!.getSnapshot() : undefined
         }
         storage={window.resourceManager?.storage}
-        network={window.resourceManager?.network}
       />
-    </ZCodeIntlProvider>,
+    </XCodeIntlProvider>,
   );
 }

@@ -18,7 +18,7 @@ export type BashBackgroundLifecycleResult =
       task: BackgroundExecutionStartResult;
     };
 
-export interface BashBackgroundLifecycleExecutionPort extends ExecutionPort {
+interface BashBackgroundLifecycleExecutionPort extends ExecutionPort {
   runBashWithBackgroundLifecycle(
     request: ExecutionRequest,
     lifecycle: { mode: BashBackgroundLifecycleMode },

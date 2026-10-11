@@ -23,14 +23,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.j
 import { Switch } from "@/components/ui/switch.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { TID_PLUGIN_STORE_BROWSE } from "@zcode/shared";
-import type { ZCodePluginInfo, ZCodePluginScope, ZCodePluginUserConfigOption } from "@zcode/shared";
+import type { XCodePluginInfo, XCodePluginScope, XCodePluginUserConfigOption } from "@zcode/shared";
 import type { CreateTaskRequest } from "@/app-shell/types.js";
 import {
   useBaseWorkspaceServices,
   useWorkspaceServicesResolution,
 } from "@/hooks/useWorkspaceServices.js";
 import { getPathLeaf } from "@/lib/path.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { McpSettingsSection } from "@/settings/McpSettingsSection.js";
 import { SkillsSection } from "@/settings/SkillsSection.js";
 import { CommandsSection } from "@/settings/CommandsSection.js";
@@ -118,7 +118,6 @@ interface PluginsSectionProps {
   isDesktop?: boolean;
   isMacDesktop?: boolean;
   isWindowsDesktop?: boolean;
-  isWebRemoteControl?: boolean;
   initialTab?: PluginTabTarget;
   initialScopeKey?: string;
   mode?: "plugin" | "mcp" | "skill" | "command";
@@ -140,7 +139,6 @@ function PluginList({
   isDesktop,
   isMacDesktop,
   isWindowsDesktop,
-  isWebRemoteControl,
   onAdd,
   onCreateTask,
   onDetailOpenChange,
@@ -149,12 +147,11 @@ function PluginList({
   onVisibleCountChange,
 }: {
   target: WorkspaceTabState | null;
-  configScope: ZCodePluginScope;
+  configScope: XCodePluginScope;
   searchQuery: string;
   isDesktop: boolean;
   isMacDesktop: boolean;
   isWindowsDesktop: boolean;
-  isWebRemoteControl: boolean;
   onAdd?: () => void;
   onCreateTask?: (request?: CreateTaskRequest) => void;
   onDetailOpenChange?: (open: boolean) => void;
@@ -162,7 +159,7 @@ function PluginList({
   showMarketplaceBreadcrumb?: boolean;
   onVisibleCountChange?: (count: number) => void;
 }) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const targetServiceResolution = useWorkspaceServicesResolution(
     target?.workspacePath,
     target?.remoteSessionId,
@@ -204,7 +201,7 @@ function PluginList({
     shouldShowRemoteSyncActions({
       remoteSessionId: target?.remoteSessionId,
       remoteTarget: target?.remoteTarget,
-      clientMode: isWebRemoteControl ? "web-remote-replayable" : "desktop-continuous",
+      clientMode: "desktop-continuous" as const,
       hasLocalSourceService: Boolean(baseServices.pluginSyncService),
     }) &&
     target?.workspacePath
@@ -410,9 +407,9 @@ function PluginList({
     }));
   };
   const getPluginOptionValue = (
-    plugin: ZCodePluginInfo,
+    plugin: XCodePluginInfo,
     key: string,
-    option: ZCodePluginUserConfigOption,
+    option: XCodePluginUserConfigOption,
   ): string | number | boolean => {
     const draft = pluginOptionsDrafts[plugin.id]?.[key];
     if (draft === null) return "";
@@ -423,7 +420,7 @@ function PluginList({
       (option.type === "boolean" ? false : "")
     );
   };
-  const savePluginOptions = async (plugin: ZCodePluginInfo) => {
+  const savePluginOptions = async (plugin: XCodePluginInfo) => {
     const { options, clearOptionKeys } = buildPluginConfigPatch(
       plugin,
       pluginOptionsDrafts[plugin.id] ?? {},
@@ -484,7 +481,7 @@ function PluginList({
     });
   }, [initialize, pluginManagementService, configScope, target, targetServiceResolution.rpcReady]);
 
-  const renderPluginRows = (items: ZCodePluginInfo[]) => (
+  const renderPluginRows = (items: XCodePluginInfo[]) => (
     <div className="overflow-hidden rounded-xl bg-surface">
       {items.map((plugin, index) => (
         <Fragment key={plugin.id}>
@@ -823,7 +820,6 @@ function PluginList({
                 <PluginAddMenu
                   testId="plugin-settings-add"
                   onCreateTask={onCreateTask}
-                  isWebRemoteControl={isWebRemoteControl}
                   onAddMarketplace={() => onOpenPluginStore(undefined, "add-marketplace")}
                 />
               </>
@@ -926,8 +922,8 @@ function PluginList({
         onPluginOpenChange={setRemotePluginSyncOpen}
         localPluginSyncService={baseServices.pluginSyncService}
         remotePluginSyncService={targetServiceResolution.services.pluginSyncService}
-        localZCodeAgentService={baseServices.zcodeAgentService}
-        remoteZCodeAgentService={targetServiceResolution.services.zcodeAgentService}
+        localXCodeAgentService={baseServices.zcodeAgentService}
+        remoteXCodeAgentService={targetServiceResolution.services.zcodeAgentService}
         remoteTarget={connectedRemoteSyncTarget}
         skillWorkspacePath=""
         mcpWorkspacePath=""
@@ -954,7 +950,6 @@ export function PluginsSection({
   isDesktop = false,
   isMacDesktop = false,
   isWindowsDesktop = false,
-  isWebRemoteControl = false,
   initialTab = "plugins",
   initialScopeKey,
   mode = "plugin",
@@ -964,7 +959,7 @@ export function PluginsSection({
   onOpenPluginStore,
   showMarketplaceBreadcrumb = false,
 }: PluginsSectionProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const tabs = useTabStore((state) => state.tabs);
   const storeActiveWorkspacePath = useTabStore((state) => state.activeWorkspacePath);
   const storeActiveWorkspaceIdentity = useTabStore((state) => state.activeWorkspaceIdentity);
@@ -1294,7 +1289,6 @@ export function PluginsSection({
               isDesktop={isDesktop}
               isMacDesktop={isMacDesktop}
               isWindowsDesktop={isWindowsDesktop}
-              isWebRemoteControl={isWebRemoteControl}
               searchQuery={searchQueries.plugins}
               onAdd={selectedScope.kind === "user" ? openPluginStoreForSelectedScope : undefined}
               onCreateTask={onCreateTask}
@@ -1320,7 +1314,6 @@ export function PluginsSection({
                 remoteSessionId={mcpTarget.remoteSessionId}
                 remoteTarget={mcpTarget.remoteTarget}
                 localWorkspacePath={mcpTarget.localWorkspacePath}
-                isWebRemoteControl={isWebRemoteControl}
                 scopeFilter={effectiveMcpScopeKey === "user" ? "user" : "workspace"}
                 parentScopeKey={selectedScopeKey}
                 workspaceTabs={workspaceTabs}
@@ -1350,7 +1343,6 @@ export function PluginsSection({
                 workspaceIdentity={target.workspaceIdentity}
                 remoteSessionId={target.remoteSessionId}
                 remoteTarget={target.remoteTarget}
-                isWebRemoteControl={isWebRemoteControl}
                 scopeFilter={selectedScope.kind === "user" ? "user" : "workspace"}
                 searchQuery={searchQueries.skills}
                 onCreateTask={onCreateTask}

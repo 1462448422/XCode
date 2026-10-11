@@ -1,5 +1,4 @@
 import { splitArgs } from "../utils.js";
-import { isWorkflowModeEnabled, WORKFLOW_DISABLED_NOTICE } from "../../workflow-mode.js";
 const DWF_USAGE = "Usage: /dwf [list|cancel [runId]|resume <runId>]";
 /** `/dwf list` 的默认条数；服务端自己还有上限，这里只表达「一屏够看」。 */
 const DWF_LIST_LIMIT = 20;
@@ -25,9 +24,6 @@ export async function handleDwfCommand(args, deps) {
         return await handleCancel(runId, app, deps);
     }
     if (action === "resume") {
-        // resume 会起引擎，disabled 下在问服务端之前拒绝；list / cancel 不起引擎，照常。
-        if (!isWorkflowModeEnabled(deps.workflowMode))
-            return respond(deps, WORKFLOW_DISABLED_NOTICE);
         if (!runId)
             return respond(deps, DWF_USAGE);
         if (!app.resumeWorkflowRun)

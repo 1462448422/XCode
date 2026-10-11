@@ -1,7 +1,7 @@
-import { getZCodeCopy } from "@zcode/i18n";
+import { getXCodeCopy } from "@zcode/i18n";
 import { randomUUID } from "node:crypto";
 export function buildLoginSelection(locale) {
-    const copy = getZCodeCopy(locale).tui.loginSetup;
+    const copy = getXCodeCopy(locale).tui.loginSetup;
     return {
         emptyMessage: copy.emptyMessage,
         filterable: false,
@@ -79,7 +79,7 @@ export function buildLoginSelection(locale) {
     };
 }
 export function loginSetupResponse(locale) {
-    return getZCodeCopy(locale).tui.loginSetup.response;
+    return getXCodeCopy(locale).tui.loginSetup.response;
 }
 export function formatLoginResult(result) {
     const label = result.user.name || result.user.email || result.user.user_id;

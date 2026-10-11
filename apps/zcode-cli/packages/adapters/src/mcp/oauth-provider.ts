@@ -1,15 +1,15 @@
 import type { FetchLike, AuthProvider } from "@modelcontextprotocol/client";
 import type { Logger, McpOAuthConfig } from "@zcode/contracts";
-import type { SharedZCodeCredentialStore } from "../auth/shared-credentials.js";
+import type { SharedXCodeCredentialStore } from "../auth/shared-credentials.js";
 import { isCanonicalTokenNearExpiry, loadCredentialPair } from "./oauth-credentials.js";
 import { createInteractiveAuthorizationRequiredError } from "./oauth-errors.js";
 import { refreshMcpOAuthTokensUnderLock } from "./oauth-refresh.js";
 
 type McpAuthorizationCodeOAuthConfig = Extract<McpOAuthConfig, { type: "authorization_code" }>;
 
-export interface CreateMcpOAuthTokenProviderInput {
+interface CreateMcpOAuthTokenProviderInput {
   config: McpAuthorizationCodeOAuthConfig;
-  credentialStore: SharedZCodeCredentialStore;
+  credentialStore: SharedXCodeCredentialStore;
   fetchFn?: FetchLike;
   keyPrefix: string;
   logger?: Logger;
@@ -31,9 +31,7 @@ export interface CreateMcpOAuthTokenProviderInput {
  * 绝不要把 `OAuthClientProvider` 传给运行期 transport：它会被 `adaptOAuthProvider` 包裹，
  * 401 走 SDK 的 `handleOAuthUnauthorized()` → `auth()`，绕过 refresh 锁，并发刷新问题立即复发。
  */
-export function createMcpOAuthTokenProvider(
-  input: CreateMcpOAuthTokenProviderInput,
-): AuthProvider {
+export function createMcpOAuthTokenProvider(input: CreateMcpOAuthTokenProviderInput): AuthProvider {
   const refreshInput = {
     credentialStore: input.credentialStore,
     ...(input.fetchFn ? { fetchFn: input.fetchFn } : {}),

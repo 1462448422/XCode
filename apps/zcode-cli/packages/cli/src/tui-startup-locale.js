@@ -16,7 +16,7 @@ export function resolveTuiStartupLocale({ deps, options, workingDirectory, }) {
         userConfigPath: deps.userConfigPath,
         workingDirectory,
     });
-    // login-required startup renders local TUI panels before ZCodeApp
+    // login-required startup renders local TUI panels before XCodeApp
     // exists, so the CLI boundary must resolve persisted ui.locale itself.
     return resolveLocale(configResult.config.ui.locale, options.detectedLocale);
 }

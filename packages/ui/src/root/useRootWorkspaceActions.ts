@@ -6,7 +6,7 @@ import {
   type IPlatformService,
   type RemoteTarget,
   type UserInfo,
-  type ZCodeTaskClientMode,
+  type XCodeTaskClientMode,
 } from "@zcode/shared";
 import type { IServiceAccessor } from "@zcode/services";
 import type { CreateTaskRequest } from "@/app-shell/types.js";
@@ -18,7 +18,7 @@ import { parseWslUncWorkspacePath } from "@/lib/wslUncWorkspace.js";
 import { logger } from "@/logger.js";
 import { openFolderFromWorkspaceEntry } from "@/root/openWorkspaceFolderEntry.js";
 import { useConversationWorkspaceActions } from "@/root/useConversationWorkspaceActions.js";
-import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import { isWorkspaceReadOnly, type TabStore, type TabStoreState } from "@/store/tabStore.js";
 import type { RootProps } from "@/root/types.js";
 import {
@@ -31,13 +31,13 @@ import type { WorkbenchNewTaskTarget } from "@/v4/workbenchNewTaskTarget.js";
 import { useWorkbenchGroupStore } from "@/v4/workbenchGroupStore.js";
 import { persistV4ComposerDraft, V4_DRAFT_SCOPE_ROOT } from "@/v4/composer/composerDraftStore.js";
 
-export interface OpenRemoteConnectionPreference {
+interface OpenRemoteConnectionPreference {
   preferredKind?: RemoteTarget["kind"];
   preferredWslDistro?: string;
 }
 
 /** 新任务落点：identity 缺省一律归一化为 null，供只读校验、focus/addTab 统一消费。 */
-export interface NewTaskTargetResolution {
+interface NewTaskTargetResolution {
   workspacePath: string;
   workspaceIdentity: string | null;
 }
@@ -46,7 +46,7 @@ export interface NewTaskTargetResolution {
  * 解析新任务落点：请求显式带 targetWorkspace 时（跨项目发起已保存工作流）直接采用它，不再询问 workbench 焦点；
  * 否则惰性回退到 resolveWorkbenchNewTaskTarget。identity 缺省归一化为 null。
  */
-export function resolveNewTaskTargetFromRequest(
+function resolveNewTaskTargetFromRequest(
   request: CreateTaskRequest | undefined,
   resolveFallback: () => WorkbenchNewTaskTarget | null,
 ): NewTaskTargetResolution | null {
@@ -89,7 +89,7 @@ export function useRootWorkspaceActions({
   onOpenRemoteConnection,
   workbenchGroupClientMode = "desktop-continuous",
 }: {
-  intl: ReturnType<typeof import("@/i18n/IntlProvider.js").useZCodeIntl>["intl"];
+  intl: ReturnType<typeof import("@/i18n/IntlProvider.js").useXCodeIntl>["intl"];
   platform: IPlatformService;
   services: IServiceAccessor;
   tabStoreApi: TabStore;
@@ -107,7 +107,7 @@ export function useRootWorkspaceActions({
   onProviderFamilyDomainClearedAfterLogout?: () => void;
   userId?: string;
   onOpenRemoteConnection?: (preference?: OpenRemoteConnectionPreference) => void;
-  workbenchGroupClientMode?: ZCodeTaskClientMode;
+  workbenchGroupClientMode?: XCodeTaskClientMode;
 }) {
   const [workspaceActionError, setWorkspaceActionError] = useState<string | null>(null);
   const requestConfirmation = useConfirmDialog();
@@ -153,7 +153,7 @@ export function useRootWorkspaceActions({
         useWorkbenchGroupStore.getState().deactivateActiveGroup();
         usePaneLayoutStore.getState().resetToPrimaryPane();
       }
-      useZCodeSessionStore.getState().startDraft(workspacePath, undefined, workspaceIdentity);
+      useXCodeSessionStore.getState().startDraft(workspacePath, undefined, workspaceIdentity);
     },
     [workbenchGroupClientMode],
   );
@@ -245,7 +245,7 @@ export function useRootWorkspaceActions({
       // group / paneLayout 中继续拆一个 draft；目标 workspace 取 focused pane。
       useWorkbenchGroupStore.getState().deactivateActiveGroup();
       usePaneLayoutStore.getState().resetToPrimaryPane();
-      useZCodeSessionStore
+      useXCodeSessionStore
         .getState()
         .startDraft(
           newTaskTarget.workspacePath,
@@ -269,7 +269,7 @@ export function useRootWorkspaceActions({
             ...(initialPromptMention ? { mention: initialPromptMention } : {}),
           },
         );
-        useZCodeSessionStore
+        useXCodeSessionStore
           .getState()
           .requestComposerTextInsert(
             newTaskTarget.workspacePath,

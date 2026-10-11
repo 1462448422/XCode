@@ -1,7 +1,7 @@
 import {
-  DEFAULT_ZCODE_ENDPOINT_ORIGIN,
-  ZCODE_VERSION,
-  buildZCodeEndpointUrls,
+  DEFAULT_XCODE_ENDPOINT_ORIGIN,
+  XCODE_VERSION,
+  buildXCodeEndpointUrls,
   getForceUpdateMinimalVersionFromConfig,
   resolveForceUpdateRequirement,
   type ForceUpdateRequirement,
@@ -10,7 +10,7 @@ import {
 import { requestForceAutoUpdate, type ForceAutoUpdateState } from "./autoUpdater.js";
 import { showForceUpdatePrompt } from "./forceUpdatePrompt.js";
 
-const ZCODE_CLIENT_CONFIG_API_PATH = "/api/v1/client/configs";
+const XCODE_CLIENT_CONFIG_API_PATH = "/api/v1/client/configs";
 const FORCE_UPDATE_CONFIG_REQUEST_TIMEOUT_MS = 10_000;
 const FORCE_UPDATE_CONFIG_MAX_RESPONSE_BYTES = 1024 * 1024;
 
@@ -28,27 +28,27 @@ export interface ForceUpdateGuardLogger {
   warn: (...args: unknown[]) => void;
 }
 
-export interface ForceUpdateGuardResult {
+interface ForceUpdateGuardResult {
   blocked: boolean;
   requirement?: ForceUpdateRequirement;
 }
 
-export interface ForceUpdateGuardOptions {
+interface ForceUpdateGuardOptions {
   locale: Locale;
   logger: ForceUpdateGuardLogger;
   endpointOrigin?: string;
   fetchRemoteConfig?: () => Promise<unknown>;
-  requestAutoUpdate?: (onStateChange?: (state: ForceAutoUpdateState) => void) => (() => void) | void;
+  requestAutoUpdate?: (
+    onStateChange?: (state: ForceAutoUpdateState) => void,
+  ) => (() => void) | void;
   onBlocked?: (requirement: ForceUpdateRequirement) => void;
 }
 
-export function resolveForceUpdateClientConfigUrl(
-  endpointOrigin = DEFAULT_ZCODE_ENDPOINT_ORIGIN,
-): string {
+function resolveForceUpdateClientConfigUrl(endpointOrigin = DEFAULT_XCODE_ENDPOINT_ORIGIN): string {
   const url = new URL(
-    `${buildZCodeEndpointUrls(endpointOrigin).origin}${ZCODE_CLIENT_CONFIG_API_PATH}`,
+    `${buildXCodeEndpointUrls(endpointOrigin).origin}${XCODE_CLIENT_CONFIG_API_PATH}`,
   );
-  url.searchParams.set("app_version", ZCODE_VERSION);
+  url.searchParams.set("app_version", XCODE_VERSION);
   url.searchParams.set("platform", `${process.platform}-${process.arch}`);
   return url.toString();
 }
@@ -66,7 +66,7 @@ function getForceUpdateMinimalVersionFromClientConfig(config: unknown): string |
   };
   if (typeof envelope.code === "number" && envelope.code !== 0) {
     // /client/configs 与服务层一样只有 code=0 才可信，避免错误 envelope 携带旧 data 时误触发启动强更。
-    throw new Error(`ZCode client config failed: ${envelope.code}`);
+    throw new Error(`XCode client config failed: ${envelope.code}`);
   }
   return getForceUpdateMinimalVersionFromConfig(envelope.data?.configs);
 }
@@ -147,14 +147,14 @@ async function fetchRemoteForceUpdateConfig(
   });
 }
 
-export async function resolveDesktopForceUpdateRequirement(options: {
+async function resolveDesktopForceUpdateRequirement(options: {
   logger: ForceUpdateGuardLogger;
   endpointOrigin?: string;
   fetchRemoteConfig?: () => Promise<unknown>;
 }): Promise<ForceUpdateRequirement | null> {
   const resolveFromConfig = (config: unknown) =>
     resolveForceUpdateRequirement({
-      currentVersion: ZCODE_VERSION,
+      currentVersion: XCODE_VERSION,
       forceUpdate: {
         minimalVersion:
           getForceUpdateMinimalVersionFromClientConfig(config) ??
@@ -181,21 +181,21 @@ export async function resolveDesktopForceUpdateRequirement(options: {
   return null;
 }
 
-export function resolveForceUpdateDownloadUrl(
+function resolveForceUpdateDownloadUrl(
   locale: Locale,
-  endpointOrigin = DEFAULT_ZCODE_ENDPOINT_ORIGIN,
+  endpointOrigin = DEFAULT_XCODE_ENDPOINT_ORIGIN,
 ): string {
-  const origin = buildZCodeEndpointUrls(endpointOrigin).origin;
+  const origin = buildXCodeEndpointUrls(endpointOrigin).origin;
   return locale === "zh-CN" ? `${origin}/cn` : `${origin}/en`;
 }
 
-export function formatForceUpdateDialogText(
+function formatForceUpdateDialogText(
   requirement: ForceUpdateRequirement,
   locale: Locale,
 ): ForceUpdateDialogText {
   if (locale === "zh-CN") {
     return {
-      title: "需要升级 ZCode",
+      title: "需要升级 XCode",
       message: "当前版本无法继续使用",
       detail: `当前版本：v${requirement.currentVersion}\n最低可用版本：v${requirement.minimalVersion}`,
       autoUpdateButton: "自动升级",
@@ -205,7 +205,7 @@ export function formatForceUpdateDialogText(
   }
 
   return {
-    title: "Update ZCode",
+    title: "Update XCode",
     message: "The current version can no longer be used",
     detail: `Current version: v${requirement.currentVersion}\nMinimum supported version: v${requirement.minimalVersion}`,
     autoUpdateButton: "Auto update",
@@ -217,6 +217,11 @@ export function formatForceUpdateDialogText(
 export async function maybeBlockStartupForForceUpdate(
   options: ForceUpdateGuardOptions,
 ): Promise<ForceUpdateGuardResult> {
+  // XCode fork：禁用更新检测——强更门不拉远端 manifest、不阻止启动、不弹强更对话框。
+  const XCODE_FORK_AUTO_UPDATES_DISABLED = true;
+  if (XCODE_FORK_AUTO_UPDATES_DISABLED) {
+    return { blocked: false };
+  }
   const requirement = await resolveDesktopForceUpdateRequirement({
     ...options,
     endpointOrigin: options.endpointOrigin,

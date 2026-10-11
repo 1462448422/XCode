@@ -43,6 +43,9 @@ export const DesktopWindowFrame = memo(function DesktopWindowFrameComponent({
         usesOpaqueRootSurface ? "bg-background-win-alt" : "bg-background-alt",
       )}
       data-desktop-window-frame="true"
+      // Codex 主题包的 [data-ds-part="root"] 描述应用根的背景与文字色，
+      // 挂点就是这层外壳（皮肤激活时引擎已把它设成透图）。
+      data-ds-part="root"
     >
       <div className="relative flex-1 min-h-0 w-full">{children}</div>
     </div>

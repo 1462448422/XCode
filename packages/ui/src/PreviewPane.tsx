@@ -28,11 +28,8 @@ import type { FileBinaryPreview, FileMediaPreview, FileTextSlice } from "@zcode/
 import { TID_PREVIEW_PANE } from "@zcode/shared";
 import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { usePptxFileWatch } from "@/hooks/usePptxFileWatch.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import {
-  usePdfViewerLabels,
-  usePptxViewerLabels,
-} from "@/hooks/usePreviewViewerLabels.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { usePdfViewerLabels, usePptxViewerLabels } from "@/hooks/usePreviewViewerLabels.js";
 import {
   FILE_VIEWER_MAX_TEXT_BYTES,
   createDiffSourceFilePreviewSource,
@@ -52,7 +49,7 @@ import { usePlatform } from "@/hooks/usePlatform.js";
 import { useFileContextActions } from "@/hooks/useFileContextActions.js";
 import { useWorkspaceOpenInEditorTarget } from "@/hooks/useWorkspaceOpenInEditorTarget.js";
 import { logger } from "@/logger.js";
-import { useZCodeStore } from "@/store/StoreProvider.js";
+import { useXCodeStore } from "@/store/StoreProvider.js";
 import { useCodeCommentPreviewStore } from "@/store/codeCommentPreviewStore.js";
 import { resolveTheme } from "@/useTheme.js";
 import {
@@ -125,7 +122,7 @@ function isMarkdownFilePath(path?: string): boolean {
   return normalizedPath.endsWith(".md") || normalizedPath.endsWith(".markdown");
 }
 
-export function isPreviewPaneMissingFileError(error: unknown): boolean {
+function isPreviewPaneMissingFileError(error: unknown): boolean {
   if (typeof error === "object" && error !== null && "code" in error) {
     const code = (error as { code?: unknown }).code;
     if (code === "ENOENT") {
@@ -137,7 +134,7 @@ export function isPreviewPaneMissingFileError(error: unknown): boolean {
   return /\bENOENT\b/i.test(message) || /no such file or directory/i.test(message);
 }
 
-export function shouldToastPptxReferenceFileMissing(
+function shouldToastPptxReferenceFileMissing(
   source: CodeViewerSource | null,
   error: unknown,
 ): boolean {
@@ -148,12 +145,12 @@ export function shouldToastPptxReferenceFileMissing(
   );
 }
 
-export function isPreviewPaneFileTooLargeError(error: unknown): boolean {
+function isPreviewPaneFileTooLargeError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /file is too large to preview/i.test(message);
 }
 
-export function getPreviewPaneSafeErrorMessage(error: unknown, sourcePath: string): string {
+function getPreviewPaneSafeErrorMessage(error: unknown, sourcePath: string): string {
   const message = error instanceof Error ? error.message : String(error);
   if (!isAbsoluteFilePath(sourcePath)) {
     return message;
@@ -175,7 +172,7 @@ export function getPreviewPaneSafeErrorMessage(error: unknown, sourcePath: strin
   return safeMessage;
 }
 
-export function resolvePptxPreviewReadErrorMessage(
+function resolvePptxPreviewReadErrorMessage(
   error: unknown,
   options: {
     sourcePath: string;
@@ -196,7 +193,7 @@ export function resolvePptxPreviewReadErrorMessage(
   return getPreviewPaneSafeErrorMessage(error, options.sourcePath);
 }
 
-export function readPreviewPaneScrollMetrics(
+function readPreviewPaneScrollMetrics(
   container: Pick<HTMLElement, "scrollHeight" | "scrollTop"> | null,
 ) {
   if (!container) {
@@ -209,7 +206,7 @@ export function readPreviewPaneScrollMetrics(
   };
 }
 
-export function resolvePreviewPaneTextFileResult(result: FileTextSlice): {
+function resolvePreviewPaneTextFileResult(result: FileTextSlice): {
   filePreview: FileTextSlice | null;
   fileTooLarge: boolean;
 } {
@@ -244,9 +241,9 @@ function getFileImageMediaType(path?: string): string | null {
 const PDF_RANGE_CHUNK_BYTES = 256 * 1024;
 // 小 PDF 直接循环拉全量（少量往返、渲染路径最简单）；超过阈值交给 pdf.js range 按需分段加载。
 const PDF_FULL_READ_MAX_BYTES = 2 * 1024 * 1024;
-export const PPTX_MAX_FILE_BYTES = 64 * 1024 * 1024;
+const PPTX_MAX_FILE_BYTES = 64 * 1024 * 1024;
 
-export function isPptxPreviewFileTooLarge(size: number): boolean {
+function isPptxPreviewFileTooLarge(size: number): boolean {
   return size > PPTX_MAX_FILE_BYTES;
 }
 
@@ -258,7 +255,7 @@ function PreviewPaneDeferredHeavyContent({ style }: { style?: CSSProperties }) {
       data-preview-pane-heavy-content-deferred="true"
       style={style}
     >
-      {/* Bugfix: resize/sliver 阶段不能展示大文件 CodeViewer，但只放空白会明显闪烁。
+      {/* resize/sliver 阶段不能展示大文件 CodeViewer，但只放空白会明显闪烁。
           这里用少量静态 code-line 纹理保留预览区的视觉重量，不让千行 Shadow DOM 参与可见布局。 */}
       <div
         className="sticky top-0 flex h-full min-h-0 flex-col gap-1.5 overflow-hidden p-3"
@@ -275,7 +272,7 @@ function PreviewPaneDeferredHeavyContent({ style }: { style?: CSSProperties }) {
   );
 }
 
-export function resolvePreviewPaneImageSource(
+function resolvePreviewPaneImageSource(
   source: CodeViewerSource | null,
 ): Extract<CodeViewerSource, { type: "image" }> | null {
   if (!source) {
@@ -303,7 +300,7 @@ export function resolvePreviewPaneImageSource(
   };
 }
 
-export function resolvePreviewPaneMediaSource(
+function resolvePreviewPaneMediaSource(
   source: CodeViewerSource | null,
 ): MediaCodeViewerSource | null {
   if (!source) return null;
@@ -314,13 +311,13 @@ export function resolvePreviewPaneMediaSource(
   return { ...source, type: "media", ...media };
 }
 
-export function resolveMediaPlaybackErrorMessageId(
+function resolveMediaPlaybackErrorMessageId(
   code: number | undefined,
 ): "codeViewer.mediaUnsupported" | "codeViewer.mediaLoadFailed" {
   return code === 3 || code === 4 ? "codeViewer.mediaUnsupported" : "codeViewer.mediaLoadFailed";
 }
 
-export function resolvePreviewPanePdfSource(
+function resolvePreviewPanePdfSource(
   source: CodeViewerSource | null,
 ): Extract<CodeViewerSource, { type: "pdf" }> | null {
   if (!source) {
@@ -342,7 +339,7 @@ export function resolvePreviewPanePdfSource(
   };
 }
 
-export function resolvePreviewPanePptxSource(
+function resolvePreviewPanePptxSource(
   source: CodeViewerSource | null,
 ): Extract<CodeViewerSource, { type: "pptx" }> | null {
   if (!source) {
@@ -363,7 +360,7 @@ export function resolvePreviewPanePptxSource(
   };
 }
 
-export function shouldShowPreviewPaneHeaderDivider(source: CodeViewerSource | null): boolean {
+function shouldShowPreviewPaneHeaderDivider(source: CodeViewerSource | null): boolean {
   return Boolean(
     resolvePreviewPanePdfSource(source) ||
     resolvePreviewPanePptxSource(source) ||
@@ -402,7 +399,7 @@ function isPlainCodeSource(source: CodeViewerSource | null): boolean {
   return false;
 }
 
-export function getPreviewPaneDisplayOptions(
+function getPreviewPaneDisplayOptions(
   source: CodeViewerSource | null,
   viewModes: {
     markdownViewMode?: "preview" | "code";
@@ -497,9 +494,9 @@ export function PreviewPane({
   markdownSelectionTarget?: MarkdownSelectionTarget;
 }) {
   const platform = usePlatform();
-  const { intl } = useZCodeIntl();
-  const theme = useZCodeStore((state) => state.theme);
-  const codePreviewSettings = useZCodeStore((state) => state.codePreviewSettings);
+  const { intl } = useXCodeIntl();
+  const theme = useXCodeStore((state) => state.theme);
+  const codePreviewSettings = useXCodeStore((state) => state.codePreviewSettings);
   const source = useMemo(
     () => (rawSource ? normalizeCodeViewerSource(rawSource) : null),
     [rawSource],
@@ -1592,7 +1589,7 @@ export function PreviewPane({
               </span>
             </Button>
           ) : null}
-          {/* Bugfix: 图片和 patch 这类预览没有任何显示选项，继续渲染触发器会打开空菜单，所以只在存在菜单项时显示更多按钮。 */}
+          {/* 图片和 patch 这类预览没有任何显示选项，继续渲染触发器会打开空菜单，所以只在存在菜单项时显示更多按钮。*/}
           {hasMoreMenu || source.path ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

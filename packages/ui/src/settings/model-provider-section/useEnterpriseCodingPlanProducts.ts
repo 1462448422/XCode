@@ -20,7 +20,7 @@ interface EnterpriseCodingPlanProductsState {
   error: string | null;
 }
 
-export interface EnterpriseCodingPlanProductsSnapshot {
+interface EnterpriseCodingPlanProductsSnapshot {
   productList: EnterpriseCodingPlanProductDisplay[];
   raw: EnterpriseCodingPlanPricingResponse;
   authenticated: boolean;
@@ -28,14 +28,14 @@ export interface EnterpriseCodingPlanProductsSnapshot {
   staticProductIds?: string[];
 }
 
-export function shouldRetainEnterprisePricingSnapshotForRefresh(
+function shouldRetainEnterprisePricingSnapshotForRefresh(
   snapshot: EnterpriseCodingPlanProductsSnapshot | null,
   authenticated: boolean,
 ): boolean {
   return snapshot?.authenticated === authenticated;
 }
 
-export function resolveEnterprisePricingFailureSnapshot({
+function resolveEnterprisePricingFailureSnapshot({
   currentSnapshot,
   authenticated,
   staticProducts,

@@ -9,31 +9,31 @@ import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import {
   isRemoteWorkspaceIdentity,
-  normalizeAgentProviderToZCodeAgent,
+  XCODE_AGENT_PROVIDER,
   zcodeTaskMetaSchema,
   resolveWorkspaceKey,
   CRON_DEFAULT_GROUP_ID,
   OFF_PEAK_DEFAULT_GROUP_ID,
-  type ZCodeProvider,
-  type ZCodeTaskMeta,
+  type XCodeProvider,
+  type XCodeTaskMeta,
 } from "@zcode/shared";
 import type {
-  ZCodeTaskListQuery,
-  ZCodeTaskListResult,
-  ZCodeTaskListItem,
+  XCodeTaskListQuery,
+  XCodeTaskListResult,
+  XCodeTaskListItem,
 } from "#src/session/zcodeTaskListTypes.js";
 import type {
-  ZCodeGroupedTaskRef,
-  ZCodeGroupedTaskView,
-  ZCodeGroupedTaskViewNode,
-  ZCodeGroupedTaskViewOrderInput,
-  ZCodeGroupedTaskViewQuery,
-  ZCodeGroupedTaskViewStructure,
-  ZCodeGroupedTaskViewStructureMember,
-  ZCodeGroupedTaskViewStructureTopOrder,
-  ZCodeGroupedTaskViewTopLevelNodeRef,
-  ZCodeTaskGroup,
-  ZCodeTaskGroupColor,
+  XCodeGroupedTaskRef,
+  XCodeGroupedTaskView,
+  XCodeGroupedTaskViewNode,
+  XCodeGroupedTaskViewOrderInput,
+  XCodeGroupedTaskViewQuery,
+  XCodeGroupedTaskViewStructure,
+  XCodeGroupedTaskViewStructureMember,
+  XCodeGroupedTaskViewStructureTopOrder,
+  XCodeGroupedTaskViewTopLevelNodeRef,
+  XCodeTaskGroup,
+  XCodeTaskGroupColor,
 } from "#src/session/zcodeTaskListTypes.js";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import { getTasksIndexDatabasePath } from "#src/paths.js";
@@ -42,17 +42,16 @@ import { runTasksDatabaseMigrations } from "#src/session/tasksDatabase/migration
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
 
-function appendZCodeAgentIndexedProviderFilter(
+function appendXCodeAgentIndexedProviderFilter(
   where: string[],
   args: Array<string | number>,
-  provider: ZCodeProvider,
+  provider: XCodeProvider,
 ): void {
   // 列表按当前 runtime provider 过滤；历史导入来源不改变此边界。
   where.push("provider = ?");
   args.push(provider);
 }
 type DatabaseSyncInstance = InstanceType<typeof DatabaseSync>;
-type SQLInputValue = import("node:sqlite").SQLInputValue;
 
 interface TaskIndexRow {
   workspace_key: string;
@@ -78,10 +77,6 @@ interface TaskIndexRow {
   title_overridden: number;
   searchable_text: string;
   meta_json: string;
-}
-
-interface LegacyAcpTaskIndexRow extends TaskIndexRow {
-  acp_session_id: string | null;
 }
 
 interface TaskGroupRow {
@@ -124,7 +119,7 @@ interface WorkspaceBootstrapScope {
 }
 
 interface TaskIndexWriteRecord {
-  meta: ZCodeTaskMeta;
+  meta: XCodeTaskMeta;
   pinned: boolean;
   archived: boolean;
   deleted: boolean;
@@ -144,9 +139,9 @@ interface TaskIndexStatePatch {
   titleOverridden?: boolean;
   unreadAt?: number;
   model?: string;
-  status?: ZCodeTaskMeta["status"];
-  lastError?: ZCodeTaskMeta["lastError"];
-  target?: ZCodeTaskMeta["target"];
+  status?: XCodeTaskMeta["status"];
+  lastError?: XCodeTaskMeta["lastError"];
+  target?: XCodeTaskMeta["target"];
   updatedAt?: number;
 }
 
@@ -159,7 +154,7 @@ const TASK_SEARCH_SNIPPET_MAX_CHARS = 140;
 const TASK_SEARCH_SNIPPET_LIMIT = 4;
 const GROUPED_TASK_ORDER_STEP = 1000;
 const GROUPED_WORKSPACE_BOOTSTRAP_ONCE_KEY = "__zcode_internal_grouped_workspace_bootstrap_once__";
-const DEFAULT_TASK_GROUP_COLOR: ZCodeTaskGroupColor = "gray";
+const DEFAULT_TASK_GROUP_COLOR: XCodeTaskGroupColor = "gray";
 const WORKSPACE_BOOTSTRAP_TASK_GROUP_COLORS = [
   "red",
   "orange",
@@ -167,7 +162,7 @@ const WORKSPACE_BOOTSTRAP_TASK_GROUP_COLORS = [
   "green",
   "blue",
   "purple",
-] satisfies ZCodeTaskGroupColor[];
+] satisfies XCodeTaskGroupColor[];
 
 const logger = createServiceLogger("task-index-repo");
 
@@ -175,13 +170,13 @@ function workspaceKey(params: { workspacePath: string; workspaceIdentity?: strin
   return resolveWorkspaceKey(params);
 }
 
-function isTerminalTaskStatus(status: ZCodeTaskMeta["status"]): boolean {
+function isTerminalTaskStatus(status: XCodeTaskMeta["status"]): boolean {
   return status === "completed" || status === "error";
 }
 
 function shouldPreserveNewerTerminalStatus(
-  existingMeta: ZCodeTaskMeta | null,
-  incomingMeta: ZCodeTaskMeta,
+  existingMeta: XCodeTaskMeta | null,
+  incomingMeta: XCodeTaskMeta,
 ): boolean {
   if (!existingMeta || !isTerminalTaskStatus(existingMeta.status)) {
     return false;
@@ -207,13 +202,13 @@ function resolveTaskIndexRowWorkspaceIdentity(row: TaskIndexRow): string | undef
   return undefined;
 }
 
-function rowToMeta(row: TaskIndexRow): ZCodeTaskMeta {
+function rowToMeta(row: TaskIndexRow): XCodeTaskMeta {
   const workspaceIdentity = resolveTaskIndexRowWorkspaceIdentity(row);
   try {
     const parsed = zcodeTaskMetaSchema.safeParse(JSON.parse(row.meta_json));
     if (parsed.success) {
       return {
-        ...(parsed.data as ZCodeTaskMeta),
+        ...(parsed.data as XCodeTaskMeta),
         // SQLite 使用这些字段查询并隔离实体，旧 meta_json 里的 identity
         // 可能缺失或属于旧远端。读取时必须与行主键投影一致，sessions-index 才能
         // 按 workspaceKey + taskId 附加 running activity。
@@ -248,23 +243,20 @@ function rowToMeta(row: TaskIndexRow): ZCodeTaskMeta {
     workspaceIdentity,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    mode: row.mode as ZCodeTaskMeta["mode"],
+    mode: row.mode as XCodeTaskMeta["mode"],
     model: row.model ?? undefined,
-    // 旧行 provider 列可能残留三方 CLI 值；meta 回退投影时统一归一为 glm。
-    provider: row.provider
-      ? normalizeAgentProviderToZCodeAgent(row.provider as ZCodeTaskMeta["provider"])
-      : undefined,
-    migrationSource: (row.migration_source as ZCodeTaskMeta["migrationSource"]) ?? undefined,
+    provider: row.provider === XCODE_AGENT_PROVIDER ? XCODE_AGENT_PROVIDER : undefined,
+    migrationSource: (row.migration_source as XCodeTaskMeta["migrationSource"]) ?? undefined,
     forkedFromTaskId: row.forked_from_task_id ?? undefined,
     cronAutomationId: row.cron_automation_id ?? undefined,
     offPeakTaskId: row.off_peak_task_id ?? undefined,
     unreadAt: row.unread_at ?? undefined,
-    status: (row.task_status as ZCodeTaskMeta["status"]) ?? undefined,
+    status: (row.task_status as XCodeTaskMeta["status"]) ?? undefined,
   };
 }
 
 /** 序列化 meta 到 meta_json。cron 身份随 meta 一起写入（单一来源），另在 writeRecord 投影到 cron_automation_id 索引列。 */
-function serializeMetaJson(meta: ZCodeTaskMeta): string {
+function serializeMetaJson(meta: XCodeTaskMeta): string {
   return JSON.stringify(meta);
 }
 
@@ -364,7 +356,7 @@ function buildSearchSnippets(searchableText: string, search: string | null): str
   return snippets;
 }
 
-function rowToTaskListItem(row: TaskIndexRow, search: string | null): ZCodeTaskListItem {
+function rowToTaskListItem(row: TaskIndexRow, search: string | null): XCodeTaskListItem {
   const meta = rowToMeta(row);
   const snippets = buildSearchSnippets(row.searchable_text, search);
   if (snippets.length === 0) {
@@ -373,52 +365,7 @@ function rowToTaskListItem(row: TaskIndexRow, search: string | null): ZCodeTaskL
   return { ...meta, searchSnippet: snippets[0], searchSnippets: snippets };
 }
 
-function migrateLegacyTaskMetaJson(
-  rawMetaJson: string,
-  fallback: {
-    taskId: string;
-    workspacePath: string;
-    workspaceIdentity?: string;
-    title: string;
-    createdAt: number;
-    updatedAt: number;
-    mode: string;
-    provider?: string;
-    model?: string;
-    status?: ZCodeTaskMeta["status"];
-  },
-): ZCodeTaskMeta {
-  let parsed: Record<string, unknown> = {};
-  try {
-    const raw = JSON.parse(rawMetaJson) as unknown;
-    if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
-      parsed = raw as Record<string, unknown>;
-    }
-  } catch {
-    parsed = {};
-  }
-  const meta = {
-    ...parsed,
-    taskId: fallback.taskId,
-    traceId:
-      typeof parsed.traceId === "string" && parsed.traceId
-        ? parsed.traceId
-        : `zcode-${fallback.taskId}`,
-    title: fallback.title,
-    workspacePath: fallback.workspacePath,
-    workspaceIdentity: fallback.workspaceIdentity,
-    createdAt: typeof parsed.createdAt === "number" ? parsed.createdAt : fallback.createdAt,
-    updatedAt: fallback.updatedAt,
-    mode: typeof parsed.mode === "string" ? parsed.mode : fallback.mode,
-    provider: typeof parsed.provider === "string" ? parsed.provider : fallback.provider,
-    model: typeof parsed.model === "string" ? parsed.model : fallback.model,
-    status: typeof parsed.status === "string" ? parsed.status : fallback.status,
-    migrationSource: undefined,
-  };
-  return zcodeTaskMetaSchema.parse(meta) as ZCodeTaskMeta;
-}
-
-function isTaskGroupColor(value: string): value is ZCodeTaskGroupColor {
+function isTaskGroupColor(value: string): value is XCodeTaskGroupColor {
   return (
     value === "gray" ||
     value === "red" ||
@@ -430,7 +377,7 @@ function isTaskGroupColor(value: string): value is ZCodeTaskGroupColor {
   );
 }
 
-function rowToTaskGroup(row: TaskGroupRow): ZCodeTaskGroup {
+function rowToTaskGroup(row: TaskGroupRow): XCodeTaskGroup {
   return {
     id: row.group_id,
     title: row.title,
@@ -451,7 +398,7 @@ function workspaceGroupTitle(workspacePath: string): string {
   return leaf?.trim() || normalized.trim() || "Workspace";
 }
 
-function workspaceGroupColor(targetWorkspaceKey: string): ZCodeTaskGroupColor {
+function workspaceGroupColor(targetWorkspaceKey: string): XCodeTaskGroupColor {
   const hash = createHash("sha256").update(targetWorkspaceKey).digest();
   const colorIndex = hash.readUInt8(0) % WORKSPACE_BOOTSTRAP_TASK_GROUP_COLORS.length;
   return WORKSPACE_BOOTSTRAP_TASK_GROUP_COLORS[colorIndex] ?? DEFAULT_TASK_GROUP_COLOR;
@@ -475,7 +422,7 @@ function taskOrderNodeKey(params: {
   return JSON.stringify([workspaceKey(params), params.taskId]);
 }
 
-function groupedTopNodeOrderRef(node: ZCodeGroupedTaskViewNode): {
+function groupedTopNodeOrderRef(node: XCodeGroupedTaskViewNode): {
   nodeType: "group" | "task";
   nodeKey: string;
   mapKey: string;
@@ -496,8 +443,8 @@ function groupedTopNodeOrderRef(node: ZCodeGroupedTaskViewNode): {
 }
 
 function compareGroupedNodes(
-  left: ZCodeGroupedTaskViewNode,
-  right: ZCodeGroupedTaskViewNode,
+  left: XCodeGroupedTaskViewNode,
+  right: XCodeGroupedTaskViewNode,
 ): number {
   const leftOrder = left.sortOrder ?? 0;
   const rightOrder = right.sortOrder ?? 0;
@@ -507,7 +454,7 @@ function compareGroupedNodes(
   return groupedTopNodeOrderRef(left).mapKey.localeCompare(groupedTopNodeOrderRef(right).mapKey);
 }
 
-function compareCronGroupTasks(left: ZCodeTaskListItem, right: ZCodeTaskListItem): number {
+function compareCronGroupTasks(left: XCodeTaskListItem, right: XCodeTaskListItem): number {
   // cron 系统分组固定按创建时间倒序：最新的定时任务结果始终展示在最前面，
   // 不参与用户手动排序（sort_order），新 session 到达时天然排到组顶部。
   if (right.createdAt !== left.createdAt) {
@@ -517,8 +464,8 @@ function compareCronGroupTasks(left: ZCodeTaskListItem, right: ZCodeTaskListItem
 }
 
 function compareGroupTasks(
-  left: ZCodeTaskListItem,
-  right: ZCodeTaskListItem,
+  left: XCodeTaskListItem,
+  right: XCodeTaskListItem,
   memberByTaskKey: Map<string, TaskGroupMemberRow>,
 ): number {
   const leftMember = memberByTaskKey.get(taskNodeKey(left));
@@ -587,18 +534,7 @@ export class TaskIndexRepo {
     if (!isTasksStorageMigrated(path, this.db)) runTasksDatabaseMigrations(this.db);
     this.backfillOffPeakTaskMarkers();
     this.backfillOffPeakGroupMemberships();
-    // Bugfix: z-code-2 早期列表 task_id 是 wrapper id，真实 ZCode session id 在旧列
-    // acp_session_id。直接运行时映射会让 read/send/subscribe 到处变成双 ID 兜底；
-    // 初始化时把索引行迁到真实 session id，后续统一走新协议正常路径。
-    this.migrateLegacyAcpTaskIds();
     this.cleanupDeletedTaskGroupingReferences();
-  }
-
-  private hasColumn(table: string, column: string): boolean {
-    const columns = this.getDatabase().prepare(`PRAGMA table_info(${table})`).all() as Array<{
-      name: string;
-    }>;
-    return columns.some((item) => item.name === column);
   }
 
   /**
@@ -664,205 +600,6 @@ export class TaskIndexRepo {
     }
   }
 
-  private migrateLegacyAcpTaskIds(): void {
-    if (!this.hasColumn("tasks", "acp_session_id")) {
-      return;
-    }
-
-    const db = this.getDatabase();
-    const rows = db
-      .prepare(
-        `SELECT
-          workspace_key,
-          workspace_path,
-          workspace_identity,
-          task_id,
-          title,
-          task_status,
-          provider,
-          acp_session_id,
-          mode,
-          model,
-          migration_source,
-          forked_from_task_id,
-          cron_automation_id,
-          off_peak_task_id,
-          created_at,
-          updated_at,
-          unread_at,
-          last_unread_at,
-          pinned,
-          archived,
-          deleted,
-          title_overridden,
-          searchable_text,
-          meta_json
-        FROM tasks
-        WHERE acp_session_id IS NOT NULL
-          AND trim(acp_session_id) <> ''
-          AND trim(acp_session_id) <> task_id`,
-      )
-      .all() as unknown as LegacyAcpTaskIndexRow[];
-    if (rows.length === 0) {
-      return;
-    }
-
-    const findTarget = db.prepare(
-      `SELECT
-        workspace_key,
-        workspace_path,
-        workspace_identity,
-        task_id,
-        title,
-        task_status,
-        provider,
-        mode,
-        model,
-        migration_source,
-        forked_from_task_id,
-        created_at,
-        updated_at,
-        unread_at,
-        last_unread_at,
-        pinned,
-        archived,
-        deleted,
-        title_overridden,
-        searchable_text,
-        meta_json
-      FROM tasks
-      WHERE workspace_key = ? AND task_id = ?`,
-    );
-    const updateRow = db.prepare(
-      `UPDATE tasks
-      SET task_id = @task_id,
-        title = @title,
-        task_status = @task_status,
-        provider = @provider,
-        mode = @mode,
-        model = @model,
-        migration_source = @migration_source,
-        forked_from_task_id = @forked_from_task_id,
-        created_at = @created_at,
-        updated_at = @updated_at,
-        unread_at = @unread_at,
-        last_unread_at = @last_unread_at,
-        pinned = @pinned,
-        archived = @archived,
-        deleted = @deleted,
-        title_overridden = @title_overridden,
-        searchable_text = @searchable_text,
-        meta_json = @meta_json,
-        acp_session_id = NULL
-      WHERE workspace_key = @workspace_key AND task_id = @old_task_id`,
-    );
-    const updateTarget = db.prepare(
-      `UPDATE tasks
-      SET title = @title,
-        task_status = @task_status,
-        provider = @provider,
-        mode = @mode,
-        model = @model,
-        migration_source = @migration_source,
-        forked_from_task_id = @forked_from_task_id,
-        created_at = @created_at,
-        updated_at = @updated_at,
-        unread_at = @unread_at,
-        last_unread_at = @last_unread_at,
-        pinned = @pinned,
-        archived = @archived,
-        deleted = @deleted,
-        title_overridden = @title_overridden,
-        searchable_text = @searchable_text,
-        meta_json = @meta_json
-      WHERE workspace_key = @workspace_key AND task_id = @task_id`,
-    );
-    const deleteOld = db.prepare(`DELETE FROM tasks WHERE workspace_key = ? AND task_id = ?`);
-
-    db.exec("BEGIN IMMEDIATE");
-    try {
-      let migrated = 0;
-      for (const row of rows) {
-        const nextTaskId = row.acp_session_id?.trim();
-        if (!nextTaskId) {
-          continue;
-        }
-        const target = findTarget.get(row.workspace_key, nextTaskId) as TaskIndexRow | undefined;
-        const merged = this.buildLegacyAcpMigratedRow(row, target ?? null, nextTaskId);
-        if (target) {
-          updateTarget.run(merged);
-          deleteOld.run(row.workspace_key, row.task_id);
-        } else {
-          updateRow.run({ ...merged, old_task_id: row.task_id });
-        }
-        this.migrateLegacyAcpTaskGroupingReferences(row.workspace_key, row.task_id, nextTaskId);
-        migrated += 1;
-      }
-      db.exec("COMMIT");
-      if (migrated > 0) {
-        logger.info(undefined, `已迁移 legacy ACP task_id 到 ZCode session id 数量=${migrated}`);
-      }
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw error;
-    }
-  }
-
-  private migrateLegacyAcpTaskGroupingReferences(
-    workspaceKeyValue: string,
-    oldTaskId: string,
-    taskId: string,
-  ): void {
-    const db = this.getDatabase();
-    const now = Date.now();
-    const oldTaskNodeKey = `${workspaceKeyValue}\u0000${oldTaskId}`;
-    const nextTaskNodeKey = `${workspaceKeyValue}\u0000${taskId}`;
-
-    // Bugfix: task_group_members / task_group_view_node_orders 都以 task_id 作为引用 key。
-    // 只迁 tasks 主表会让旧 ACP 分组关系继续指向 wrapper id，分组视图查询不到真实 session。
-    const targetMember = db
-      .prepare(
-        `SELECT 1 AS found
-        FROM task_group_members
-        WHERE workspace_key = ? AND task_id = ?
-        LIMIT 1`,
-      )
-      .get(workspaceKeyValue, taskId) as { found: number } | undefined;
-    if (targetMember) {
-      db.prepare(
-        `DELETE FROM task_group_members
-        WHERE workspace_key = ? AND task_id = ?`,
-      ).run(workspaceKeyValue, oldTaskId);
-    } else {
-      db.prepare(
-        `UPDATE task_group_members
-        SET task_id = ?, updated_at = ?
-        WHERE workspace_key = ? AND task_id = ?`,
-      ).run(taskId, now, workspaceKeyValue, oldTaskId);
-    }
-
-    const targetOrder = db
-      .prepare(
-        `SELECT 1 AS found
-        FROM task_group_view_node_orders
-        WHERE node_type = 'task' AND node_key = ?
-        LIMIT 1`,
-      )
-      .get(nextTaskNodeKey) as { found: number } | undefined;
-    if (targetOrder) {
-      db.prepare(
-        `DELETE FROM task_group_view_node_orders
-        WHERE node_type = 'task' AND node_key = ?`,
-      ).run(oldTaskNodeKey);
-      return;
-    }
-    db.prepare(
-      `UPDATE task_group_view_node_orders
-      SET node_key = ?, updated_at = ?
-      WHERE node_type = 'task' AND node_key = ?`,
-    ).run(nextTaskNodeKey, now, oldTaskNodeKey);
-  }
-
   private deleteTaskGroupingReferencesReady(workspaceKeyValue: string, taskId: string): void {
     const database = this.getDatabase();
     database
@@ -904,99 +641,6 @@ export class TaskIndexRepo {
       database.exec("ROLLBACK");
       throw error;
     }
-  }
-
-  private buildLegacyAcpMigratedRow(
-    source: LegacyAcpTaskIndexRow,
-    target: TaskIndexRow | null,
-    taskId: string,
-  ): Record<string, SQLInputValue> {
-    const sourceMeta = migrateLegacyTaskMetaJson(source.meta_json, {
-      taskId,
-      workspacePath: source.workspace_path,
-      workspaceIdentity: source.workspace_identity ?? undefined,
-      title: source.title,
-      createdAt: source.created_at,
-      updatedAt: source.updated_at,
-      mode: source.mode,
-      provider: source.provider ?? undefined,
-      model: source.model ?? undefined,
-      status: source.task_status ? (source.task_status as ZCodeTaskMeta["status"]) : undefined,
-    });
-    if (!target) {
-      return {
-        workspace_key: source.workspace_key,
-        task_id: taskId,
-        title: source.title,
-        task_status: source.task_status,
-        provider: source.provider,
-        mode: source.mode,
-        model: source.model,
-        migration_source: null,
-        forked_from_task_id: source.forked_from_task_id,
-        created_at: source.created_at,
-        updated_at: source.updated_at,
-        unread_at: source.unread_at,
-        last_unread_at: Math.max(source.last_unread_at, source.unread_at ?? 0),
-        pinned: source.pinned,
-        archived: source.archived,
-        deleted: source.deleted,
-        title_overridden: source.title_overridden,
-        searchable_text: source.searchable_text,
-        meta_json: JSON.stringify(sourceMeta),
-      };
-    }
-
-    const targetMeta = migrateLegacyTaskMetaJson(target.meta_json, {
-      ...sourceMeta,
-      taskId,
-      workspacePath: target.workspace_path,
-      workspaceIdentity: target.workspace_identity ?? undefined,
-      title: target.title || source.title,
-      createdAt: Math.min(target.created_at, source.created_at),
-      updatedAt: Math.max(target.updated_at, source.updated_at),
-      mode: target.mode || source.mode,
-      provider: target.provider ?? source.provider ?? undefined,
-      model: target.model ?? source.model ?? undefined,
-      status: target.task_status
-        ? (target.task_status as ZCodeTaskMeta["status"])
-        : source.task_status
-          ? (source.task_status as ZCodeTaskMeta["status"])
-          : undefined,
-    });
-    const title = source.title_overridden === 1 ? source.title : target.title || source.title;
-    const updatedAt = Math.max(target.updated_at, source.updated_at);
-    const unreadAt =
-      source.unread_at !== null && target.unread_at !== null
-        ? Math.max(source.unread_at, target.unread_at)
-        : (source.unread_at ?? target.unread_at);
-    return {
-      workspace_key: source.workspace_key,
-      task_id: taskId,
-      title,
-      task_status: target.task_status ?? source.task_status,
-      provider: target.provider ?? source.provider,
-      mode: target.mode || source.mode,
-      model: target.model ?? source.model,
-      migration_source: null,
-      forked_from_task_id: target.forked_from_task_id ?? source.forked_from_task_id,
-      created_at: Math.min(target.created_at, source.created_at),
-      updated_at: updatedAt,
-      unread_at: unreadAt,
-      last_unread_at: Math.max(source.last_unread_at, target.last_unread_at, unreadAt ?? 0),
-      pinned: source.pinned === 1 || target.pinned === 1 ? 1 : 0,
-      archived: source.archived === 1 || target.archived === 1 ? 1 : 0,
-      deleted: source.deleted === 1 ? 1 : target.deleted,
-      title_overridden: source.title_overridden === 1 || target.title_overridden === 1 ? 1 : 0,
-      searchable_text: target.searchable_text || source.searchable_text,
-      meta_json: JSON.stringify({
-        ...targetMeta,
-        title,
-        updatedAt,
-        unreadAt: unreadAt ?? undefined,
-        migrationSource: undefined,
-      }),
-    };
   }
 
   private getDatabase(): DatabaseSyncInstance {
@@ -1105,7 +749,7 @@ export class TaskIndexRepo {
   }
 
   private normalizeGroupedTopNodeOrders(
-    nodes: ZCodeGroupedTaskViewNode[],
+    nodes: XCodeGroupedTaskViewNode[],
     orderByNodeKey: Map<string, TaskGroupViewNodeOrderRow>,
   ): void {
     const missingNodes = nodes
@@ -1165,7 +809,7 @@ export class TaskIndexRepo {
 
   private normalizeGroupMemberOrders(
     groupId: string,
-    tasks: ZCodeTaskListItem[],
+    tasks: XCodeTaskListItem[],
     memberByTaskKey: Map<string, TaskGroupMemberRow>,
   ): void {
     const missingTasks = tasks
@@ -1229,8 +873,8 @@ export class TaskIndexRepo {
     workspacePath: string;
     workspaceIdentity?: string;
     olderThanDays: number;
-    provider?: ZCodeProvider;
-  }): Promise<ZCodeTaskMeta[]> {
+    provider?: XCodeProvider;
+  }): Promise<XCodeTaskMeta[]> {
     await this.ensureReady();
     const normalizedDays = Math.max(1, Math.floor(params.olderThanDays));
     const cutoff = Date.now() - normalizedDays * 24 * 60 * 60 * 1000;
@@ -1245,7 +889,7 @@ export class TaskIndexRepo {
     ];
     const args: Array<string | number> = [workspaceKey(params), cutoff];
     if (params.provider) {
-      appendZCodeAgentIndexedProviderFilter(where, args, params.provider);
+      appendXCodeAgentIndexedProviderFilter(where, args, params.provider);
     }
     const rows = this.getDatabase()
       .prepare(
@@ -1494,7 +1138,7 @@ export class TaskIndexRepo {
     }
   }
 
-  private writeRecord(record: TaskIndexWriteRecord): ZCodeTaskMeta {
+  private writeRecord(record: TaskIndexWriteRecord): XCodeTaskMeta {
     // searchable_text 传 undefined 表示"不动现有值"。读一次 row 拿到当前值，
     // 否则 ON CONFLICT 时 excluded.searchable_text 会被赋成空字符串，把已索引正文清空。
     const existing =
@@ -1626,7 +1270,7 @@ export class TaskIndexRepo {
   }
 
   async syncTaskMeta(params: {
-    meta: ZCodeTaskMeta;
+    meta: XCodeTaskMeta;
     pinned?: boolean;
     archived?: boolean;
     deleted?: boolean;
@@ -1634,26 +1278,26 @@ export class TaskIndexRepo {
     // 调用方可以从 snapshot.messages 计算正文，传进来同步刷新 searchable_text。
     // 不传则保留 sqlite 已有的 searchable_text（在 writeRecord 里兜底）。
     searchableText?: string;
-  }): Promise<ZCodeTaskMeta> {
+  }): Promise<XCodeTaskMeta> {
     const result = await this.syncTaskMetaWithGroupedAdmission(params, false);
     return result.meta;
   }
 
   /** 首次公开 root task 时，原子提交 task row 与 grouped 顶层顺序。 */
   async syncTaskMetaAtGroupedTop(params: {
-    meta: ZCodeTaskMeta;
+    meta: XCodeTaskMeta;
     pinned?: boolean;
     archived?: boolean;
     deleted?: boolean;
     titleOverridden?: boolean;
     searchableText?: string;
-  }): Promise<{ meta: ZCodeTaskMeta; initializedGroupedOrder: boolean }> {
+  }): Promise<{ meta: XCodeTaskMeta; initializedGroupedOrder: boolean }> {
     return this.syncTaskMetaWithGroupedAdmission(params, true);
   }
 
   private async syncTaskMetaWithGroupedAdmission(
     params: {
-      meta: ZCodeTaskMeta;
+      meta: XCodeTaskMeta;
       pinned?: boolean;
       archived?: boolean;
       deleted?: boolean;
@@ -1661,7 +1305,7 @@ export class TaskIndexRepo {
       searchableText?: string;
     },
     initializeGroupedAtTop: boolean,
-  ): Promise<{ meta: ZCodeTaskMeta; initializedGroupedOrder: boolean }> {
+  ): Promise<{ meta: XCodeTaskMeta; initializedGroupedOrder: boolean }> {
     await this.ensureReady();
     return this.enqueueWrite(params.meta, () => {
       const database = this.getDatabase();
@@ -1679,7 +1323,7 @@ export class TaskIndexRepo {
           existingMeta,
           params.meta,
         );
-        const meta: ZCodeTaskMeta = {
+        const meta: XCodeTaskMeta = {
           ...params.meta,
           // agent 只负责 session 核心标题，用户手动重命名属于 app 侧 task 状态。
           // 同步 agent snapshot 时保留已覆盖标题，避免后台状态刷新把用户标题冲掉。
@@ -1695,9 +1339,9 @@ export class TaskIndexRepo {
           target: Object.prototype.hasOwnProperty.call(params.meta, "target")
             ? params.meta.target
             : existingMeta?.target,
-          // Claude Code 导入升级成真实 ZCode session 后，protocol snapshot
+          // Claude Code 导入升级成真实 XCode session 后，protocol snapshot
           // 本身不知道迁移来源。同步运行态快照时保留已有 migrationSource，避免
-          // 列表过滤和后续切模型把导入任务重新当成普通 ZCode 任务。
+          // 列表过滤和后续切模型把导入任务重新当成普通 XCode 任务。
           migrationSource: params.meta.migrationSource ?? existingMeta?.migrationSource,
           // 同步运行态快照时保留已有 cron automation 身份：运行态 protocol snapshot 的 meta 不带 cron 标记，
           // 不用已存值兜底会在后续 sync 时把 cron 身份冲掉，导致 icon / 分组 / 关联查询失效。
@@ -1744,7 +1388,7 @@ export class TaskIndexRepo {
    * 幂等：分组行、视图排序、成员关系都用 INSERT OR IGNORE，绝不覆盖用户手动整理的结果。
    * 仅在 session 首次获得 cronAutomationId 时由 syncTaskMeta 调用一次。
    */
-  private ensureCronGroupMembership(meta: ZCodeTaskMeta): void {
+  private ensureCronGroupMembership(meta: XCodeTaskMeta): void {
     this.ensureSystemGroupMembership(meta, {
       groupId: CRON_DEFAULT_GROUP_ID,
       title: "cron",
@@ -1758,7 +1402,7 @@ export class TaskIndexRepo {
    * 或由 bootstrap 为存量回填补齐。
    */
   private ensureOffPeakGroupMembership(
-    meta: Pick<ZCodeTaskMeta, "workspacePath" | "workspaceIdentity" | "taskId">,
+    meta: Pick<XCodeTaskMeta, "workspacePath" | "workspaceIdentity" | "taskId">,
   ): void {
     // 闲时任务暂不支持远程 workspace：远程会话即使带标记也不归入闲时系统分组。
     if (meta.workspaceIdentity && isRemoteWorkspaceIdentity(meta.workspaceIdentity)) {
@@ -1772,7 +1416,7 @@ export class TaskIndexRepo {
   }
 
   private ensureSystemGroupMembership(
-    meta: Pick<ZCodeTaskMeta, "workspacePath" | "workspaceIdentity" | "taskId">,
+    meta: Pick<XCodeTaskMeta, "workspacePath" | "workspaceIdentity" | "taskId">,
     params: { groupId: string; title: string; color: string },
   ): void {
     const database = this.getDatabase();
@@ -1824,7 +1468,7 @@ export class TaskIndexRepo {
    * 订阅。首次 snapshot 必须能补齐全新的 tasks-index.sqlite，但不能用摘要默认值
    * 覆盖已有的 pin/archive/unread/手动标题，也不能与随后到达的完整 snapshot 竞态回写。
    */
-  async seedTaskMetaIfMissing(meta: ZCodeTaskMeta): Promise<ZCodeTaskMeta> {
+  async seedTaskMetaIfMissing(meta: XCodeTaskMeta): Promise<XCodeTaskMeta> {
     await this.ensureReady();
     return this.enqueueWrite(meta, () => {
       const existing = this.getTaskRow(meta);
@@ -1846,7 +1490,7 @@ export class TaskIndexRepo {
     workspaceIdentity?: string;
     taskId: string;
     expectedUnreadAt: number;
-  }): Promise<{ meta: ZCodeTaskMeta; cleared: boolean }> {
+  }): Promise<{ meta: XCodeTaskMeta; cleared: boolean }> {
     await this.ensureReady();
     return this.enqueueWrite(params, () => {
       const database = this.getDatabase();
@@ -1862,7 +1506,7 @@ export class TaskIndexRepo {
           return { meta: current, cleared: false };
         }
 
-        const nextMeta: ZCodeTaskMeta = {
+        const nextMeta: XCodeTaskMeta = {
           ...current,
           unreadAt: undefined,
         };
@@ -1889,7 +1533,7 @@ export class TaskIndexRepo {
     workspacePath: string;
     workspaceIdentity?: string;
     taskId: string;
-  }): Promise<ZCodeTaskMeta | null> {
+  }): Promise<XCodeTaskMeta | null> {
     await this.ensureReady();
     return this.enqueueWrite(params, () => {
       const database = this.getDatabase();
@@ -1924,7 +1568,7 @@ export class TaskIndexRepo {
     workspaceIdentity?: string;
     taskId: string;
     patch: TaskIndexStatePatch;
-  }): Promise<ZCodeTaskMeta> {
+  }): Promise<XCodeTaskMeta> {
     await this.ensureReady();
     return this.enqueueWrite(params, () => {
       const database = this.getDatabase();
@@ -1955,7 +1599,7 @@ export class TaskIndexRepo {
           : "unreadAt" in params.patch
             ? undefined
             : current.unreadAt;
-        const nextMeta: ZCodeTaskMeta = {
+        const nextMeta: XCodeTaskMeta = {
           ...current,
           title: params.patch.title ?? current.title,
           titleOverridden: params.patch.titleOverridden ?? current.titleOverridden,
@@ -1993,7 +1637,7 @@ export class TaskIndexRepo {
     workspaceIdentity?: string;
     taskId: string;
     patch: Pick<TaskIndexStatePatch, "title" | "status" | "lastError" | "target" | "updatedAt">;
-  }): Promise<ZCodeTaskMeta | null> {
+  }): Promise<XCodeTaskMeta | null> {
     await this.ensureReady();
     return this.enqueueWrite(params, () => {
       const row = this.getTaskRow(params);
@@ -2002,7 +1646,7 @@ export class TaskIndexRepo {
       }
       const current = rowToMeta(row);
       const canAcceptAgentTitle = row.title_overridden !== 1;
-      const nextMeta: ZCodeTaskMeta = {
+      const nextMeta: XCodeTaskMeta = {
         ...current,
         title: canAcceptAgentTitle && params.patch.title ? params.patch.title : current.title,
         titleOverridden: row.title_overridden === 1,
@@ -2024,11 +1668,11 @@ export class TaskIndexRepo {
   async listTaskMetas(params: {
     workspacePath?: string;
     workspaceIdentity?: string;
-    provider?: ZCodeProvider;
+    provider?: XCodeProvider;
     pinned?: boolean;
     archived?: boolean;
     includeDeleted?: boolean;
-  }): Promise<ZCodeTaskMeta[]> {
+  }): Promise<XCodeTaskMeta[]> {
     await this.ensureReady();
     // listTaskMetas 支持不传 workspacePath 查询全部任务，但 workspaceKey 只接受必填路径。
     // 先把可选入参收窄成明确的 workspace target，避免类型层把全量查询和 workspace 查询混在一起。
@@ -2066,7 +1710,7 @@ export class TaskIndexRepo {
         FROM tasks
         WHERE (@workspace_key IS NULL OR workspace_key = @workspace_key)
           AND (@include_deleted = 1 OR deleted = 0)
-          -- Bugfix: ZCode Agent 列表只接受当前 glm provider；Claude Code 导入也属于非 glm 历史数据。
+          -- 按请求指定的 runtime provider 过滤；迁移来源另存于 migration_source。
           AND (@provider IS NULL OR provider = @provider)
           AND (@pinned IS NULL OR pinned = @pinned)
           AND (@archived IS NULL OR archived = @archived)
@@ -2091,7 +1735,7 @@ export class TaskIndexRepo {
   async listDeletedTaskIds(params: {
     workspacePath: string;
     workspaceIdentity?: string;
-    provider?: ZCodeProvider;
+    provider?: XCodeProvider;
   }): Promise<string[]> {
     await this.ensureReady();
     const workspaceKeyValue = workspaceKey({
@@ -2118,7 +1762,7 @@ export class TaskIndexRepo {
    * 列出某条 automation 产生的所有 cron session（用于 automation 详情展开、关联查询）。
    * 走 cron_automation_id 索引列，只返回未删除的 session，按创建时间倒序。
    */
-  async listSessionsByAutomation(automationId: string): Promise<ZCodeTaskMeta[]> {
+  async listSessionsByAutomation(automationId: string): Promise<XCodeTaskMeta[]> {
     await this.ensureReady();
     const rows = this.getDatabase()
       .prepare(
@@ -2155,8 +1799,8 @@ export class TaskIndexRepo {
   }
 
   async queryTaskList(
-    params: ZCodeTaskListQuery & { provider?: ZCodeProvider },
-  ): Promise<ZCodeTaskListResult> {
+    params: XCodeTaskListQuery & { provider?: XCodeProvider },
+  ): Promise<XCodeTaskListResult> {
     await this.ensureReady();
     const workspaceKeys = normalizeWorkspaceKeys(params.workspaceScopes);
     if (workspaceKeys.length === 0) {
@@ -2169,7 +1813,7 @@ export class TaskIndexRepo {
     const where = ["deleted = 0", `workspace_key IN (${workspaceKeys.map(() => "?").join(", ")})`];
     const args: Array<string | number> = [...workspaceKeys];
     if (params.provider) {
-      appendZCodeAgentIndexedProviderFilter(where, args, params.provider);
+      appendXCodeAgentIndexedProviderFilter(where, args, params.provider);
     }
     if (params.kind === "pinned") {
       where.push("pinned = 1", "archived = 0");
@@ -2251,8 +1895,8 @@ export class TaskIndexRepo {
 
   async createTaskGroup(params?: {
     title?: string;
-    color?: ZCodeTaskGroupColor;
-  }): Promise<ZCodeTaskGroup> {
+    color?: XCodeTaskGroupColor;
+  }): Promise<XCodeTaskGroup> {
     await this.ensureReady();
     const now = Date.now();
     const id = `task-group-${randomUUID()}`;
@@ -2286,7 +1930,7 @@ export class TaskIndexRepo {
     };
   }
 
-  async renameTaskGroup(params: { groupId: string; title: string }): Promise<ZCodeTaskGroup> {
+  async renameTaskGroup(params: { groupId: string; title: string }): Promise<XCodeTaskGroup> {
     await this.ensureReady();
     const title = params.title.trim() || "New Group";
     const now = Date.now();
@@ -2321,8 +1965,8 @@ export class TaskIndexRepo {
 
   async updateTaskGroupColor(params: {
     groupId: string;
-    color: ZCodeTaskGroupColor;
-  }): Promise<ZCodeTaskGroup> {
+    color: XCodeTaskGroupColor;
+  }): Promise<XCodeTaskGroup> {
     await this.ensureReady();
     if (!isTaskGroupColor(params.color)) {
       throw new Error("Task group 颜色无效");
@@ -2381,12 +2025,12 @@ export class TaskIndexRepo {
     }
   }
 
-  async initializeGroupedTaskAtTop(params: ZCodeGroupedTaskRef): Promise<boolean> {
+  async initializeGroupedTaskAtTop(params: XCodeGroupedTaskRef): Promise<boolean> {
     await this.ensureReady();
     return this.initializeGroupedTaskAtTopReady(params);
   }
 
-  private initializeGroupedTaskAtTopReady(params: ZCodeGroupedTaskRef): boolean {
+  private initializeGroupedTaskAtTopReady(params: XCodeGroupedTaskRef): boolean {
     const row = this.getTaskRow(params);
     if (!row || row.deleted === 1 || row.archived === 1 || row.pinned === 1) {
       return false;
@@ -2429,8 +2073,8 @@ export class TaskIndexRepo {
   // 本方法仅剩 applyGroupedTaskViewOrder 的回包复用（UI 已不采信该回包），
   // 随 applyGroupedTaskViewOrder 返回面收敛一并收口。
   async queryGroupedTaskView(
-    params: ZCodeGroupedTaskViewQuery & { provider?: ZCodeProvider },
-  ): Promise<ZCodeGroupedTaskView> {
+    params: XCodeGroupedTaskViewQuery & { provider?: XCodeProvider },
+  ): Promise<XCodeGroupedTaskView> {
     await this.ensureReady();
     const includeAllWorkspaces = params.includeAllWorkspaces === true;
     const requestedWorkspaceScopes = normalizeWorkspaceBootstrapScopes(params.workspaceScopes);
@@ -2445,9 +2089,9 @@ export class TaskIndexRepo {
     ];
     const activeTaskArgs: Array<string | number> = includeAllWorkspaces ? [] : [...workspaceKeys];
     if (params.provider) {
-      // grouped 和 workspace 都是 ZCode Agent 任务列表入口，必须共享旧 provider
-      // 残留过滤口径；否则历史第三方 provider 的索引行会只在 grouped 里冒出来。
-      appendZCodeAgentIndexedProviderFilter(activeTaskWhere, activeTaskArgs, params.provider);
+      // grouped 和 workspace 都是 XCode Agent 任务列表入口，必须共享旧 provider
+      // 残留过滤口径；否则历史 claude/codex/gemini 索引行会只在 grouped 里冒出来。
+      appendXCodeAgentIndexedProviderFilter(activeTaskWhere, activeTaskArgs, params.provider);
     }
     const activeTasks =
       !includeAllWorkspaces && workspaceKeys.length === 0
@@ -2570,10 +2214,10 @@ export class TaskIndexRepo {
       ]),
     );
     const groupedVisibleTaskKeys = new Set<string>();
-    const nodes: ZCodeGroupedTaskViewNode[] = groups.map((group) => {
+    const nodes: XCodeGroupedTaskViewNode[] = groups.map((group) => {
       const groupTasks = (membersByGroupId.get(group.id) ?? [])
         .map((member) => activeTaskByKey.get(`${member.workspace_key}\u0000${member.task_id}`))
-        .filter((task): task is ZCodeTaskListItem => Boolean(task));
+        .filter((task): task is XCodeTaskListItem => Boolean(task));
       if (group.id === CRON_DEFAULT_GROUP_ID) {
         // cron 系统分组不走用户手动排序，固定按创建时间倒序展示最新结果。
         groupTasks.sort(compareCronGroupTasks);
@@ -2619,7 +2263,7 @@ export class TaskIndexRepo {
    */
   async queryGroupedTaskViewStructure(params: {
     workspaceScopes: Array<{ workspacePath: string; workspaceIdentity?: string }>;
-  }): Promise<ZCodeGroupedTaskViewStructure> {
+  }): Promise<XCodeGroupedTaskViewStructure> {
     await this.ensureReady();
     const visibleWorkspaceKeys = new Set(normalizeWorkspaceKeys(params.workspaceScopes));
     const bootstrapRows = this.getDatabase()
@@ -2666,7 +2310,7 @@ export class TaskIndexRepo {
         FROM task_group_members`,
       )
       .all() as unknown as TaskGroupMemberRow[];
-    const members: ZCodeGroupedTaskViewStructureMember[] = memberRows.map((row) => ({
+    const members: XCodeGroupedTaskViewStructureMember[] = memberRows.map((row) => ({
       groupId: row.group_id,
       workspaceKey: row.workspace_key,
       workspacePath: row.workspace_path,
@@ -2686,7 +2330,7 @@ export class TaskIndexRepo {
         FROM task_group_view_node_orders`,
       )
       .all() as unknown as TaskGroupViewNodeOrderRow[];
-    const topLevelOrders: ZCodeGroupedTaskViewStructureTopOrder[] = [];
+    const topLevelOrders: XCodeGroupedTaskViewStructureTopOrder[] = [];
     for (const row of orderRows) {
       if (row.node_type === "group") {
         topLevelOrders.push({
@@ -2719,8 +2363,8 @@ export class TaskIndexRepo {
   }
 
   async applyGroupedTaskViewOrder(
-    params: ZCodeGroupedTaskViewOrderInput & { provider?: ZCodeProvider },
-  ): Promise<ZCodeGroupedTaskView> {
+    params: XCodeGroupedTaskViewOrderInput & { provider?: XCodeProvider },
+  ): Promise<XCodeGroupedTaskView> {
     await this.ensureReady();
     const workspaceKeys = new Set(normalizeWorkspaceKeys(params.workspaceScopes));
     const now = Date.now();
@@ -2733,7 +2377,7 @@ export class TaskIndexRepo {
         }>
       ).map((row) => row.group_id),
     );
-    const validateTaskRef = (task: ZCodeGroupedTaskRef): string | null => {
+    const validateTaskRef = (task: XCodeGroupedTaskRef): string | null => {
       const key = workspaceKey(task);
       if (!workspaceKeys.has(key)) {
         throw new Error("Grouped task order 包含当前 scope 外的 task");
@@ -2743,8 +2387,8 @@ export class TaskIndexRepo {
         throw new Error("Grouped task order 包含不可见 task");
       }
       if (params.provider && row.provider !== params.provider) {
-        // grouped 保存回包之前没有 provider 边界，旧第三方 provider 的排序残留会在保存后重新展示。
-        // 带 provider 的 ZCode Agent 视图只接受当前 glm task；旧 provider 引用作为不可见遗留数据跳过。
+        // grouped 保存回包之前没有 provider 边界，旧 gemini/codex/claude 排序残留会在保存后重新展示。
+        // 带 provider 的 XCode Agent 视图只接受当前 glm task；旧 provider 引用作为不可见遗留数据跳过。
         return null;
       }
       return key;
@@ -2752,8 +2396,8 @@ export class TaskIndexRepo {
 
     const topLevelTaskKeys = new Set<string>();
     const groupedTaskKeys = new Set<string>();
-    const visibleTopLevelNodes: ZCodeGroupedTaskViewTopLevelNodeRef[] = [];
-    const visibleGroups: Array<{ groupId: string; taskRefs: ZCodeGroupedTaskRef[] }> = [];
+    const visibleTopLevelNodes: XCodeGroupedTaskViewTopLevelNodeRef[] = [];
+    const visibleGroups: Array<{ groupId: string; taskRefs: XCodeGroupedTaskRef[] }> = [];
     for (const node of params.topLevelNodes) {
       if (node.type === "group") {
         if (!groupIds.has(node.groupId)) {
@@ -2774,7 +2418,7 @@ export class TaskIndexRepo {
       if (!groupIds.has(group.groupId)) {
         throw new Error("Grouped task order 包含不存在的 group");
       }
-      const visibleTaskRefs: ZCodeGroupedTaskRef[] = [];
+      const visibleTaskRefs: XCodeGroupedTaskRef[] = [];
       for (const taskRef of group.taskRefs) {
         const workspaceKey = validateTaskRef(taskRef);
         if (!workspaceKey) {
@@ -2912,7 +2556,7 @@ export class TaskIndexRepo {
     workspacePath: string;
     workspaceIdentity?: string;
     taskId: string;
-  }): Promise<ZCodeTaskMeta | null> {
+  }): Promise<XCodeTaskMeta | null> {
     await this.ensureReady();
     const row = this.getTaskRow(params);
     if (!row || row.deleted === 1) {

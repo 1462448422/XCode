@@ -18,10 +18,11 @@ import {
   ThemeSelect,
 } from "@/settings/SettingsPageParts.js";
 import { getCodePreviewTheme } from "@/lib/codePreviewPreferences.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type { CodePreviewSettings } from "@/store/index.js";
 import { THEME_MODES } from "@/settings/settingsPageConfig.js";
 import { MAX_UI_FONT_SIZE_PX, MIN_UI_FONT_SIZE_PX } from "@/lib/uiFontSize.js";
+import { CustomSkinSetting } from "@/settings/CustomSkinSetting.js";
 
 function FontSizeInput({
   value,
@@ -93,7 +94,7 @@ export function AppearanceSectionContent({
   uiFontSizePx: number;
   setUiFontSizePx: (fontSizePx: number) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const activePreviewMode = resolveTheme(theme);
 
   return (
@@ -152,6 +153,8 @@ export function AppearanceSectionContent({
                 />
               }
             />
+            {/* 原生换肤——底座主题 + token 覆盖 + 背景图。 */}
+            <CustomSkinSetting />
           </CardContent>
         </Card>
       </div>

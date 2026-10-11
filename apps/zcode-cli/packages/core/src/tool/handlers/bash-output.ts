@@ -13,7 +13,6 @@ import {
   interpretBashReturnCode,
   isBashProviderErrorStatus,
   isSilentBashCommand,
-  stripClaudeCodeHintLines,
 } from "./bash-semantics.js";
 import {
   attachToolExecutionTelemetry,
@@ -55,9 +54,7 @@ export async function toBashOutput(
     returnCodeInterpretation,
     status: result.status,
   });
-  const providerStdout = providerError
-    ? result.stdout.text
-    : stripClaudeCodeHintLines(result.stdout.text);
+  const providerStdout = result.stdout.text;
   const imageOutput = providerError
     ? undefined
     : await prepareBashImageOutput(

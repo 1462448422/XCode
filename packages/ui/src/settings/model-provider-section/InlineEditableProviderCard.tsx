@@ -16,7 +16,7 @@ import {
   type SavePersonalModelDraftInput,
 } from "@zcode/provider";
 import { logger } from "@/logger.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { Switch } from "@/components/ui/switch.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { isImeComposingKeyEvent } from "@/lib/imeComposition.js";
@@ -213,7 +213,7 @@ export function InlineEditableProviderCard({
   headerActionsVisible?: boolean;
   settingsRevision?: number;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { dismissFeedback, showFeedback } = useProviderDetailFeedback();
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(getProviderFormLabel(provider));
@@ -831,7 +831,7 @@ export function InlineEditableProviderCard({
         }
       }
 
-      // ZCode fork：把上游的可读名与倍率写进 provider overlay 的模型元数据表。
+      // XCode fork：把上游的可读名与倍率写进 provider overlay 的模型元数据表。
       // 存headers 而非模型规则——规则 schema 是 strict 的，加字段会波及所有
       // provider 的配置解析（未知键被拒会让整层 personal 配置加载失败）。
       const metaEntries = items

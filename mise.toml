@@ -17,7 +17,7 @@ run = "mise exec -- node scripts/mise-run.mjs pnpm bootstrap"
 
 [tasks.dev]
 description = "Start the desktop app in an isolated local test environment."
-env = { ZCODE_DATA_BASE_DIR = "{{env.HOME}}/.zcode-dev-home" }
+env = { XCODE_DATA_BASE_DIR = "{{env.HOME}}/.zcode-dev-home" }
 run = "mise exec -- node scripts/mise-run.mjs pnpm dev:desktop:test"
 
 [tasks.dev-desktop-prod]
@@ -27,10 +27,6 @@ run = "mise exec -- node scripts/mise-run.mjs pnpm dev:desktop:prod"
 [tasks.dev-web]
 description = "Start the server and web client dev servers."
 run = "mise exec -- node scripts/mise-run.mjs pnpm dev:web"
-
-[tasks.dev-remote]
-description = "Start the web remote-control development stack."
-run = "mise exec -- node scripts/mise-run.mjs pnpm dev:web-remote-control"
 
 [tasks.typecheck]
 description = "Run the root TypeScript project references check."

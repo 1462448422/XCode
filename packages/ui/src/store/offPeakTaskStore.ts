@@ -5,7 +5,7 @@ import {
   type OffPeakCodingPlanSupport,
   type OffPeakTaskCreateResult,
   type OffPeakTakeNumberAvailability,
-  type ZCodeOffPeakTask,
+  type XCodeOffPeakTask,
   type ModelSelection,
 } from "@zcode/shared";
 import type {
@@ -18,7 +18,7 @@ import { logger } from "@/logger.js";
 // 闲时任务管理 store（与 automationManagementStore 独立）：走 IOffPeakTaskService RPC。
 // 位次/状态靠列表轮询刷新（host offPeakTaskSync 写 sqlite，renderer 只读快照）。
 
-export interface CreateOffPeakTaskInput {
+interface CreateOffPeakTaskInput {
   title: string;
   prompt: string;
   /** 权限四档（build/edit/plan/yolo）；类型收窄在服务端入参处完成。 */
@@ -28,7 +28,7 @@ export interface CreateOffPeakTaskInput {
   workspaceIdentity?: string;
 }
 
-export interface UpdateOffPeakTaskInput {
+interface UpdateOffPeakTaskInput {
   title?: string;
   prompt?: string;
   permissionMode?: string;
@@ -49,7 +49,7 @@ export interface OffPeakCreateDraft {
 export type OffPeakTakeNumberAvailabilityStatus = "idle" | "loading" | "ready" | "error";
 
 interface OffPeakTaskState {
-  tasks: ZCodeOffPeakTask[];
+  tasks: XCodeOffPeakTask[];
   loading: boolean;
   error: string | null;
   operationId: string | null;
@@ -118,13 +118,13 @@ export function isCurrentOffPeakCodingPlanSupported(
 }
 
 /** 服务端 3103（取号超限）只按结构化分类识别，不再解析跨 RPC 的错误文本。 */
-export function isOffPeakQuotaError(result: OffPeakTaskCreateResult | null | undefined): boolean {
+function isOffPeakQuotaError(result: OffPeakTaskCreateResult | null | undefined): boolean {
   return (
     result?.ok === false && result.errorCategory === "quota_3103" && result.errorCode === "3103"
   );
 }
 
-export type OffPeakCreateErrorMessageId =
+type OffPeakCreateErrorMessageId =
   | "offPeak.error.quota"
   | "offPeak.error.unavailable"
   | "offPeak.error.generic";
@@ -180,7 +180,7 @@ export const useOffPeakTaskStore = create<OffPeakTaskState>((set, get) => ({
         }),
       offPeakTaskService.list().catch((error) => {
         logger.warn("[off-peak] list failed", toErrorMessage(error));
-        return [] as ZCodeOffPeakTask[];
+        return [] as XCodeOffPeakTask[];
       }),
     ]).then(([grayConfig, tasks]) => {
       set({ grayConfig, tasks });

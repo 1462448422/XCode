@@ -15,8 +15,7 @@ import { listCustomCommandsForTui, listSessionsForTui, listSkillsForTui, loadCus
 import { currentCliMode, readTuiMode, TUI_TITLE_GENERATION_CONFIG, } from "./tui-command-state.js";
 import { createTuiModelAvailabilityChecker } from "./tui-login-state.js";
 import { withTuiMetadata } from "./tui-submit-metadata.js";
-import { DEFAULT_CLI_WORKFLOW_MODE, resolveWorkflowModeRuntimeConfig } from "./workflow-mode.js";
-export function createTuiSubmitPrompt(deps, modeState, version, resumeRequest = { continueSession: false }, uiLocale, uiDetectedLocale, startupLocale = DEFAULT_LOCALE, toolDisallowlist, forceMcs = false, browserUse, browserExecutable, workflowMode = DEFAULT_CLI_WORKFLOW_MODE) {
+export function createTuiSubmitPrompt(deps, modeState, version, resumeRequest = { continueSession: false }, uiLocale, uiDetectedLocale, startupLocale = DEFAULT_LOCALE, toolDisallowlist, forceMcs = false, browserUse, browserExecutable) {
     let app;
     let activeUiLocale = uiLocale;
     // 进程级句柄（telemetry / Provider Registry / endpoint 路由）跨 App 替换复用，见 runtime 文件。
@@ -77,7 +76,6 @@ export function createTuiSubmitPrompt(deps, modeState, version, resumeRequest = 
         if (closeHandlerPromise)
             throw new Error("TUI prompt handler is closed");
         const { appEnv, configuredDefaultModelSelection, createAppFactory, providerRegistryRuntime, sessionId, workingDirectory, } = await prepareTuiAppRuntime(deps, version, request, processRuntime);
-        const providerEndpointRoutingPort = processRuntime.providerEndpointRoutingPort;
         const browserRuntime = createCliHeadlessBrowserRuntime({ browserExecutable, browserUse }, deps);
         let createdApp;
         try {
@@ -85,7 +83,6 @@ export function createTuiSubmitPrompt(deps, modeState, version, resumeRequest = 
                 browserControlPort: browserRuntime?.browserControlPort,
                 env: appEnv,
                 projectConfigPath: deps.projectConfigPath,
-                ...(providerEndpointRoutingPort ? { providerEndpointRoutingPort } : {}),
                 providerRegistry: providerRegistryRuntime.runtime.registryService,
                 configuredDefaultModelSelection,
                 ...(providerRegistryRuntime.providerRuntimeHeadersPort
@@ -98,8 +95,6 @@ export function createTuiSubmitPrompt(deps, modeState, version, resumeRequest = 
                     ...(modeState.override ? { mode: modeState.override } : {}),
                     ...(toolDisallowlist ? { toolDisallowlist } : {}),
                     ...(forceMcs ? { midConversationSystem: { mode: "force" } } : {}),
-                    // 首个 app 与 /new、/resume、fork 都经这里创建，mode 因此在进程内一致。
-                    ...resolveWorkflowModeRuntimeConfig(workflowMode),
                     modelStreaming: "on",
                     titleGeneration: TUI_TITLE_GENERATION_CONFIG,
                     workingDirectory,
@@ -218,7 +213,6 @@ export function createTuiSubmitPrompt(deps, modeState, version, resumeRequest = 
             };
         },
         setMode: setCliMode,
-        workflowMode,
     });
     const submitPrompt = async (input, options) => {
         const previousRequestPermission = activeRequestPermission;

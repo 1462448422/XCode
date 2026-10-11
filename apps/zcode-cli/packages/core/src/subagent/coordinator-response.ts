@@ -6,7 +6,7 @@ import type {
 } from "@zcode/contracts";
 import type { EnqueueSubagentMessageInput } from "../runtime/types.js";
 
-export interface CreateCoordinatorResponsePortOptions {
+interface CreateCoordinatorResponsePortOptions {
   agentId: string;
   agentType: string;
   childSessionId: SessionId;

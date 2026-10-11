@@ -12,26 +12,26 @@ const h = React.createElement as (
   ...children: React.ReactNode[]
 ) => React.ReactElement;
 
-export const INPUT_DEFAULT_EDITOR_ROWS = 2;
-export const INPUT_MIN_EDITOR_ROWS = INPUT_DEFAULT_EDITOR_ROWS;
-export const INPUT_MAX_EDITOR_ROWS = 6;
+const INPUT_DEFAULT_EDITOR_ROWS = 2;
+const INPUT_MIN_EDITOR_ROWS = INPUT_DEFAULT_EDITOR_ROWS;
+const INPUT_MAX_EDITOR_ROWS = 6;
 const INPUT_FRAME_CHROME_ROWS = 3;
-export const INPUT_PANE_STATUS_ROWS = 1;
+const INPUT_PANE_STATUS_ROWS = 1;
 const INPUT_CHROME_ROWS = INPUT_FRAME_CHROME_ROWS + INPUT_PANE_STATUS_ROWS;
 const INPUT_CONTENT_FALLBACK_WIDTH = 80;
 const INPUT_MIN_CONTENT_WIDTH = 8;
 const INPUT_PANE_HORIZONTAL_CHROME_WIDTH = 4;
 
-export const INPUT_PANE_MIN_HEIGHT = INPUT_MIN_EDITOR_ROWS + INPUT_CHROME_ROWS;
-export const INPUT_PANE_MAX_HEIGHT = INPUT_MAX_EDITOR_ROWS + INPUT_CHROME_ROWS;
-export const INPUT_PANE_BORDER = true;
-export const INPUT_PANE_BORDER_STYLE = "rounded";
-export const INPUT_PANE_STATUS_SPACER_STYLE = {
+const INPUT_PANE_MIN_HEIGHT = INPUT_MIN_EDITOR_ROWS + INPUT_CHROME_ROWS;
+const INPUT_PANE_MAX_HEIGHT = INPUT_MAX_EDITOR_ROWS + INPUT_CHROME_ROWS;
+const INPUT_PANE_BORDER = true;
+const INPUT_PANE_BORDER_STYLE = "rounded";
+const INPUT_PANE_STATUS_SPACER_STYLE = {
   flexGrow: 1,
   minHeight: 0,
 } as const;
 
-export const PROMPT_TEXTAREA_KEY_BINDINGS = [
+const PROMPT_TEXTAREA_KEY_BINDINGS = [
   { name: "return", action: "submit" },
   { name: "linefeed", action: "submit" },
   { name: "return", shift: true, action: "newline" },
@@ -165,25 +165,25 @@ export function InputPane({
   );
 }
 
-export function inputPaneTitle(copy: TuiCopy, mode?: string): string {
+function inputPaneTitle(copy: TuiCopy, mode?: string): string {
   const title = mode ? formatInputModeLabel(mode) : copy.input.title;
   return ` ${title} `;
 }
 
-export function inputPanePlaceholder(copy: TuiCopy, busy: boolean): string {
+function inputPanePlaceholder(copy: TuiCopy, busy: boolean): string {
   return busy ? copy.input.busyPlaceholder : copy.input.placeholder;
 }
 
-export function inputPaneEditorRows(value: string, contentWidth?: number): number {
+function inputPaneEditorRows(value: string, contentWidth?: number): number {
   const contentRows = wordWrappedLineCount(value, normalizeInputContentWidth(contentWidth));
   return normalizeEditorRows(contentRows);
 }
 
-export function inputPaneHeight(editorRows: number): number {
+function inputPaneHeight(editorRows: number): number {
   return normalizeEditorRows(editorRows) + INPUT_CHROME_ROWS;
 }
 
-export function inputPaneContainerStyle(
+function inputPaneContainerStyle(
   focused: boolean,
   editorRows = INPUT_MIN_EDITOR_ROWS,
 ): Record<string, unknown> {
@@ -202,7 +202,7 @@ export function inputPaneContainerStyle(
   };
 }
 
-export function inputPaneTextareaStyle(editorRows: number): Record<string, unknown> {
+function inputPaneTextareaStyle(editorRows: number): Record<string, unknown> {
   return {
     focusedBackgroundColor: palette.panel,
     focusedTextColor: palette.text,
@@ -216,18 +216,18 @@ export function inputPaneTextareaStyle(editorRows: number): Record<string, unkno
   };
 }
 
-export function syncTextareaValue(textarea: DraftTextarea, value: string): boolean {
+function syncTextareaValue(textarea: DraftTextarea, value: string): boolean {
   if (textarea.plainText === value) return false;
   textarea.setText(value);
   moveInputCursorToEnd(textarea);
   return true;
 }
 
-export function shouldEmitTextareaInput(controlledValue: string, editorValue: string): boolean {
+function shouldEmitTextareaInput(controlledValue: string, editorValue: string): boolean {
   return editorValue !== controlledValue;
 }
 
-export function moveInputCursorToEnd(input: Pick<TextareaRenderable, "gotoBufferEnd">): void {
+function moveInputCursorToEnd(input: Pick<TextareaRenderable, "gotoBufferEnd">): void {
   // OpenTUI controlled value updates can leave the previous cursor viewport in
   // place after history recall; gotoBufferEnd refreshes both cursor and scroll.
   input.gotoBufferEnd();

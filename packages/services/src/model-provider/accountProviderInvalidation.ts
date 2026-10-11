@@ -1,4 +1,4 @@
-export interface SettingUpdatedEvent {
+interface SettingUpdatedEvent {
   readonly keys: readonly string[];
 }
 

@@ -14,16 +14,18 @@ export type SettingsSectionId =
   | "plugins"
   | "usage"
   | "subagents"
+  | "modelJailbreak"
   | "commands"
   | "hooks"
   | "workspaceFileSearch"
   | "computerUse"
   | "automations"
-  | "shortcuts";
+  | "shortcuts"
+  | "accounts";
 
-export type SettingsUsageTabTarget = "app" | "codingPlan";
-export type SettingsPluginTabTarget = "plugins" | "mcps" | "skills" | "commands";
-export type SettingsPluginNavigationOrigin = "plugin-store";
+type SettingsUsageTabTarget = "app" | "codingPlan";
+type SettingsPluginTabTarget = "plugins" | "mcps" | "skills" | "commands";
+type SettingsPluginNavigationOrigin = "plugin-store";
 
 const SETTINGS_SECTION_INTENT_KEY = "zcode-settings-section-intent",
   SETTINGS_USAGE_TAB_INTENT_KEY = "zcode-settings-usage-tab-intent",
@@ -42,9 +44,10 @@ const HIDDEN_SETTINGS_SECTIONS = new Set<SettingsSectionId>([
   // 工作区搜索（.zcodeignore）设置入口先隐藏：规则文件仍生效并可手动编辑，
   // 编辑页代码保留，放开时从这里移除即可。
   "workspaceFileSearch",
+  "computerUse",
 ]);
 
-export interface SettingsSectionIntentEventDetail {
+interface SettingsSectionIntentEventDetail {
   section: SettingsSectionId;
   pluginTab?: SettingsPluginTabTarget;
   pluginOrigin?: SettingsPluginNavigationOrigin;
@@ -71,12 +74,14 @@ function isSettingsSectionId(value: string): value is SettingsSectionId {
     value === "plugins" ||
     value === "usage" ||
     value === "subagents" ||
+    value === "modelJailbreak" ||
     value === "commands" ||
     value === "hooks" ||
     value === "workspaceFileSearch" ||
     value === "computerUse" ||
     value === "automations" ||
-    value === "shortcuts"
+    value === "shortcuts" ||
+    value === "accounts"
   );
 }
 
@@ -108,7 +113,7 @@ function getLocalStorage(): Storage | null {
   }
 }
 
-export function readLastSettingsSectionPreference(
+function readLastSettingsSectionPreference(
   fallbackSection: SettingsSectionId = "general",
 ): SettingsSectionId {
   const storage = getLocalStorage();
@@ -288,7 +293,7 @@ function clearPendingSettingsSectionIntent(): void {
   }
 }
 
-export function consumePendingSettingsSection(
+function consumePendingSettingsSection(
   fallbackSection: SettingsSectionId = "general",
 ): SettingsSectionId {
   if (typeof window === "undefined") {

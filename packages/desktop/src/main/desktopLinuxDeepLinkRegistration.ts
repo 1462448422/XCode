@@ -11,7 +11,7 @@ import {
 const LINUX_DEEP_LINK_DESKTOP_FILE = "zcode.desktop";
 const LINUX_DEEP_LINK_MIME_TYPE = "x-scheme-handler/zcode";
 // 归属标记：用于识别用户级 zcode.desktop 是否由本应用写入（历史所有版本都带这行 Comment）。
-const LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKER = "Comment=ZCode Desktop App";
+const LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKER = "Comment=XCode Desktop App";
 
 type LinuxDesktopEnv = {
   APPIMAGE?: string;
@@ -49,7 +49,7 @@ const APPIMAGE_DEEP_LINK_ARG_PREFIXES = [
   "--enable-features=",
 ];
 
-export function resolveLinuxDeepLinkCommand(params: {
+function resolveLinuxDeepLinkCommand(params: {
   env?: { APPIMAGE?: string };
   executablePath: string;
   argv?: string[];
@@ -103,13 +103,13 @@ function formatDesktopExec(command: LinuxDeepLinkCommand): string {
     .join(" ");
 }
 
-export function createLinuxDeepLinkDesktopEntry(params: {
+function createLinuxDeepLinkDesktopEntry(params: {
   executablePath: string;
   args?: string[];
   productName?: string;
   iconName?: string;
 }): string {
-  const productName = params.productName ?? "ZCode";
+  const productName = params.productName ?? "XCode";
   const iconName = params.iconName ?? "zcode";
   const command = {
     executablePath: params.executablePath,
@@ -130,7 +130,7 @@ export function createLinuxDeepLinkDesktopEntry(params: {
   ].join("\n");
 }
 
-export function resolveLinuxUserDataDir(params: {
+function resolveLinuxUserDataDir(params: {
   env?: { XDG_DATA_HOME?: string };
   homeDir: string;
 }): string {
@@ -138,7 +138,7 @@ export function resolveLinuxUserDataDir(params: {
   return xdgDataHome || join(params.homeDir, ".local", "share");
 }
 
-export function resolveLinuxSystemApplicationDirs(env?: { XDG_DATA_DIRS?: string }): string[] {
+function resolveLinuxSystemApplicationDirs(env?: { XDG_DATA_DIRS?: string }): string[] {
   const raw = env?.XDG_DATA_DIRS?.trim();
   const entries = raw
     ? raw

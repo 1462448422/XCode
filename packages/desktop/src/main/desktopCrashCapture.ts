@@ -45,7 +45,7 @@ interface CrashArchiveCleanupResult {
   failedFiles: string[];
 }
 
-export interface ArchivedCrashDumpRecord {
+interface ArchivedCrashDumpRecord {
   dumpPath: string;
   archivedDumpPath: string;
   /** dump 里没有 V8 OOM 注解（例如 GPU / native 崩溃）时为 null。 */
@@ -61,7 +61,7 @@ function resolveCrashCapturePaths(): CrashCapturePaths {
   };
 }
 
-export function resolveCrashReporterSourceDirs(
+function resolveCrashReporterSourceDirs(
   stagingDir: string,
   platform: NodeJS.Platform = process.platform,
 ): string[] {
@@ -220,7 +220,7 @@ function pruneCrashDumpArchive(
   return { deletedFiles, failedFiles };
 }
 
-export function archiveCrashDumps(
+function archiveCrashDumps(
   paths: CrashCapturePaths,
   options?: {
     platform?: NodeJS.Platform;
@@ -386,7 +386,7 @@ export function initializeCrashCapture(
   return paths;
 }
 
-export interface CrashEventMonitorHooks {
+interface CrashEventMonitorHooks {
   onRenderProcessGone?: (
     webContents: WebContents,
     details: { reason: string; exitCode: number },
@@ -401,10 +401,10 @@ export interface CrashEventMonitorHooks {
   onBrowserWindowCreated?: (win: BrowserWindow) => void;
 }
 
-export function resolveProcessGoneLogLevel(reason: string): "info" | "warn" {
-  // Bug 原因：Electron 也会为 clean-exit / killed 这类受控终止发送 gone 事件。
-  // 原始 gone 回调只记录生命周期事实，最终是否为 crash 交给稳定性分类；旧实现无条件打
-  // error，随后被 ARMS console collector 当作异常，污染错误统计。
+function resolveProcessGoneLogLevel(reason: string): "info" | "warn" {
+  // Electron 也会为 clean-exit / killed 这类受控终止发送 gone 事件。
+  // 原始 gone 回调只记录生命周期事实，最终是否为 crash 交给稳定性分类；不能无条件打
+  // error，避免被日志采集当成异常统计。
   return reason === "clean-exit" || reason === "killed" ? "info" : "warn";
 }
 
@@ -428,7 +428,7 @@ export function registerCrashEventMonitor(
     });
     hooks?.onRenderProcessGone?.(webContents, details);
     // 远端 crash SDK 可能会在处理后清理 live 目录里的原始 dmp。
-    // 这里在事件后补两次延迟归档，把原始 dump 复制到 ~/.zcode/v2/crash/archive，
+    // 这里在事件后补两次延迟归档，把原始 dump 复制到 ~/.xcode/v2/crash/archive，
     // 这样既保留线上上报，又能在本地留下一份可供排查的副本。
     scheduleCrashArchive(logger, paths, "render-process-gone");
   });

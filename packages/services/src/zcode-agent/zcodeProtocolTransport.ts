@@ -1,18 +1,18 @@
 import type { Event, IDisposable } from "@zcode/rpc";
-import type { ZCodeProtocolMessage } from "@zcode/shared";
+import type { XCodeProtocolMessage } from "@zcode/shared";
 
-export type ZCodeProtocolTransportKind = "stdio" | "websocket" | "memory";
+export type XCodeProtocolTransportKind = "stdio" | "websocket" | "memory";
 
-export interface ZCodeProtocolTransportClosedEvent {
+export interface XCodeProtocolTransportClosedEvent {
   code?: number | null;
   signal?: NodeJS.Signals | null;
   reason?: string;
 }
 
-export interface ZCodeProtocolTransport extends IDisposable {
-  readonly kind: ZCodeProtocolTransportKind;
-  readonly onMessage: Event<ZCodeProtocolMessage>;
-  readonly onClose: Event<ZCodeProtocolTransportClosedEvent>;
-  send(message: ZCodeProtocolMessage): Promise<void>;
+export interface XCodeProtocolTransport extends IDisposable {
+  readonly kind: XCodeProtocolTransportKind;
+  readonly onMessage: Event<XCodeProtocolMessage>;
+  readonly onClose: Event<XCodeProtocolTransportClosedEvent>;
+  send(message: XCodeProtocolMessage): Promise<void>;
   disposeAndWait?(): Promise<void>;
 }

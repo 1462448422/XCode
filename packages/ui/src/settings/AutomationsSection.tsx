@@ -23,8 +23,8 @@ import {
   TID_OFFPEAK_TAB,
   isAutomationCreateLimitError,
   resolveWorkspaceKey,
-  type ZCodeAutomation,
-  type ZCodeOffPeakTask,
+  type XCodeAutomation,
+  type XCodeOffPeakTask,
 } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import {
@@ -39,7 +39,7 @@ import { toast as showToast, type ToastOptions } from "@/components/ui/toast.js"
 import { cn } from "@/components/lib/utils.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { AutomationScheduledTemplateIcon } from "@/settings/AutomationScheduledTemplateIcon.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { useServices } from "@/hooks/useServices.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
@@ -190,7 +190,7 @@ function OffPeakCreateButton({
   greyTooltip?: string;
   onCreate: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   // disabled 按钮 pointer-events-none，tooltip 必须挂在外层可指针元素上。
   const button = (
     <Button
@@ -219,7 +219,7 @@ function OffPeakCreateButton({
 }
 
 /** 创建表单的预填草稿(来自「More ideas」模板)。 */
-export interface AutomationDraft {
+interface AutomationDraft {
   templateId?: string;
   title: string;
   cronExpr: string;
@@ -230,17 +230,17 @@ export interface AutomationDraft {
 type AutomationsView =
   | { mode: "list" }
   | { mode: "create"; draft: AutomationDraft | null }
-  | { mode: "edit"; automation: ZCodeAutomation }
+  | { mode: "edit"; automation: XCodeAutomation }
   | { mode: "offpeak-create"; draft?: OffPeakCreateDraft }
-  | { mode: "offpeak-edit"; task: ZCodeOffPeakTask };
+  | { mode: "offpeak-edit"; task: XCodeOffPeakTask };
 
-/** 主视图标签页：Scheduled 常驻，Idle-time 受灰度控制（D31）；不设 All 混排视图。 */
-export type AutomationsTab = "scheduled" | "idle";
+/** 主视图标签页：Scheduled 常驻，Idle-time 受灰度控制；不设 All 混排视图。 */
+type AutomationsTab = "scheduled" | "idle";
 
 const SCHEDULED_ONLY_AUTOMATION_TABS: readonly AutomationsTab[] = ["scheduled"];
 const SCHEDULED_AND_IDLE_AUTOMATION_TABS: readonly AutomationsTab[] = ["scheduled", "idle"];
 
-export function resolveVisibleAutomationTabs({
+function resolveVisibleAutomationTabs({
   hasAnyTasks,
   offPeakVisible,
 }: {
@@ -251,14 +251,14 @@ export function resolveVisibleAutomationTabs({
   return offPeakVisible ? SCHEDULED_AND_IDLE_AUTOMATION_TABS : SCHEDULED_ONLY_AUTOMATION_TABS;
 }
 
-export function resolveAutomationTabAfterOffPeakChange(
+function resolveAutomationTabAfterOffPeakChange(
   tab: AutomationsTab,
   offPeakVisible: boolean,
 ): AutomationsTab {
   return tab === "idle" && !offPeakVisible ? "scheduled" : tab;
 }
 
-export function resolveAutomationTabNavigation({
+function resolveAutomationTabNavigation({
   requestedTab,
   tabsReady,
   visibleTabs,
@@ -274,7 +274,7 @@ export function resolveAutomationTabNavigation({
   };
 }
 
-export function resolveAutomationTemplateVisibility({
+function resolveAutomationTemplateVisibility({
   hasAnyTasks,
   offPeakCreationEnabled,
   tab,
@@ -311,17 +311,15 @@ function automationPromptSummary(prompt: string): string {
   return normalized.length > 0 ? normalized : " ";
 }
 
-export function canRestartAutomation(
-  automation: Pick<ZCodeAutomation, "lifecycleStatus">,
-): boolean {
+function canRestartAutomation(automation: Pick<XCodeAutomation, "lifecycleStatus">): boolean {
   return automation.lifecycleStatus === "failed";
 }
 
-export function canToggleAutomation(automation: Pick<ZCodeAutomation, "lifecycleStatus">): boolean {
+function canToggleAutomation(automation: Pick<XCodeAutomation, "lifecycleStatus">): boolean {
   return automation.lifecycleStatus !== "completed" && automation.lifecycleStatus !== "failed";
 }
 
-export function getAutomationRunNowToastId(
+function getAutomationRunNowToastId(
   result: AutomationRunNowResult,
 ): "automations.runNowQueued" | "automations.runNowAlreadyRunning" | "automations.runNowFailed" {
   if (result === "queued") return "automations.runNowQueued";
@@ -329,46 +327,46 @@ export function getAutomationRunNowToastId(
   return "automations.runNowFailed";
 }
 
-export type AutomationActionError = "create" | "update" | "toggle" | "restart" | "delete";
+type AutomationActionError = "create" | "update" | "toggle" | "restart" | "delete";
 
 /** 原始 Agent/RPC 错误留在 logger；界面只展示当前动作对应的可理解提示。 */
-export function getAutomationActionErrorToastId(action: AutomationActionError): string {
+function getAutomationActionErrorToastId(action: AutomationActionError): string {
   return `automations.error.${action}`;
 }
 
-export function getAutomationCreateErrorToastId(error: unknown): string {
+function getAutomationCreateErrorToastId(error: unknown): string {
   return isAutomationCreateLimitError(error)
     ? "automations.error.createLimit"
     : getAutomationActionErrorToastId("create");
 }
 
-export function resolveAutomationDetailTarget(
-  automations: readonly ZCodeAutomation[],
+function resolveAutomationDetailTarget(
+  automations: readonly XCodeAutomation[],
   automationId?: string | null,
-): ZCodeAutomation | null {
+): XCodeAutomation | null {
   const targetId = automationId?.trim();
   if (!targetId) return null;
   return automations.find((automation) => automation.automationId === targetId) ?? null;
 }
 
-export function resolveAutomationDetailNavigation(
-  automations: readonly ZCodeAutomation[],
+function resolveAutomationDetailNavigation(
+  automations: readonly XCodeAutomation[],
   automationId: string | null | undefined,
   listReady: boolean,
-): { status: "pending" } | { status: "missing" } | { status: "found"; target: ZCodeAutomation } {
+): { status: "pending" } | { status: "missing" } | { status: "found"; target: XCodeAutomation } {
   if (!automationId?.trim() || !listReady) return { status: "pending" };
   const target = resolveAutomationDetailTarget(automations, automationId);
   return target ? { status: "found", target } : { status: "missing" };
 }
 
-/** D49：openAutomationId 里 `offpeak-` 前缀 id 的判别（生成点唯一：offPeakTaskService 的 offpeak-${uuid}）。 */
-export function isOffPeakDetailNavigationId(automationId: string | null | undefined): boolean {
+/** openAutomationId 里 `offpeak-` 前缀 id 的判别（生成点唯一：offPeakTaskService 的 offpeak-${uuid}）。 */
+function isOffPeakDetailNavigationId(automationId: string | null | undefined): boolean {
   return Boolean(automationId?.trim().startsWith("offpeak-"));
 }
 
-/** D49：闲时轮尾卡跳转的并行解析路径；与 cron 的 resolveAutomationDetailNavigation 对称。 */
-export function resolveOffPeakDetailNavigation(
-  tasks: readonly ZCodeOffPeakTask[],
+/** 闲时轮尾卡跳转的并行解析路径；与 cron 的 resolveAutomationDetailNavigation 对称。 */
+function resolveOffPeakDetailNavigation(
+  tasks: readonly XCodeOffPeakTask[],
   offPeakTaskId: string | null | undefined,
   listReady: boolean,
   listError: string | null = null,
@@ -376,7 +374,7 @@ export function resolveOffPeakDetailNavigation(
   | { status: "pending" }
   | { status: "unavailable" }
   | { status: "missing" }
-  | { status: "found"; target: ZCodeOffPeakTask } {
+  | { status: "found"; target: XCodeOffPeakTask } {
   const targetId = offPeakTaskId?.trim();
   if (!targetId || !listReady) return { status: "pending" };
   // review：store.refresh 吞错保留旧列表；列表不可信时不能做 found/missing 终审。
@@ -386,15 +384,15 @@ export function resolveOffPeakDetailNavigation(
 }
 
 interface AutomationActionsMenuProps {
-  automation: ZCodeAutomation;
+  automation: XCodeAutomation;
   busy: boolean;
   canRestart: boolean;
   canToggle: boolean;
-  onRunNow: (automation: ZCodeAutomation) => void;
-  onEdit: (automation: ZCodeAutomation) => void;
-  onToggle: (automation: ZCodeAutomation, enabled: boolean) => void;
-  onRestart: (automation: ZCodeAutomation) => void;
-  onDelete: (automation: ZCodeAutomation) => void;
+  onRunNow: (automation: XCodeAutomation) => void;
+  onEdit: (automation: XCodeAutomation) => void;
+  onToggle: (automation: XCodeAutomation, enabled: boolean) => void;
+  onRestart: (automation: XCodeAutomation) => void;
+  onDelete: (automation: XCodeAutomation) => void;
 }
 
 function AutomationActionsMenu({
@@ -408,7 +406,7 @@ function AutomationActionsMenu({
   onRestart,
   onDelete,
 }: AutomationActionsMenuProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -505,7 +503,7 @@ function AutomationActionsMenu({
 
 /** 状态筛选命中 0 条时的占位；复用闲时空态卡的描边样式，文案与「还没有任务」区分开。 */
 function AutomationStatusFilterEmpty() {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   return (
     <div className="rounded-[10px] border border-card-border px-3 py-3 text-ui-base text-foreground-subtle">
       {intl.formatMessage({ id: "automations.statusFilter.empty" })}
@@ -527,7 +525,7 @@ export function AutomationsSection({
   onOpenWorkflowConsumed,
   onOpenSession,
 }: AutomationsSectionProps) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const platform = usePlatform();
   const { clientScenesService, offPeakTaskService, zcodeAgentService } = useServices();
   const confirmDialog = useConfirmDialog();
@@ -1080,7 +1078,7 @@ export function AutomationsSection({
   );
 
   const handleToggle = useCallback(
-    async (automation: ZCodeAutomation, enabled: boolean) => {
+    async (automation: XCodeAutomation, enabled: boolean) => {
       await setEnabled(automation.automationId, enabled, zcodeAgentService);
       const message = useAutomationManagementStore.getState().error;
       if (message) toast(intl.formatMessage({ id: getAutomationActionErrorToastId("toggle") }));
@@ -1106,7 +1104,7 @@ export function AutomationsSection({
   );
 
   const handleRestart = useCallback(
-    async (automation: ZCodeAutomation) => {
+    async (automation: XCodeAutomation) => {
       await restartAutomation(automation.automationId, zcodeAgentService);
       const message = useAutomationManagementStore.getState().error;
       if (message)
@@ -1121,7 +1119,7 @@ export function AutomationsSection({
   );
 
   const handleRunNow = useCallback(
-    async (automation: ZCodeAutomation, source: "list" | "editor" = "list") => {
+    async (automation: XCodeAutomation, source: "list" | "editor" = "list") => {
       logger.debug("[automations] 立即运行交互开始", {
         automationId: automation.automationId,
         source,
@@ -1189,7 +1187,7 @@ export function AutomationsSection({
   );
 
   const handleDelete = useCallback(
-    async (automation: ZCodeAutomation, source: "list" | "editor" = "list") => {
+    async (automation: XCodeAutomation, source: "list" | "editor" = "list") => {
       const confirmed = await confirmDialog({
         presentation: "automation-confirmation",
         title: intl.formatMessage({ id: "automations.delete.title" }),
@@ -1224,7 +1222,7 @@ export function AutomationsSection({
   );
 
   const handleOffPeakOpenSession = useCallback(
-    (task: ZCodeOffPeakTask) => {
+    (task: XCodeOffPeakTask) => {
       if (!task.sessionId || !onOpenSession) return;
       onOpenSession({
         sessionId: task.sessionId,
@@ -1235,14 +1233,14 @@ export function AutomationsSection({
     [onOpenSession],
   );
 
-  const handleOffPeakOpen = useCallback((task: ZCodeOffPeakTask) => {
+  const handleOffPeakOpen = useCallback((task: XCodeOffPeakTask) => {
     // 有 session 的卡片主点击不能直接跳会话：会使 Settings/History
     // 无法稳定到达。卡片主路径始终进入任务详情，会话只保留为显式次级动作。
     setView({ mode: "offpeak-edit", task });
   }, []);
 
   const handleOffPeakCancel = useCallback(
-    async (task: ZCodeOffPeakTask) => {
+    async (task: XCodeOffPeakTask) => {
       const confirmed = await confirmDialog({
         title: intl.formatMessage({ id: "offPeak.cancel.title" }),
         description: intl.formatMessage(
@@ -1260,7 +1258,7 @@ export function AutomationsSection({
   );
 
   const handleOffPeakDelete = useCallback(
-    async (task: ZCodeOffPeakTask) => {
+    async (task: XCodeOffPeakTask) => {
       const confirmed = await confirmDialog({
         title: intl.formatMessage({ id: "offPeak.delete.title" }),
         description: intl.formatMessage({ id: "offPeak.delete.description" }),
@@ -1280,7 +1278,7 @@ export function AutomationsSection({
   );
 
   const handleOffPeakDeleteHistory = useCallback(
-    async (task: ZCodeOffPeakTask) => {
+    async (task: XCodeOffPeakTask) => {
       await offPeakDeleteHistory(task.offPeakTaskId, offPeakTaskService);
       const message = useOffPeakTaskStore.getState().error;
       if (message) toast(message);
@@ -1495,13 +1493,13 @@ export function AutomationsSection({
     <div data-automations-content className={cn(SETTINGS_FRAME_CONTENT_CLASSNAME, "flex flex-col")}>
       {pageHeader}
 
-      {/* Tab：Scheduled 常驻；Idle 仅在灰度命中或有闲时存量时出现（D31），不再提供 All 混排视图。
+      {/* Tab：Scheduled 常驻；Idle 仅在灰度命中或有闲时存量时出现，不再提供 All 混排视图。
          有任务时右上对齐创建（4866-1735）；空态创建入口在大卡内（4889-2013），不重复顶栏按钮。 */}
       {visibleTabs.length > 0 ? (
         <div className="mt-8 flex items-center justify-between">
-          {/* 修复原因：tab 曾与右侧操作组共用 12px 间距，未体现最新设计要求的 8px 紧凑节奏。 */}
+          {/* tab 曾与右侧操作组共用 12px 间距，未体现最新设计要求的 8px 紧凑节奏。*/}
           <div className="flex items-center gap-2" data-testid={TID_OFFPEAK_TAB}>
-            {/* 修复原因：未选中态旧实现强制显示 surface 背景，无法与 hover、选中态形成层级。 */}
+            {/* 未选中态不强制显示 surface 背景，以便与 hover、选中态形成层级。*/}
             {visibleTabs.map((key) => (
               <button
                 key={key}
@@ -1853,7 +1851,7 @@ export function AutomationsSection({
               )}
             </div>
 
-            {/* Figma 4798:2443：空态保持唤醒提示条位于大空卡之后。 */}
+            {/* 空态保持唤醒提示条位于大空卡之后。 */}
             {!hasAnyTasks ? (
               <AutomationKeepAwakeNotice
                 checked={sharedSettings?.keepAwakeWhileRunning ?? false}
@@ -1866,7 +1864,7 @@ export function AutomationsSection({
             ) : null}
           </div>
 
-          {/* 修复原因：真实任务卡与模板此前只靠空白分区，遗漏了 Figma 4835:5515 的分割线；
+          {/* 真实任务卡与模板不能只靠空白分区：需要分割线；
              分割线使用 surface 在 Light 下过淡，因此与 Card 统一使用 card-border。
              外层 gap-8 加本容器 py-2，使卡片到线、线到模板标题均保持 40px。 */}
           {showTaskTemplateSeparator ? (
@@ -1879,7 +1877,7 @@ export function AutomationsSection({
             </div>
           ) : null}
 
-          {/* Idle-time task template（灰度命中；Figma 4889-2013；与 New task 页同源文案 D30-4）。 */}
+          {/* Idle-time task template（灰度命中；与 New task 页同源文案）。 */}
           {showOffPeakTemplates ? (
             <section
               data-automations-idle-templates
@@ -2021,7 +2019,7 @@ export function AutomationsSection({
                             {resolveAutomationTemplateText(template.title, locale)}
                           </span>
                         </div>
-                        {/* Bug 原因：定时模板首次实现时把周期时间拼进标题行，和闲时模板的底部时间层级不一致。 */}
+                        {/* 定时模板首次实现时把周期时间拼进标题行，和闲时模板的底部时间层级不一致。 */}
                         <p className="line-clamp-2 flex-1 text-ui-base font-normal leading-5 text-foreground-subtle">
                           {resolveAutomationTemplateText(template.description, locale)}
                         </p>

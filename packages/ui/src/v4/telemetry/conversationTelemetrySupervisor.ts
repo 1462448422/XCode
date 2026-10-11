@@ -6,9 +6,9 @@ import {
 import type {
   IPlatformService,
   RemoteWorkspaceIdentityKind,
-  ZCodeContextCompactionTimelineMeta,
-  ZCodeStreamEvent,
-  ZCodeUsage,
+  XCodeContextCompactionTimelineMeta,
+  XCodeStreamEvent,
+  XCodeUsage,
 } from "@zcode/shared";
 import type { ConversationTelemetryFact } from "@zcode/shared/zcode-protocol-v4";
 import { reportAppTelemetryEvent } from "@/lib/appTelemetry.js";
@@ -57,7 +57,7 @@ import {
   reportUiToolCallDetail,
   reportUiTurnBreakdown,
 } from "@/lib/uiPerfArmsTelemetry.js";
-import type { ZCodeUiError } from "@/lib/zcodeUiError.js";
+import type { XCodeUiError } from "@/lib/zcodeUiError.js";
 import { resolveLegacyRuntimeModelValue } from "@/v4/telemetry/conversationPromptTelemetry.js";
 
 const MAX_DEDUPE_KEYS = 2_000;
@@ -81,10 +81,10 @@ export interface ConversationPromptTelemetrySeed {
   queueConfirmed?: boolean;
 }
 
-/** 发送落定的失败原因，取值口径见 docs/monitoring/composer-send-funnel-telemetry.md。 */
-export type ConversationSendFailureReason = SendFunnelReasonCode;
+/** 发送落定的失败原因。 */
+type ConversationSendFailureReason = SendFunnelReasonCode;
 
-export interface AcceptedConversationPromptTelemetrySeed extends ConversationPromptTelemetrySeed {
+interface AcceptedConversationPromptTelemetrySeed extends ConversationPromptTelemetrySeed {
   /** CLI 会话记录的开关；缺失保持未知，不能用实时设置补齐。 */
   memoryEnabled?: boolean;
   sessionId: string;
@@ -97,13 +97,13 @@ export interface AcceptedConversationPromptTelemetrySeed extends ConversationPro
 const HELD_QUEUE_CONFIRMATION_STALE_REASON = "guard.heldQueueConfirmationStale";
 
 /** 从点击发送起算，超过这个时长仍未渲染出用户消息就判超时。 */
-export const SEND_RENDER_WAIT_TIMEOUT_MS = 30_000;
+const SEND_RENDER_WAIT_TIMEOUT_MS = 30_000;
 
 /**
  * ACK 的处置：要么转入待渲染等待（命令被受理，但用户消息还没画出来），
  * 要么立即落定为失败。返回 null 表示本次两者都不做。
  */
-export type ConversationSendAckOutcome =
+type ConversationSendAckOutcome =
   | { kind: "awaitRender"; ackStatus: string }
   | {
       kind: "settle";
@@ -248,7 +248,7 @@ interface ForegroundSubagentUsage {
   modelName: string;
   modelProvider: string;
   providerName: string;
-  usage: ZCodeUsage | null;
+  usage: XCodeUsage | null;
   stopped: boolean;
   pendingFinalizedSteps: PendingFinalizedStep[];
 }
@@ -277,7 +277,7 @@ interface BackgroundSubagentTelemetry {
   startedAt: number;
   requestIds: string[];
   requestCount: number;
-  usage: ZCodeUsage | null;
+  usage: XCodeUsage | null;
   modelName: string;
   modelProvider: string;
   providerName: string;
@@ -297,7 +297,7 @@ interface DeferredTerminal {
   foregroundAtReceipt: boolean;
 }
 
-export interface ConversationTelemetryWorkspaceDetail {
+interface ConversationTelemetryWorkspaceDetail {
   workspace_kind: "local" | "remote";
   remote_kind: RemoteWorkspaceIdentityKind | "";
 }
@@ -326,7 +326,7 @@ class BoundedKeySet {
 
 function toLegacyNetworkEvent(
   fact: Extract<ConversationTelemetryFact, { kind: "model.request.status" }>,
-): Extract<ZCodeStreamEvent, { type: "task_network_debug_status" }> {
+): Extract<XCodeStreamEvent, { type: "task_network_debug_status" }> {
   return {
     type: "task_network_debug_status",
     taskId: fact.sessionId,
@@ -358,7 +358,7 @@ function toLegacyNetworkEvent(
     responseHeaders: {},
     requestHeaderCount: 0,
     responseHeaderCount: 0,
-  } as Extract<ZCodeStreamEvent, { type: "task_network_debug_status" }>;
+  } as Extract<XCodeStreamEvent, { type: "task_network_debug_status" }>;
 }
 
 function scopedSubagentToolCallId(agentId: string, childToolCallId: string): string {
@@ -425,7 +425,7 @@ function toToolLifecycleEvent(input: {
   toolId: string;
   inputId?: string;
   hasStarted: boolean;
-}): ZCodeStreamEvent {
+}): XCodeStreamEvent {
   const { fact } = input;
   const skillMetadata =
     fact.skillQualifiedName || fact.skillPluginId || fact.skillSource
@@ -449,7 +449,7 @@ function toToolLifecycleEvent(input: {
       title: "",
       raw: {},
       ...(skillMetadata ? { skillMetadata } : {}),
-    } as Extract<ZCodeStreamEvent, { type: "tool_call" }>;
+    } as Extract<XCodeStreamEvent, { type: "tool_call" }>;
   }
   return {
     type: "tool_call_update",
@@ -465,10 +465,10 @@ function toToolLifecycleEvent(input: {
     error: fact.errorMessage,
     raw: {},
     ...(skillMetadata ? { skillMetadata } : {}),
-  } as Extract<ZCodeStreamEvent, { type: "tool_call_update" }>;
+  } as Extract<XCodeStreamEvent, { type: "tool_call_update" }>;
 }
 
-function toUsage(fact: Extract<ConversationTelemetryFact, { kind: "usage.delta" }>): ZCodeUsage {
+function toUsage(fact: Extract<ConversationTelemetryFact, { kind: "usage.delta" }>): XCodeUsage {
   return {
     inputTokens: fact.inputTokens,
     outputTokens: fact.outputTokens,
@@ -487,7 +487,7 @@ function runtimeTelemetryModelName(providerId: string | undefined, modelId: stri
   return model.includes("/") ? model : `${provider}/${model}`;
 }
 
-function mergeUsage(left: ZCodeUsage | null, right: ZCodeUsage): ZCodeUsage {
+function mergeUsage(left: XCodeUsage | null, right: XCodeUsage): XCodeUsage {
   if (!left) return { ...right };
   return {
     inputTokens: left.inputTokens + right.inputTokens,
@@ -1317,7 +1317,7 @@ export class ConversationTelemetrySupervisor {
     surface?: ChatErrorBannerSurface;
     errorKey?: string | null;
     displayMessage: string;
-    error: ZCodeUiError;
+    error: XCodeUiError;
   }): void {
     if (this.disposed) return;
     void reportChatErrorBannerTelemetry(this.platform, {
@@ -1540,7 +1540,7 @@ export class ConversationTelemetrySupervisor {
             ? { messageId: fact.assistantMessageId }
             : {}),
           ...(fact.parentToolCallId ? { parentToolUseId: fact.parentToolCallId } : {}),
-        } as Extract<ZCodeStreamEvent, { type: "agent_thought_chunk" | "agent_message_chunk" }>;
+        } as Extract<XCodeStreamEvent, { type: "agent_thought_chunk" | "agent_message_chunk" }>;
         this.reportFinalizedSteps(
           lifecycle,
           recordAgentStepTelemetryEvent({
@@ -1782,7 +1782,7 @@ export class ConversationTelemetrySupervisor {
               error: fact.errorMessage ?? lifecycle.lastErrorMessage ?? fact.errorCode ?? "",
               code: fact.errorCode,
             }
-      ) as Extract<ZCodeStreamEvent, { type: "task_complete" | "task_error" }>;
+      ) as Extract<XCodeStreamEvent, { type: "task_complete" | "task_error" }>;
     this.reportFinalizedSteps(
       lifecycle,
       recordAgentStepTelemetryEvent({
@@ -1919,7 +1919,7 @@ export class ConversationTelemetrySupervisor {
     if (!this.compactionKeys.remember(dedupeKey)) return;
     // compaction 只按 terminal 到达瞬间是否前台决定；后台到达后切回不能补报。
     if (!foregroundAtReceipt) return;
-    const timeline: ZCodeContextCompactionTimelineMeta = {
+    const timeline: XCodeContextCompactionTimelineMeta = {
       version: 1,
       kind: "synthetic",
       type: "context_compaction",

@@ -13,7 +13,7 @@ import {
   createLocalhostOAuthCallbackServer,
   type LocalhostOAuthCallbackServer,
 } from "../auth/localhost-callback.js";
-import type { SharedZCodeCredentialStore } from "../auth/shared-credentials.js";
+import type { SharedXCodeCredentialStore } from "../auth/shared-credentials.js";
 import {
   loadCanonicalCredentials,
   publishCanonicalCredentials,
@@ -47,10 +47,10 @@ export type McpInteractiveAuthorizationOutcome =
   | { status: "pending"; authorizationUrl?: string }
   | { status: "failed"; error: unknown };
 
-export interface McpInteractiveAuthorizationInput {
+interface McpInteractiveAuthorizationInput {
   adapterInstanceId?: string;
   config: McpAuthorizationCodeOAuthConfig;
-  credentialStore: SharedZCodeCredentialStore;
+  credentialStore: SharedXCodeCredentialStore;
   fetchFn?: FetchLike;
   /** 403 step-up：unionScope 是 requiredScope 的严格超集时，refresh 无法扩权，必须强制重新授权。 */
   forceReauthorization?: boolean;
@@ -258,7 +258,7 @@ class InteractiveAuthorizationProvider implements OAuthClientProvider {
   private readonly baselineGeneration?: string;
   private readonly callbackServer: LocalhostOAuthCallbackServer;
   private readonly config: McpAuthorizationCodeOAuthConfig;
-  private readonly credentialStore: SharedZCodeCredentialStore;
+  private readonly credentialStore: SharedXCodeCredentialStore;
   private readonly keyPrefix: string;
   private readonly logger?: Logger;
   private readonly onAuthorizationRequired?: (
@@ -283,7 +283,7 @@ class InteractiveAuthorizationProvider implements OAuthClientProvider {
     baselineGeneration?: string;
     callbackServer: LocalhostOAuthCallbackServer;
     config: McpAuthorizationCodeOAuthConfig;
-    credentialStore: SharedZCodeCredentialStore;
+    credentialStore: SharedXCodeCredentialStore;
     keyPrefix: string;
     logger?: Logger;
     onAuthorizationRequired?: (context: McpOAuthAuthorizationContext) => Promise<void> | void;
@@ -315,7 +315,7 @@ class InteractiveAuthorizationProvider implements OAuthClientProvider {
 
   get clientMetadata(): OAuthClientMetadata {
     return {
-      client_name: this.config.clientName ?? `ZCode ${this.serverName}`,
+      client_name: this.config.clientName ?? `XCode ${this.serverName}`,
       grant_types: ["authorization_code", "refresh_token"],
       redirect_uris: [this.redirectUrl],
       response_types: ["code"],

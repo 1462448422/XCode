@@ -55,7 +55,7 @@ interface CookieDecryptorResource {
   dispose(): void;
 }
 
-export interface ChromeCookieImportResult {
+interface ChromeCookieImportResult {
   databaseFound: boolean;
   issues: ChromeBrowserDataImportError[];
   rowCount: number;

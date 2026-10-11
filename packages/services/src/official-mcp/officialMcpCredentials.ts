@@ -1,5 +1,5 @@
 /*
- * ZCode 官方 Server MCP 的凭证解析与身份头构造。
+ * XCode 官方 Server MCP 的凭证解析与身份头构造。
  *
  * 本文件与 Off-Peak 的 offPeakRuntimeModel.ts **逻辑等价但完全独立**：
  * 不复用其函数、不修改其行为。理由是两者的套餐门槛、Team 支持范围与凭证通道预期会独立演进，
@@ -20,15 +20,15 @@ import {
   getModelProviderFamilySpec,
   zcodeProviderAccountAccessSchema,
   type OfficialMcpAuthFailureReason,
-  type ZCodeAccountAccess,
-  type ZCodeProviderAccountAccess,
+  type XCodeAccountAccess,
+  type XCodeProviderAccountAccess,
 } from "@zcode/shared";
 import type { ModelSelectionView } from "@zcode/provider";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 
 const log = createServiceLogger("official-mcp");
 
-const ZCODE_JWT_TOKEN_KEY = "zcodejwttoken";
+const XCODE_JWT_TOKEN_KEY = "zcodejwttoken";
 const ACTIVE_OAUTH_PROVIDER_KEY = "oauth:active_provider";
 
 /**
@@ -74,7 +74,7 @@ const CREDENTIAL_RESOLVED_LOG_BUCKET_SECONDS = 3600;
  * resolver 只合并正在执行的请求，没有时间缓存；因此按小时分桶去重，避免每次
  * MCP 调用都产生 info 日志。凭据有效期跨桶、进入 expired 或切换套餐类型时重新记录。
  */
-export function createCredentialResolvedLogKey(input: {
+function createCredentialResolvedLogKey(input: {
   providerFamily: "zai" | "bigmodel";
   planTargetType: string | null;
   maasJwtExpiresInSeconds: number | undefined;
@@ -91,9 +91,9 @@ export function createCredentialResolvedLogKey(input: {
 
 let lastCredentialResolvedLogKey: string | undefined;
 
-export interface OfficialMcpCredentialResolverDeps {
+interface OfficialMcpCredentialResolverDeps {
   accountRequestAuthService: {
-    resolveAccessCurrent(access: ZCodeProviderAccountAccess): Promise<ZCodeAccountAccess | null>;
+    resolveAccessCurrent(access: XCodeProviderAccountAccess): Promise<XCodeAccountAccess | null>;
   };
   credentialService: { load(key: string): Promise<string | null | undefined> };
   modelSelectionService: {
@@ -135,7 +135,7 @@ type SelectedPlan = {
 
 type SelectedProvider = {
   providerId: string;
-  access: ZCodeProviderAccountAccess;
+  access: XCodeProviderAccountAccess;
 };
 
 function fail(reason: OfficialMcpAuthFailureReason): {
@@ -167,7 +167,7 @@ function resolveSelectedProvider(
 
 function resolveSelectedPlan(
   selectedProvider: SelectedProvider,
-  access: ZCodeAccountAccess | null,
+  access: XCodeAccountAccess | null,
 ): { ok: true; plan: SelectedPlan } | { ok: false; reason: OfficialMcpAuthFailureReason } {
   if (
     !access ||
@@ -228,7 +228,7 @@ async function readIdentitySnapshot(
   const [registry, activeProviderValue, jwtValue] = await Promise.all([
     deps.modelSelectionService.getView(),
     deps.credentialService.load(ACTIVE_OAUTH_PROVIDER_KEY),
-    deps.credentialService.load(ZCODE_JWT_TOKEN_KEY),
+    deps.credentialService.load(XCODE_JWT_TOKEN_KEY),
   ]);
   const activeProvider = activeProviderValue?.trim();
   const jwt = jwtValue?.trim() ?? "";
@@ -417,14 +417,14 @@ export function buildOfficialMcpAuthHeaders(
 }
 
 /** host handler 透传的请求上下文；不参与凭证选择。 */
-export interface OfficialMcpAuthHeadersRequestContext {
+interface OfficialMcpAuthHeadersRequestContext {
   mcpKey: string;
   pluginId: string;
   targetOrigin: string;
   workspace: { workspaceIdentity?: string; workspaceKey: string; workspacePath: string };
 }
 
-export type OfficialMcpAuthHeadersOutcome =
+type OfficialMcpAuthHeadersOutcome =
   | { ok: true; headers: Record<string, string> }
   | { ok: false; reason: OfficialMcpAuthFailureReason };
 

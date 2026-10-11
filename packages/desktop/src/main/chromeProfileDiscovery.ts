@@ -43,7 +43,7 @@ interface ChromeLocalState {
   };
 }
 
-export interface ChromeProfileDiscoveryOptions extends ChromeInstallationPathOptions {
+interface ChromeProfileDiscoveryOptions extends ChromeInstallationPathOptions {
   installations?: ChromeInstallationCandidate[];
   processCommandLines?: string[];
 }

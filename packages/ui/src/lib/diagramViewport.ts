@@ -16,10 +16,10 @@ export type DiagramViewportBounds = {
   y?: number;
 };
 
-export const MIN_DIAGRAM_SCALE = 0.25;
-export const MAX_DIAGRAM_SCALE = 4;
+const MIN_DIAGRAM_SCALE = 0.25;
+const MAX_DIAGRAM_SCALE = 4;
 
-export function clampDiagramScale(scale: number): number {
+function clampDiagramScale(scale: number): number {
   if (!Number.isFinite(scale)) {
     return 1;
   }

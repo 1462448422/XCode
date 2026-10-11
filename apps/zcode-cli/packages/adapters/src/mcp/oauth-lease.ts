@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { acquireFileLock } from "@zcode/shared/node";
-import { ZCODE_FILE_LOCK_TIMEOUT_ERROR_CODE } from "@zcode/shared";
-import type { SharedZCodeCredentialStore } from "../auth/shared-credentials.js";
+import { XCODE_FILE_LOCK_TIMEOUT_ERROR_CODE } from "@zcode/shared";
+import type { SharedXCodeCredentialStore } from "../auth/shared-credentials.js";
 import { isRecord, mcpOAuthCredentialKey } from "./oauth-credentials.js";
 
-export const MCP_OAUTH_PENDING_AUTHORIZATION_KEY = "pending_authorization";
+const MCP_OAUTH_PENDING_AUTHORIZATION_KEY = "pending_authorization";
 
 /**
  * 授权 lease 的竞争等待预算。
@@ -19,7 +19,7 @@ const AUTHORIZATION_LEASE_MAX_WAIT_MS = 250;
 const AUTHORIZATION_LEASE_RETRY_DELAYS_MS = [25] as const;
 const AUTHORIZATION_LEASE_OWNERLESS_GRACE_MS = 100;
 
-export interface McpOAuthAuthorizationLease {
+interface McpOAuthAuthorizationLease {
   attemptId: string;
   release(): Promise<void>;
 }
@@ -30,10 +30,7 @@ export interface McpOAuthAuthorizationLease {
  * basename 只允许 hash 与连字符：credential key prefix 形如 `mcp:oauth:<hash>`，冒号在
  * Windows 文件名中非法，直接拼进路径会让整个授权流程在 Windows 上失败。
  */
-export function resolveAuthorizationLeasePath(
-  credentialsFilePath: string,
-  keyPrefix: string,
-): string {
+function resolveAuthorizationLeasePath(credentialsFilePath: string, keyPrefix: string): string {
   return join(dirname(credentialsFilePath), `${sanitizeKeyPrefix(keyPrefix)}.authz`);
 }
 
@@ -65,13 +62,13 @@ export async function tryAcquireAuthorizationLease(input: {
       release,
     };
   } catch (error) {
-    if (getErrorCode(error) === ZCODE_FILE_LOCK_TIMEOUT_ERROR_CODE) return undefined;
+    if (getErrorCode(error) === XCODE_FILE_LOCK_TIMEOUT_ERROR_CODE) return undefined;
     // EACCES/EPERM 等表示凭据目录不可写，交互授权无论如何都不可能成功，必须上报而不是静默降级。
     throw error;
   }
 }
 
-export interface PendingAuthorizationRecord {
+interface PendingAuthorizationRecord {
   attemptId: string;
   authorizationUrl: string;
   baselineGeneration?: string;
@@ -88,7 +85,7 @@ interface StoredPendingAuthorization {
 }
 
 export async function publishPendingAuthorization(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
   record: PendingAuthorizationRecord,
 ): Promise<void> {
@@ -106,7 +103,7 @@ export async function publishPendingAuthorization(
 
 /** 读取 pending；已过期视为不存在（TTL 只用于展示判断，不承担锁所有权语义）。 */
 export async function loadPendingAuthorization(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
   now = Date.now(),
 ): Promise<PendingAuthorizationRecord | undefined> {
@@ -146,7 +143,7 @@ export async function loadPendingAuthorization(
  * pending，follower 随即失去授权 URL。先读当前值确认归属，再按原始值 compare-and-delete。
  */
 export async function deletePendingAuthorizationIfOwned(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
   attemptId: string,
 ): Promise<boolean> {

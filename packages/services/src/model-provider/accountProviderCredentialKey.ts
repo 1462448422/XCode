@@ -1,4 +1,4 @@
-export type AccountProviderCredentialScope = {
+type AccountProviderCredentialScope = {
   readonly providerId: string;
   readonly accountIdentity: string;
 } & (

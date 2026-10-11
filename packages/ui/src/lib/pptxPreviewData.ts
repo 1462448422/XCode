@@ -1,7 +1,7 @@
 const PPTX_RANGE_CHUNK_BYTES = 256 * 1024;
 const PPTX_PREVIEW_INCOMPLETE_FILE_ERROR_CODE = "PPTX_PREVIEW_INCOMPLETE_FILE";
 
-export class PptxPreviewIncompleteFileError extends Error {
+class PptxPreviewIncompleteFileError extends Error {
   readonly code = PPTX_PREVIEW_INCOMPLETE_FILE_ERROR_CODE;
 
   constructor(

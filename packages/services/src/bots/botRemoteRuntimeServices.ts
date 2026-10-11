@@ -6,16 +6,16 @@ import {
   type MessagePortPayload,
 } from "@zcode/rpc";
 import {
-  IZCodeTaskService,
-  type IZCodeTaskService as IZCodeTaskServiceShape,
+  IXCodeTaskService,
+  type IXCodeTaskService as IXCodeTaskServiceShape,
 } from "#src/session/zcodeTaskService.js";
 import {
-  IZCodeAgentService,
-  type IZCodeAgentService as IZCodeAgentServiceShape,
+  IXCodeAgentService,
+  type IXCodeAgentService as IXCodeAgentServiceShape,
 } from "#src/zcode-agent/zcodeAgent.js";
 import {
-  IZCodeSessionService,
-  type IZCodeSessionService as IZCodeSessionServiceShape,
+  IXCodeSessionService,
+  type IXCodeSessionService as IXCodeSessionServiceShape,
 } from "#src/zcode-session/zcodeSession.js";
 import {
   IModelSelectionService,
@@ -67,9 +67,9 @@ function toMessagePortLike(port: PortLike): MessagePortLike {
 }
 
 export interface RemoteBotWorkspaceRuntimeServices {
-  zcodeAgentService: IZCodeAgentServiceShape;
-  zcodeTaskService: IZCodeTaskServiceShape;
-  zcodeSessionService: IZCodeSessionServiceShape;
+  zcodeAgentService: IXCodeAgentServiceShape;
+  zcodeTaskService: IXCodeTaskServiceShape;
+  zcodeSessionService: IXCodeSessionServiceShape;
   modelSelectionService: IModelSelectionServiceShape;
 }
 
@@ -79,14 +79,14 @@ export function createRemoteRuntimeServicesFromPort(
   const protocol = new MessagePortProtocol(toMessagePortLike(port as PortLike));
   const client = new ChannelClient(protocol);
   return {
-    zcodeAgentService: ProxyChannel.toService<IZCodeAgentServiceShape>(
-      client.getChannel(IZCodeAgentService.channelName),
+    zcodeAgentService: ProxyChannel.toService<IXCodeAgentServiceShape>(
+      client.getChannel(IXCodeAgentService.channelName),
     ),
-    zcodeTaskService: ProxyChannel.toService<IZCodeTaskServiceShape>(
-      client.getChannel(IZCodeTaskService.channelName),
+    zcodeTaskService: ProxyChannel.toService<IXCodeTaskServiceShape>(
+      client.getChannel(IXCodeTaskService.channelName),
     ),
-    zcodeSessionService: ProxyChannel.toService<IZCodeSessionServiceShape>(
-      client.getChannel(IZCodeSessionService.channelName),
+    zcodeSessionService: ProxyChannel.toService<IXCodeSessionServiceShape>(
+      client.getChannel(IXCodeSessionService.channelName),
     ),
     modelSelectionService: ProxyChannel.toService<IModelSelectionServiceShape>(
       client.getChannel(IModelSelectionService.channelName),

@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- ZCode Protocol 的 session/workspace 方法共享同一个 server context 与 snapshot helpers，迁移期先集中维护。 */
+/* eslint-disable max-lines -- XCode Protocol 的 session/workspace 方法共享同一个 server context 与 snapshot helpers，迁移期先集中维护。 */
 import { observeSessionDebug } from "./session-debug.js";
 import {
   TASK_LIST_SESSION_TYPES,
@@ -41,9 +41,8 @@ import {
   type WorkspaceId,
 } from "@zcode/contracts";
 import {
-  subagentRuntimeConfigSchema,
-  DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
-  ZCODE_SESSION_RUNTIME_PREFERENCES_REQUEST_TIMEOUT_MS,
+  DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
+  XCODE_SESSION_RUNTIME_PREFERENCES_REQUEST_TIMEOUT_MS,
   zcodeProtocolErrorCodes,
   zcodeProtocolMethods,
   zcodeSessionCancelBackgroundTaskParamsSchema,
@@ -56,7 +55,6 @@ import {
   zcodeSessionListParamsSchema,
   zcodeSessionMessagesParamsSchema,
   zcodeSessionReadParamsSchema,
-  elideSessionSnapshotForIndex,
   zcodeSessionRuntimePreferencesResultSchema,
   zcodeSessionResumeParamsSchema,
   zcodeSessionSendParamsSchema,
@@ -70,22 +68,20 @@ import {
   zcodeUsageStatsParamsSchema,
   zcodeWorkspaceGenerateTextParamsSchema,
   getConversationMessageProjectionPolicy,
-  isRemoteWorkspaceIdentity,
   parseRemoteWorkspaceIdentity,
-  type ZCodeAutomationBotDeliveryTarget,
-  type ZCodeSessionCreateParams,
-  type ZCodeDeliveryKind,
+  type XCodeAutomationBotDeliveryTarget,
+  type XCodeSessionCreateParams,
+  type XCodeDeliveryKind,
   type IntegratedTerminalShellSelection,
-  type ZCodeSessionRuntimePreferencesScope,
-  type ZCodeSessionRuntimePreferencesResult,
-  type ZCodeModelContextBudgetStrategy,
-  type ZCodeProtocolTrace,
-  type ZCodeSessionEvent,
-  type ZCodeSessionHistoryTarget,
-  type ZCodeSessionResumeParams,
-  type ZCodeSessionPersistence,
-  type ZCodeWorkspaceRef,
-  type ZCodeStateUpdatedNotification,
+  type XCodeSessionRuntimePreferencesScope,
+  type XCodeSessionRuntimePreferencesResult,
+  type XCodeModelContextBudgetStrategy,
+  type XCodeProtocolTrace,
+  type XCodeSessionEvent,
+  type XCodeSessionHistoryTarget,
+  type XCodeSessionResumeParams,
+  type XCodeSessionPersistence,
+  type XCodeStateUpdatedNotification,
 } from "@zcode/shared";
 import {
   buildSessionSnapshot,
@@ -100,21 +96,19 @@ import { optionalModelSelectionFromString } from "./model-mapper.js";
 import {
   ProtocolRequestError,
   assertExpectedRevision,
-  createProtocolLogger,
   createProtocolRootTraceContext,
-  protocolTraceFromTraceContext,
   parseParams,
   requireSession,
-  type ZCodeProtocolAgentServerContext,
-  type ZCodeProtocolSessionRecord,
-  type ZCodeProtocolToolInputTransmissionState,
+  type SessionCustomSystemMessages,
+  type XCodeProtocolAgentServerContext,
+  type XCodeProtocolSessionRecord,
+  type XCodeProtocolToolInputTransmissionState,
 } from "./server-types.js";
-import { createWorkspaceZCodeApp, ensureSessionModelAvailable } from "./workspace-model-runtime.js";
+import { createWorkspaceXCodeApp, ensureSessionModelAvailable } from "./workspace-model-runtime.js";
 import { buildAppUsageSnapshot, resolveTzOffsetMs } from "./usage-stats-builder.js";
 import { createProtocolInteractionBroker } from "./interaction-broker.js";
 import { createProtocolAutomationPort } from "./automation-port.js";
 import { createProtocolOffPeakPort } from "./offpeak-port.js";
-import { createProtocolTopicResourcePort } from "./topic-resource-port.js";
 import { createProtocolBrowserControlBroker } from "./browser-control-broker.js";
 import { mapComputerUseOperationEvent } from "./computer-use-operation-event.js";
 import { protocolMcpServersToRuntimeMcpConfig } from "./protocol-mcp-config.js";
@@ -126,49 +120,42 @@ import {
 } from "./subagent-session-query.js";
 import { runSessionModelConfigMutation } from "../zcode-protocol-v4/model-config-mutation.js";
 import { runWithSessionResidencyFinalization } from "./session-residency.js";
-import { resolveDynamicWorkflowRuntimeGate } from "./dynamic-workflow-policy.js";
-import { abortMcpUiToolCallsForSession, clearMcpUiAppToolsForSession } from "./mcp-ui/index.js";
 
 const PLAN_MODE_GOAL_CONTINUATION_SKIPPED_MESSAGE = "Plan mode 下已记录 goal，但不会自动继续。";
 const SLOW_SNAPSHOT_LOG_THRESHOLD_MS = 1000;
-const REMOTE_AUTOMATION_TOOL_NAMES = [
-  "CronCreate",
-  "CronList",
-  "CronUpdate",
-  "CronDelete",
-] as const;
 
 type ProtocolGoalTarget = NonNullable<
-  Awaited<ReturnType<NonNullable<ZCodeProtocolSessionRecord["app"]["readTarget"]>>>
+  Awaited<ReturnType<NonNullable<XCodeProtocolSessionRecord["app"]["readTarget"]>>>
 >;
 
-type ZCodeSessionRecordParams = (
-  | ZCodeSessionCreateParams
-  | (ZCodeSessionResumeParams & {
-      mode?: ZCodeSessionCreateParams["mode"];
-      model?: ZCodeSessionCreateParams["model"];
-      parentSessionId?: ZCodeSessionCreateParams["parentSessionId"];
-      thoughtLevel?: ZCodeSessionCreateParams["thoughtLevel"];
+type XCodeSessionRecordParams = (
+  | XCodeSessionCreateParams
+  | (XCodeSessionResumeParams & {
+      mode?: XCodeSessionCreateParams["mode"];
+      model?: XCodeSessionCreateParams["model"];
+      parentSessionId?: XCodeSessionCreateParams["parentSessionId"];
+      thoughtLevel?: XCodeSessionCreateParams["thoughtLevel"];
       // 自动化会话会在创建期关闭标题二次生成，而 create/resume
       // 共用 record 初始化函数；resume 兼容分支也必须声明该策略字段。
-      titleGenerationEnabled?: ZCodeSessionCreateParams["titleGenerationEnabled"];
+      titleGenerationEnabled?: XCodeSessionCreateParams["titleGenerationEnabled"];
     })
 ) & { taskType?: SessionTaskType };
 
 interface SessionStartupPreferences {
-  subagentRuntimeConfigEnabled?: boolean;
   memoryEnabled: boolean;
-  modelContextBudgetStrategy: ZCodeModelContextBudgetStrategy;
+  modelContextBudgetStrategy: XCodeModelContextBudgetStrategy;
   nativeSearchEnhancementsEnabled: boolean;
+  /** XCode fork：第 1 条 system 消息的自定义替换内容，物化时写入 runtimeConfig 并固化到 record。 */
+  customSystemMessages?: SessionCustomSystemMessages;
   resolveInitialBashShellSelection: () => Promise<ExecutionShellSelection | undefined>;
 }
 
 type SessionStartupPreferencesSource =
   | { kind: "host" }
-  | { kind: "inherit"; parent: ZCodeProtocolSessionRecord };
+  | { kind: "inherit"; parent: XCodeProtocolSessionRecord };
 
 function resolveSupportedAppThoughtLevel(
-  app: Pick<ZCodeProtocolSessionRecord["app"], "listThoughtLevels">,
+  app: Pick<XCodeProtocolSessionRecord["app"], "listThoughtLevels">,
   thoughtLevel: string | undefined,
 ): string | undefined {
   const normalizedThoughtLevel = thoughtLevel?.trim();
@@ -213,17 +200,17 @@ interface LiveProtocolStreamingDeltaBatch {
 }
 
 const liveProtocolStreamingDeltaBatches = new WeakMap<
-  ZCodeProtocolSessionRecord,
+  XCodeProtocolSessionRecord,
   Map<string, LiveProtocolStreamingDeltaBatch>
 >();
 
-function protocolEventSequenceKey(deliveryKind?: ZCodeDeliveryKind): string {
+function protocolEventSequenceKey(deliveryKind?: XCodeDeliveryKind): string {
   return deliveryKind ?? DEFAULT_PROTOCOL_EVENT_SEQUENCE_KEY;
 }
 
 function getProtocolEventSequenceState(
-  record: ZCodeProtocolSessionRecord,
-  deliveryKind?: ZCodeDeliveryKind,
+  record: XCodeProtocolSessionRecord,
+  deliveryKind?: XCodeDeliveryKind,
 ) {
   const key = protocolEventSequenceKey(deliveryKind);
   const existing = record.protocolEventSequences.get(key);
@@ -239,15 +226,15 @@ function getProtocolEventSequenceState(
 }
 
 function getProtocolToolInputTransmissionState(
-  record: ZCodeProtocolSessionRecord,
-  deliveryKind?: ZCodeDeliveryKind,
-): ZCodeProtocolToolInputTransmissionState {
+  record: XCodeProtocolSessionRecord,
+  deliveryKind?: XCodeDeliveryKind,
+): XCodeProtocolToolInputTransmissionState {
   const key = protocolEventSequenceKey(deliveryKind);
   const existing = record.protocolToolInputTransmissions.get(key);
   if (existing) {
     return existing;
   }
-  const created: ZCodeProtocolToolInputTransmissionState = {
+  const created: XCodeProtocolToolInputTransmissionState = {
     streamedToolCallIdsWithInput: new Set(),
   };
   record.protocolToolInputTransmissions.set(key, created);
@@ -259,9 +246,9 @@ function protocolSourceEventKey(event: SessionEvent): string {
 }
 
 function assignProtocolEventSeq(
-  record: ZCodeProtocolSessionRecord,
+  record: XCodeProtocolSessionRecord,
   event: SessionEvent,
-  deliveryKind?: ZCodeDeliveryKind,
+  deliveryKind?: XCodeDeliveryKind,
 ): number {
   const state = getProtocolEventSequenceState(record, deliveryKind);
   const sourceEventKey = protocolSourceEventKey(event);
@@ -288,8 +275,8 @@ function numberValue(value: unknown): number | undefined {
 }
 
 function getLiveProtocolStreamingDeltaBatchState(
-  record: ZCodeProtocolSessionRecord,
-  deliveryKind?: ZCodeDeliveryKind,
+  record: XCodeProtocolSessionRecord,
+  deliveryKind?: XCodeDeliveryKind,
 ): LiveProtocolStreamingDeltaBatch {
   let byDeliveryKind = liveProtocolStreamingDeltaBatches.get(record);
   if (!byDeliveryKind) {
@@ -336,14 +323,11 @@ function readProtocolStreamingParentToolUseId(
   }
   const meta = asRecord(payload._meta);
   const zcode = asRecord(meta.zcode);
-  const claudeCode = asRecord(meta.claudeCode);
   return (
     stringValue(meta.parentToolUseId) ??
     stringValue(meta.parentToolCallId) ??
     stringValue(zcode.parentToolUseId) ??
-    stringValue(zcode.parentToolCallId) ??
-    stringValue(claudeCode.parentToolUseId) ??
-    stringValue(claudeCode.parentToolCallId)
+    stringValue(zcode.parentToolCallId)
   );
 }
 
@@ -459,8 +443,8 @@ function shouldFlushProtocolStreamingDeltaBatchForInterval(
 }
 
 function markStreamedToolInputIfPresent(
-  mappedEvent: ZCodeSessionEvent,
-  toolInputTransmissions: ZCodeProtocolToolInputTransmissionState,
+  mappedEvent: XCodeSessionEvent,
+  toolInputTransmissions: XCodeProtocolToolInputTransmissionState,
 ): void {
   if (mappedEvent.type !== "model.streaming") {
     return;
@@ -478,9 +462,9 @@ function markStreamedToolInputIfPresent(
 
 function omitDuplicateScheduledToolInput(
   event: SessionEvent,
-  mappedEvent: ZCodeSessionEvent,
-  toolInputTransmissions: ZCodeProtocolToolInputTransmissionState,
-): ZCodeSessionEvent {
+  mappedEvent: XCodeSessionEvent,
+  toolInputTransmissions: XCodeProtocolToolInputTransmissionState,
+): XCodeSessionEvent {
   markStreamedToolInputIfPresent(mappedEvent, toolInputTransmissions);
   if (event.type !== SessionEventType.ToolCallScheduled || mappedEvent.type !== "tool.updated") {
     return mappedEvent;
@@ -585,10 +569,8 @@ function mapProtocolPromptAttachment(attachment: unknown): TurnAttachment | unde
     if (localPath) {
       return {
         path: localPath,
-        ...(kind === "file" &&
-        (stringValue(record.sourceKind) === "clipboard-text" ||
-          stringValue(record.sourceKind) === "topic-history")
-          ? { sourceKind: stringValue(record.sourceKind) as "clipboard-text" | "topic-history" }
+        ...(kind === "file" && stringValue(record.sourceKind) === "clipboard-text"
+          ? { sourceKind: "clipboard-text" as const }
           : {}),
         type: "file",
         ...displayMeta,
@@ -625,7 +607,7 @@ function decodeTextProtocolAttachment(record: Record<string, unknown>): string |
 }
 
 function shouldHideProtocolSessionEvent(
-  record: ZCodeProtocolSessionRecord,
+  record: XCodeProtocolSessionRecord,
   event: SessionEvent,
 ): boolean {
   const payload = asRecord(event.payload);
@@ -646,20 +628,20 @@ function shouldHideProtocolSessionEvent(
 }
 
 function mapProtocolSessionEvent(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   event: SessionEvent,
-  deliveryKind?: ZCodeDeliveryKind,
+  deliveryKind?: XCodeDeliveryKind,
   options: {
-    toolInputTransmissions?: ZCodeProtocolToolInputTransmissionState;
+    toolInputTransmissions?: XCodeProtocolToolInputTransmissionState;
   } = {},
-): ZCodeSessionEvent | null {
+): XCodeSessionEvent | null {
   if (shouldHideProtocolSessionEvent(record, event)) {
     return null;
   }
   if (!shouldExposeSessionEventToProtocol(event)) {
     const payload = asRecord(event.payload);
-    context.logger?.debug("ZCode Protocol session event filtered", {
+    context.logger?.debug("XCode Protocol session event filtered", {
       event: "zcode_protocol.session_event.filtered",
       eventId: String(event.id),
       module: "bootstrap.zcode_protocol",
@@ -672,7 +654,7 @@ function mapProtocolSessionEvent(
     return null;
   }
   // eventStore 的 sequenceNumber 是内部全量账本，包含被协议过滤的
-  // tool_input_delta 等高频模型中间态。ZCode Protocol 的 seq 是 UI/replay 的恢复键，
+  // tool_input_delta 等高频模型中间态。XCode Protocol 的 seq 是 UI/replay 的恢复键，
   // 必须按“协议实际可见事件流”重新连续编号，不能直接暴露内部 sequenceNumber。
   // sequenceNumber=0 的 subagent mirror/live-only 事件没有进入父 eventStore，也必须
   // 按 eventId 分配独立 seq，不能全部复用同一个 0 号映射。
@@ -691,14 +673,14 @@ function mapProtocolSessionEvent(
 }
 
 async function readProtocolSessionEvents(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
-  deliveryKind?: ZCodeDeliveryKind,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
+  deliveryKind?: XCodeDeliveryKind,
   options: { afterSeq?: number; limit?: number } = {},
-): Promise<ZCodeSessionEvent[]> {
+): Promise<XCodeSessionEvent[]> {
   const events = await record.eventStore.getEvents(record.app.sessionId as SessionId);
-  const visibleEvents: ZCodeSessionEvent[] = [];
-  const toolInputTransmissions: ZCodeProtocolToolInputTransmissionState = {
+  const visibleEvents: XCodeSessionEvent[] = [];
+  const toolInputTransmissions: XCodeProtocolToolInputTransmissionState = {
     streamedToolCallIdsWithInput: new Set(),
   };
   let pendingStreamingDeltaBatch: ProtocolStreamingDeltaBatch | undefined;
@@ -771,18 +753,18 @@ async function readProtocolSessionEvents(
 }
 
 async function getProtocolEventSeq(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
-  deliveryKind?: ZCodeDeliveryKind,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
+  deliveryKind?: XCodeDeliveryKind,
 ): Promise<number> {
   await readProtocolSessionEvents(context, record, deliveryKind);
   return getProtocolEventSequenceState(record, deliveryKind).lastSeq;
 }
 
 function logProtocolSessionEventSent(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   sourceEvent: SessionEvent,
-  mappedEvent: ZCodeSessionEvent,
+  mappedEvent: XCodeSessionEvent,
 ): void {
   const payload =
     typeof mappedEvent.payload === "object" && mappedEvent.payload !== null
@@ -792,7 +774,7 @@ function logProtocolSessionEventSent(
     method: "session/event",
     params: mappedEvent,
   };
-  context.logger?.debug("ZCode Protocol session event sent", {
+  context.logger?.debug("XCode Protocol session event sent", {
     deliveryKind: mappedEvent.deliveryKind,
     event: "zcode_protocol.session_event.sent",
     eventId: mappedEvent.eventId,
@@ -973,7 +955,7 @@ function slugifyImportedSession(value: string): string {
 
 function isImportedHistoryMessage(
   message: MessageWithParts,
-  source: NonNullable<ZCodeSessionCreateParams["importedHistory"]>["source"],
+  source: NonNullable<XCodeSessionCreateParams["importedHistory"]>["source"],
 ): boolean {
   const messageId = String(message.info.id);
   if (/^msg_import_\d+$/u.test(messageId) || messageId.startsWith("msg_claude-import-")) {
@@ -990,9 +972,9 @@ function isImportedHistoryMessage(
 }
 
 async function removePreviousImportedSessionHistory(params: {
-  sessionStore: NonNullable<ZCodeProtocolAgentServerContext["deps"]["sessionStore"]>;
+  sessionStore: NonNullable<XCodeProtocolAgentServerContext["deps"]["sessionStore"]>;
   sessionId: SessionId;
-  source: NonNullable<ZCodeSessionCreateParams["importedHistory"]>["source"];
+  source: NonNullable<XCodeSessionCreateParams["importedHistory"]>["source"];
 }): Promise<number> {
   const existingMessages = await params.sessionStore.messages({
     sessionID: params.sessionId,
@@ -1016,10 +998,10 @@ async function removePreviousImportedSessionHistory(params: {
 }
 
 async function persistImportedSessionHistory(params: {
-  context: ZCodeProtocolAgentServerContext;
-  record: ZCodeProtocolSessionRecord;
+  context: XCodeProtocolAgentServerContext;
+  record: XCodeProtocolSessionRecord;
   sessionId: SessionId;
-  createParams: ZCodeSessionCreateParams;
+  createParams: XCodeSessionCreateParams;
 }): Promise<void> {
   const importedHistory = params.createParams.importedHistory;
   const sessionStore = params.context.deps.sessionStore;
@@ -1219,7 +1201,7 @@ async function persistImportedSessionHistory(params: {
     });
   }
 
-  params.context.logger?.info("ZCode Protocol imported history persisted", {
+  params.context.logger?.info("XCode Protocol imported history persisted", {
     event: "zcode_protocol.session_import.persisted",
     messageCount: importedHistory.messages.length,
     module: "bootstrap.zcode_protocol",
@@ -1232,9 +1214,9 @@ async function persistImportedSessionHistory(params: {
 }
 
 export async function createSession(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-  trace?: ZCodeProtocolTrace,
+  trace?: XCodeProtocolTrace,
 ) {
   return createSessionWithProjection(context, rawParams, trace, async (record) => {
     const result = await snapshotWithDiagnostics(context, record);
@@ -1248,7 +1230,7 @@ export async function createSession(
 
 /** V4 创建只需要 record；不要为了丢弃的 legacy snapshot 强制解析空模型。 */
 export async function createSessionRecordForV4(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
 ) {
   return createSessionWithProjection(context, rawParams, undefined, async (record) => ({
@@ -1257,11 +1239,11 @@ export async function createSessionRecordForV4(
 }
 
 async function createSessionWithProjection<T>(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-  trace: ZCodeProtocolTrace | undefined,
+  trace: XCodeProtocolTrace | undefined,
   project: (
-    record: ZCodeProtocolSessionRecord,
+    record: XCodeProtocolSessionRecord,
   ) => Promise<{ value: T; phaseDurationsMs?: SnapshotPhaseDurationsMs; messageCount?: number }>,
 ): Promise<T> {
   const params = parseParams(zcodeSessionCreateParamsSchema, rawParams);
@@ -1276,7 +1258,7 @@ async function createSessionWithProjection<T>(
   }
   const sessionId = (params.sessionId ?? createSessionId()) as SessionId;
   const workspace = params.workspace;
-  context.logger?.info("ZCode Protocol session/create started", {
+  context.logger?.info("XCode Protocol session/create started", {
     event: "zcode_protocol.session_create.started",
     hasInitialModel: params.model !== undefined,
     hasInitialThoughtLevel: params.thoughtLevel !== undefined,
@@ -1328,7 +1310,7 @@ async function createSessionWithProjection<T>(
       } else if (initialThoughtLevel) {
         // workspace 默认 thoughtLevel 可能来自上一个模型。新 session 继承另一模型时，
         // 不能把不支持的档位硬塞给 runtime，否则创建阶段会抛 Unsupported reasoning effort。
-        context.logger?.warn("ZCode Protocol session/create skipped unsupported thought level", {
+        context.logger?.warn("XCode Protocol session/create skipped unsupported thought level", {
           event: "zcode_protocol.session_create.thought_level_skipped",
           module: "bootstrap.zcode_protocol",
           requestedThoughtLevel: initialThoughtLevel,
@@ -1342,7 +1324,7 @@ async function createSessionWithProjection<T>(
     if (params.importedHistory) {
       // 历史导入过去只写 legacy snapshot，taskId 不是真实 protocol sessionId，
       // setModel/sendPrompt 会打到不存在的 runtime。这里在创建期把历史写入 sessionStore 并 resume，
-      // 让导入结果从第一刻起就是可续聊、可切模型的 ZCode session。
+      // 让导入结果从第一刻起就是可续聊、可切模型的 XCode session。
       await persistImportedSessionHistory({
         context,
         record,
@@ -1357,7 +1339,7 @@ async function createSessionWithProjection<T>(
     const createdSnapshot = createdSnapshotResult.value;
     snapshotPhaseDurationsMs = createdSnapshotResult.phaseDurationsMs;
     snapshotDurationMs = Date.now() - snapshotStartedAt;
-    context.logger?.info("ZCode Protocol session/create completed", {
+    context.logger?.info("XCode Protocol session/create completed", {
       durationMs: Date.now() - startedAt,
       event: "zcode_protocol.session_create.completed",
       hasInitialModel: initialModel !== undefined,
@@ -1378,7 +1360,7 @@ async function createSessionWithProjection<T>(
     });
     return createdSnapshot;
   } catch (error) {
-    context.logger?.warn("ZCode Protocol session/create failed", {
+    context.logger?.warn("XCode Protocol session/create failed", {
       durationMs: Date.now() - startedAt,
       errorMessage: error instanceof Error ? error.message : String(error),
       event: "zcode_protocol.session_create.failed",
@@ -1414,8 +1396,8 @@ async function createSessionWithProjection<T>(
   }
 }
 
-export interface ActivatedSessionForResume {
-  record: ZCodeProtocolSessionRecord;
+interface ActivatedSessionForResume {
+  record: XCodeProtocolSessionRecord;
   knownSession?: SessionInfo;
   /** 仅供启动本次 V4 hydration，不写入 record 或跨请求缓存。 */
   persistedMessages?: MessageWithParts[];
@@ -1429,13 +1411,13 @@ export interface ActivatedSessionForResume {
  * snapshot 之前的原有顺序与副作用，让 V4 随后用自己的 durable projection 水合。
  */
 export async function activateSessionForResume(
-  context: ZCodeProtocolAgentServerContext,
-  params: ZCodeSessionResumeParams,
+  context: XCodeProtocolAgentServerContext,
+  params: XCodeSessionResumeParams,
   options: { reusePersistedMessages?: boolean } = {},
 ): Promise<ActivatedSessionForResume> {
   const resumeStartedAt = Date.now();
   const activeBeforeWait = context.sessions.has(params.sessionId);
-  context.logger?.debug("ZCode Protocol session resume started", {
+  context.logger?.debug("XCode Protocol session resume started", {
     activeBeforeWait,
     event: "zcode_protocol.session.resume_started",
     hasSessionStore: Boolean(context.deps.sessionStore),
@@ -1453,7 +1435,7 @@ export async function activateSessionForResume(
   if (!session) {
     // 诊断：冷恢复只有在持久化记录也不存在时才会走到这里；单凭错误文本无法和
     // readSession 的“runtime 尚未活跃”区分，因此把两层状态和等待耗时一起落盘。
-    context.logger?.warn("ZCode Protocol session resume found no persisted record", {
+    context.logger?.warn("XCode Protocol session resume found no persisted record", {
       activeBeforeWait,
       activeSessionCount: context.sessions.size,
       durationMs: Math.max(0, Date.now() - resumeStartedAt),
@@ -1521,7 +1503,7 @@ export async function activateSessionForResume(
   if (options.reusePersistedMessages && resumeResult.persistedMessagesReloadRequired) {
     persistedMessages = await readPersistedSessionMessages(context, params.sessionId);
   }
-  context.logger?.info("ZCode Protocol session resume completed", {
+  context.logger?.info("XCode Protocol session resume completed", {
     activeSessionCount: context.sessions.size,
     durationMs: Math.max(0, Date.now() - resumeStartedAt),
     event: "zcode_protocol.session.resume_completed",
@@ -1537,14 +1519,14 @@ export async function activateSessionForResume(
   };
 }
 
-export async function resumeSession(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function resumeSession(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionResumeParamsSchema, rawParams);
   const activated = await activateSessionForResume(context, params);
   return await snapshot(context, activated.record, activated.knownSession);
 }
 
 async function repairLegacyRemoteSessionWorkspaceForResume(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   session: SessionInfo,
 ): Promise<SessionInfo> {
   if (session.workspaceID || !context.deps.sessionStore?.repairLegacyRemoteSessionWorkspace) {
@@ -1609,7 +1591,7 @@ async function repairLegacyRemoteSessionWorkspaceForResume(
 }
 
 function resolveLegacyRemoteWorkspace(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   legacyWorkspaceDirectory: string,
 ): { workspaceIdentity: WorkspaceId; workspacePath: string } | null {
   const currentWorkspacePath = context.deps.cwd ?? process.cwd();
@@ -1640,7 +1622,7 @@ function resolveLegacyRemoteWorkspace(
   };
 }
 
-export async function listSessions(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function listSessions(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionListParamsSchema, rawParams ?? {});
   const store = context.deps.sessionStore;
   // 显式 ID 查询只读持久化身份，供 Host 修复旧索引；不能为了识别 child 激活 runtime。
@@ -1692,7 +1674,7 @@ export async function listSessions(context: ZCodeProtocolAgentServerContext, raw
 }
 
 export async function listSessionSubagents(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
   persistedMessages?: MessageWithParts[],
 ) {
@@ -1712,7 +1694,7 @@ export async function listSessionSubagents(
   if (!parentSession) {
     // 诊断：hydrate 会复用子任务种子读取；若 task index/旧 ACP task 残留了无效 ID，
     // 这里会把“持久化记录不存在”包装成 v4.hydrate，必须记录调用阶段而不是只看错误文本。
-    context.logger?.warn("ZCode Protocol session subagents has no persisted parent", {
+    context.logger?.warn("XCode Protocol session subagents has no persisted parent", {
       activeSessionCount: context.sessions.size,
       activeSession: Boolean(liveParent),
       event: "zcode_protocol.session.persisted_missing",
@@ -1786,7 +1768,7 @@ export async function listSessionSubagents(
 
 const APP_USAGE_RANGE_DAYS: Record<string, number> = { "7d": 7, "30d": 30 };
 
-export async function getUsageStats(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function getUsageStats(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeUsageStatsParamsSchema, rawParams ?? {});
   const timeZone = params.timeZone ?? "UTC";
   const until = Date.now();
@@ -1840,27 +1822,24 @@ export async function getUsageStats(context: ZCodeProtocolAgentServerContext, ra
   return buildAppUsageSnapshot(result, buildOptions);
 }
 
-export async function readSession(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function readSession(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionReadParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId, {
     deliveryKind: params.deliveryKind,
     operation: "session_read",
   });
   record.deliveryKind = params.deliveryKind ?? record.deliveryKind;
-  const result = await snapshot(context, record, undefined, {
+  return await snapshot(context, record, undefined, {
     messageLimit: params.messageLimit,
     modelAvailability: "current",
   });
-  // task index resync 只需标题/搜索文本/可见性/状态，完整历史单行可达 ~15MB 会打满 host stdio；
-  // 先按 full 构建再裁剪大载荷，保证 index 派生字段与 full 同源一致。
-  return params.contentProfile === "index" ? elideSessionSnapshotForIndex(result) : result;
 }
 
 /**
  * V4 冷恢复 usage 的窄读取：复用 legacy snapshot 的 meter 计算，但不映射完整协议快照。
  */
 export async function readSessionContextUsage(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   sessionId: string,
   persistedMessages?: MessageWithParts[],
 ) {
@@ -1887,7 +1866,7 @@ export async function readSessionContextUsage(
   });
 }
 
-export async function readMessages(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function readMessages(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionMessagesParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   const allMessages = await readActiveSessionMessages(context, record);
@@ -1900,7 +1879,7 @@ export async function readMessages(context: ZCodeProtocolAgentServerContext, raw
   };
 }
 
-export async function readEvents(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function readEvents(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionEventsParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   return {
@@ -1912,7 +1891,7 @@ export async function readEvents(context: ZCodeProtocolAgentServerContext, rawPa
 }
 
 export async function subscribeSession(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
 ) {
   const params = parseParams(zcodeSessionSubscribeParamsSchema, rawParams);
@@ -1939,7 +1918,7 @@ export async function subscribeSession(
   };
 }
 
-export async function sendPrompt(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function sendPrompt(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionSendParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   // legacy 输入入口同样必须保持子代理只读，不能绕过 V4 用户输入准入。
@@ -1951,7 +1930,7 @@ export async function sendPrompt(context: ZCodeProtocolAgentServerContext, rawPa
   assertExpectedRevision(record, params.expectedRevision);
   assertExpectedProviderRevision(context, record, params.expectedProviderRevision);
   if (record.activeAbortController) {
-    context.logger?.warn("ZCode Protocol session/send rejected: active prompt exists", {
+    context.logger?.warn("XCode Protocol session/send rejected: active prompt exists", {
       inputId: params.inputId,
       queryId: params.queryId,
       sessionId: params.sessionId,
@@ -1975,7 +1954,7 @@ export async function sendPrompt(context: ZCodeProtocolAgentServerContext, rawPa
   }
   const abortController = new AbortController();
   record.activeAbortController = abortController;
-  context.logger?.info("ZCode Protocol session/send accepted", {
+  context.logger?.info("XCode Protocol session/send accepted", {
     attachmentCount: params.attachments?.length ?? 0,
     inputId: params.inputId,
     queryId: params.queryId,
@@ -2036,7 +2015,7 @@ export async function sendPrompt(context: ZCodeProtocolAgentServerContext, rawPa
   return afterPromptAccepted(context, record, "prompt_started");
 }
 
-export async function compactSession(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function compactSession(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionCompactParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   assertExpectedRevision(record, params.expectedRevision);
@@ -2096,8 +2075,8 @@ export async function compactSession(context: ZCodeProtocolAgentServerContext, r
 }
 
 async function runCompactTurnInBackground(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   params: {
     abortController: AbortController;
     command: string;
@@ -2106,7 +2085,7 @@ async function runCompactTurnInBackground(
 ): Promise<void> {
   const startedAt = Date.now();
   let mutationReason = "session_compacted";
-  context.logger?.info("ZCode Protocol background compact started", {
+  context.logger?.info("XCode Protocol background compact started", {
     inputId: params.inputId,
     sessionId: record.app.sessionId,
     workspacePath: record.workspace.workspacePath,
@@ -2116,7 +2095,7 @@ async function runCompactTurnInBackground(
       abortSignal: params.abortController.signal,
       inputId: params.inputId,
     });
-    context.logger?.info("ZCode Protocol background compact completed", {
+    context.logger?.info("XCode Protocol background compact completed", {
       durationMs: Date.now() - startedAt,
       inputId: params.inputId,
       sessionId: record.app.sessionId,
@@ -2126,7 +2105,7 @@ async function runCompactTurnInBackground(
     mutationReason = params.abortController.signal.aborted
       ? "session_compact_cancelled"
       : "session_compact_failed";
-    context.logger?.warn("ZCode Protocol background compact failed", {
+    context.logger?.warn("XCode Protocol background compact failed", {
       durationMs: Date.now() - startedAt,
       error: error instanceof Error ? error.message : String(error),
       inputId: params.inputId,
@@ -2143,7 +2122,7 @@ async function runCompactTurnInBackground(
   await afterStateMutation(context, record, mutationReason);
 }
 
-export async function goalSession(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function goalSession(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionGoalParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   assertExpectedRevision(record, params.expectedRevision);
@@ -2179,13 +2158,13 @@ export async function goalSession(context: ZCodeProtocolAgentServerContext, rawP
     const activeAbortController = record.activeAbortController;
     const target = await record.app.updateTargetStatus("paused");
     if (target && activeAbortController) {
-      context.logger?.info("ZCode Protocol goal pause aborting active turn", {
+      context.logger?.info("XCode Protocol goal pause aborting active turn", {
         inputId: params.inputId,
         sessionId: params.sessionId,
         targetId: target.targetID,
         workspacePath: record.workspace.workspacePath,
       });
-      activeAbortController.abort(new Error("ZCode Protocol goal paused"));
+      activeAbortController.abort(new Error("XCode Protocol goal paused"));
     }
     const snapshotAfterGoal = await afterStateMutation(context, record, "goal_paused");
     return {
@@ -2250,7 +2229,7 @@ export async function goalSession(context: ZCodeProtocolAgentServerContext, rawP
   });
 }
 
-export async function forkSession(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function forkSession(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionForkParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   assertExpectedRevision(record, params.expectedRevision);
@@ -2278,9 +2257,9 @@ export async function forkSession(context: ZCodeProtocolAgentServerContext, rawP
  * 但不会进入 forkSession 的 active-turn guard / workspace fork；runtimeConfig 可固定在 fork 点。
  */
 export async function registerForkedSession(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
-  fork: Awaited<ReturnType<ZCodeProtocolSessionRecord["app"]["forkFromCheckpoint"]>>,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
+  fork: Awaited<ReturnType<XCodeProtocolSessionRecord["app"]["forkFromCheckpoint"]>>,
   options: {
     runtimeConfig: {
       mode: CollaborationMode;
@@ -2351,9 +2330,9 @@ export async function registerForkedSession(
 }
 
 async function inheritForkedSessionTarget(
-  context: ZCodeProtocolAgentServerContext,
-  parentRecord: ZCodeProtocolSessionRecord,
-  forkRecord: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  parentRecord: XCodeProtocolSessionRecord,
+  forkRecord: XCodeProtocolSessionRecord,
   forkedSessionId: string,
 ) {
   const parentTarget = await parentRecord.app.readTarget();
@@ -2382,8 +2361,8 @@ async function inheritForkedSessionTarget(
 }
 
 async function runPromptTurnInBackground(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   params: {
     abortController: AbortController;
     intent?: SendInputOptions["intent"];
@@ -2397,11 +2376,11 @@ async function runPromptTurnInBackground(
     queryId?: QueryId;
     content: string;
     toolDenylist?: readonly string[];
-    botDeliveryTarget?: ZCodeAutomationBotDeliveryTarget;
+    botDeliveryTarget?: XCodeAutomationBotDeliveryTarget;
   } & TurnBackgroundAttribution,
 ): Promise<void> {
   const startedAt = Date.now();
-  context.logger?.info("ZCode Protocol background turn started", {
+  context.logger?.info("XCode Protocol background turn started", {
     inputId: params.inputId,
     queryId: params.queryId,
     sessionId: record.app.sessionId,
@@ -2463,7 +2442,7 @@ async function runPromptTurnInBackground(
       throw new ProtocolRequestError(-32010, `Prompt admission rejected: ${admission.reason}`);
     }
     if (admission.kind === "started_turn") await admission.completion;
-    context.logger?.info("ZCode Protocol background turn completed", {
+    context.logger?.info("XCode Protocol background turn completed", {
       durationMs: Date.now() - startedAt,
       inputId: params.inputId,
       queryId: params.queryId,
@@ -2472,7 +2451,7 @@ async function runPromptTurnInBackground(
     });
   } catch (error) {
     mutationReason = "prompt_failed";
-    context.logger?.warn("ZCode Protocol background turn failed", {
+    context.logger?.warn("XCode Protocol background turn failed", {
       durationMs: Date.now() - startedAt,
       error: error instanceof Error ? error.message : String(error),
       inputId: params.inputId,
@@ -2485,7 +2464,7 @@ async function runPromptTurnInBackground(
       // 必须先释放 active lock 再广播状态，否则手机端收到 ready 后立刻 drain 会被
       // session/send 拒绝为 "A prompt is already running for this session"。
       record.activeAbortController = undefined;
-      context.logger?.info("ZCode Protocol background turn cleared active controller", {
+      context.logger?.info("XCode Protocol background turn cleared active controller", {
         durationMs: Date.now() - startedAt,
         inputId: params.inputId,
         sessionId: record.app.sessionId,
@@ -2551,8 +2530,8 @@ function resolvePromptTurnOffPeakTaskId(params: {
 }
 
 async function continueGoalAfterChange(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   params: {
     inputId?: string;
     reason: string;
@@ -2588,8 +2567,8 @@ async function continueGoalAfterChange(
 }
 
 async function runGoalContinuationInBackground(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   params: {
     abortController: AbortController;
     inputId?: string;
@@ -2613,12 +2592,12 @@ async function runGoalContinuationInBackground(
   await afterStateMutation(context, record, mutationReason);
 }
 
-export async function stopSession(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function stopSession(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionStopParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   const hadActivePrompt = Boolean(record.activeAbortController);
   let pausedTarget: ProtocolGoalTarget | null = null;
-  context.logger?.info("ZCode Protocol session/stop received", {
+  context.logger?.info("XCode Protocol session/stop received", {
     hadActivePrompt,
     sessionId: params.sessionId,
     workspacePath: record.workspace.workspacePath,
@@ -2628,7 +2607,7 @@ export async function stopSession(context: ZCodeProtocolAgentServerContext, rawP
       sessionId: params.sessionId,
     });
   }
-  record.activeAbortController?.abort(new Error("ZCode Protocol session stopped"));
+  record.activeAbortController?.abort(new Error("XCode Protocol session stopped"));
   if (pausedTarget) {
     await afterStateMutation(context, record, "session_stop_goal_paused");
   }
@@ -2636,8 +2615,8 @@ export async function stopSession(context: ZCodeProtocolAgentServerContext, rawP
 }
 
 async function pauseActiveGoalForSessionStop(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   params: { sessionId: string },
 ): Promise<ProtocolGoalTarget | null> {
   if (!record.app.readTarget || !record.app.updateTargetStatus) {
@@ -2653,7 +2632,7 @@ async function pauseActiveGoalForSessionStop(
     // 会在队列仍持有 stopRequested 的情况下保留 active goal，导致后续队列无法 drain。
     const pausedTarget = await record.app.updateTargetStatus("paused");
     if (pausedTarget) {
-      context.logger?.info("ZCode Protocol session/stop paused active goal", {
+      context.logger?.info("XCode Protocol session/stop paused active goal", {
         sessionId: params.sessionId,
         targetId: pausedTarget.targetID,
         workspacePath: record.workspace.workspacePath,
@@ -2661,7 +2640,7 @@ async function pauseActiveGoalForSessionStop(
     }
     return pausedTarget;
   } catch (error) {
-    context.logger?.warn("ZCode Protocol session/stop failed to pause active goal", {
+    context.logger?.warn("XCode Protocol session/stop failed to pause active goal", {
       error: error instanceof Error ? error.message : String(error),
       sessionId: params.sessionId,
       targetId: target.targetID,
@@ -2672,12 +2651,12 @@ async function pauseActiveGoalForSessionStop(
 }
 
 export async function cancelBackgroundTask(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
 ) {
   const params = parseParams(zcodeSessionCancelBackgroundTaskParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
-  context.logger?.info("ZCode Protocol session/cancelBackgroundTask received", {
+  context.logger?.info("XCode Protocol session/cancelBackgroundTask received", {
     sessionId: params.sessionId,
     taskId: params.taskId,
     workspacePath: record.workspace.workspacePath,
@@ -2701,7 +2680,7 @@ export async function cancelBackgroundTask(
   return result;
 }
 
-export async function setModel(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function setModel(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionSetModelParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   assertExpectedRevision(record, params.expectedRevision);
@@ -2713,7 +2692,7 @@ export async function setModel(context: ZCodeProtocolAgentServerContext, rawPara
 }
 
 export async function setThoughtLevel(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
 ) {
   const params = parseParams(zcodeSessionSetThoughtLevelParamsSchema, rawParams);
@@ -2729,7 +2708,7 @@ export async function setThoughtLevel(
   return await afterStateMutation(context, record, "thought_level_changed");
 }
 
-export async function setMode(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function setMode(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionSetModeParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   assertExpectedRevision(record, params.expectedRevision);
@@ -2737,7 +2716,7 @@ export async function setMode(context: ZCodeProtocolAgentServerContext, rawParam
   return await afterStateMutation(context, record, "mode_changed");
 }
 
-export async function closeSession(context: ZCodeProtocolAgentServerContext, rawParams: unknown) {
+export async function closeSession(context: XCodeProtocolAgentServerContext, rawParams: unknown) {
   const params = parseParams(zcodeSessionCloseParamsSchema, rawParams);
   const record = requireSession(context, params.sessionId);
   if (!shouldCloseSessionForExpectedPersistence(record.persistence, params.expectedPersistence)) {
@@ -2746,12 +2725,6 @@ export async function closeSession(context: ZCodeProtocolAgentServerContext, raw
     return { closed: false };
   }
   record.unsubscribe?.();
-  // 会话关闭时 abort 仍在进行的插件 UI 工具调用，登记表不留孤儿。
-  abortMcpUiToolCallsForSession(params.sessionId);
-  // App-Provided Tools：结束本会话全部待执行的页面调用并丢弃登记。
-  clearMcpUiAppToolsForSession(context, params.sessionId);
-  // 清掉本会话全部资源订阅（refcount 归零的 uri 才真正向 server 退订）。
-  await record.app.unsubscribeMcpResourcesForUi?.(`${params.sessionId}|`).catch(() => 0);
   await record.app.close?.();
   // v4 通道：会话关闭同时清 publisher / 订阅调度；重开会话走 snapshot 冷启动。
   // dispose 必须先于注册表删除——gateway 靠 getSessionWorkspaceId
@@ -2763,15 +2736,15 @@ export async function closeSession(context: ZCodeProtocolAgentServerContext, raw
   return { closed: true };
 }
 
-export function shouldCloseSessionForExpectedPersistence(
-  currentPersistence: ZCodeSessionPersistence,
-  expectedPersistence?: ZCodeSessionPersistence,
+function shouldCloseSessionForExpectedPersistence(
+  currentPersistence: XCodeSessionPersistence,
+  expectedPersistence?: XCodeSessionPersistence,
 ): boolean {
   return expectedPersistence === undefined || currentPersistence === expectedPersistence;
 }
 
 export async function generateWorkspaceText(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
   abortSignal?: AbortSignal,
 ) {
@@ -2797,7 +2770,7 @@ export async function generateWorkspaceText(
   };
   const app =
     active?.app ??
-    (await createWorkspaceZCodeApp(context, params.workspace, {
+    (await createWorkspaceXCodeApp(context, params.workspace, {
       env: context.deps.env,
       eventStore: context.deps.createSessionEventStore("workspace-generate-text"),
       runtimeConfig: {
@@ -2823,7 +2796,7 @@ export async function generateWorkspaceText(
   }
 }
 
-function ensureNoActiveTurn(record: ZCodeProtocolSessionRecord, message: string): void {
+function ensureNoActiveTurn(record: XCodeProtocolSessionRecord, message: string): void {
   if (!record.activeAbortController) {
     return;
   }
@@ -2858,8 +2831,8 @@ function formatGoalChanged(title: string, target: ProtocolGoalTarget): string {
 }
 
 function assertExpectedProviderRevision(
-  _context: ZCodeProtocolAgentServerContext,
-  _record: ZCodeProtocolSessionRecord,
+  _context: XCodeProtocolAgentServerContext,
+  _record: XCodeProtocolSessionRecord,
   expectedProviderRevision: string | undefined,
 ): void {
   // 兼容旧客户端字段。Provider revision 已由进程 Registry 自己管理，不再接受 Host CAS。
@@ -2867,8 +2840,8 @@ function assertExpectedProviderRevision(
 }
 
 export async function ensureSessionModelAvailableForNextTurn(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
 ): Promise<void> {
   if (await ensureSessionModelAvailable(context, record)) {
     record.stateRevision++;
@@ -2876,9 +2849,9 @@ export async function ensureSessionModelAvailableForNextTurn(
 }
 
 async function resolveForkTarget(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
-  target: ZCodeSessionHistoryTarget,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
+  target: XCodeSessionHistoryTarget,
 ): Promise<{ targetCheckpointId?: string; targetMessageId?: string }> {
   if (target.kind === "latestCheckpoint") {
     return {};
@@ -2895,8 +2868,8 @@ async function resolveForkTarget(
 }
 
 async function resolveTurnMessageId(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   turnIndex: number,
   role: "assistant" | "user",
 ): Promise<MessageId> {
@@ -2934,7 +2907,7 @@ async function resolveTurnMessageId(
 }
 
 export async function getTaskTokenUsage(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
 ) {
   const params = parseParams(zcodeTaskTokenUsageParamsSchema, rawParams ?? {});
@@ -3011,14 +2984,14 @@ function isNonActivitySessionEvent(event: SessionEvent): boolean {
  * （SessionTitleUpdated first_input），紧随其后的 ingest 便把会话推进 sessions-index。
  * 测试桩的 runtime 可能没有这个方法（`as never`），缺席即不对齐。
  */
-function reconcileRecordPersistence(record: ZCodeProtocolSessionRecord): void {
+function reconcileRecordPersistence(record: XCodeProtocolSessionRecord): void {
   if (record.persistence !== "deferred") return;
   if (record.app.runtime?.isSessionPersisted?.() === true) record.persistence = "immediate";
 }
 
 export function onSessionEvent(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   event: SessionEvent,
 ): void {
   const computerUseOperationEvent = mapComputerUseOperationEvent(event);
@@ -3113,9 +3086,9 @@ export function onSessionEvent(
 }
 
 function flushLiveProtocolStreamingDeltaBatch(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
-  deliveryKind?: ZCodeDeliveryKind,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
+  deliveryKind?: XCodeDeliveryKind,
 ): void {
   const batchState = getLiveProtocolStreamingDeltaBatchState(record, deliveryKind);
   if (!batchState.batch) {
@@ -3131,9 +3104,9 @@ function flushLiveProtocolStreamingDeltaBatch(
 }
 
 function resetLiveProtocolStreamingDeltaBatch(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
-  deliveryKind?: ZCodeDeliveryKind,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
+  deliveryKind?: XCodeDeliveryKind,
 ): void {
   const batchState = getLiveProtocolStreamingDeltaBatchState(record, deliveryKind);
   flushLiveProtocolStreamingDeltaBatch(context, record, deliveryKind);
@@ -3142,10 +3115,10 @@ function resetLiveProtocolStreamingDeltaBatch(
 }
 
 function sendProtocolSessionEvent(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   event: SessionEvent,
-  deliveryKind?: ZCodeDeliveryKind,
+  deliveryKind?: XCodeDeliveryKind,
 ): void {
   const mappedEvent = mapProtocolSessionEvent(context, record, event, deliveryKind);
   if (!mappedEvent) return;
@@ -3175,7 +3148,7 @@ function integratedTerminalShellToExecutionSelection(
 }
 
 function resolveProtocolBashShellSelection(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   selection: IntegratedTerminalShellSelection | undefined,
 ): ExecutionShellSelection {
   const configuredSelection = integratedTerminalShellToExecutionSelection(selection);
@@ -3187,16 +3160,16 @@ function resolveProtocolBashShellSelection(
 }
 
 async function requestSessionRuntimePreferences(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   sessionId: SessionId,
-  scope: ZCodeSessionRuntimePreferencesScope,
-  trace?: ZCodeProtocolTrace,
-): Promise<ZCodeSessionRuntimePreferencesResult> {
+  scope: XCodeSessionRuntimePreferencesScope,
+  trace?: XCodeProtocolTrace,
+): Promise<XCodeSessionRuntimePreferencesResult> {
   const startedAt = Date.now();
-  // ZCodeProtocolTrace.traceId 是协议层的 string；LogContext 需要 branded TraceId，
+  // XCodeProtocolTrace.traceId 是协议层的 string；LogContext 需要 branded TraceId，
   // 按本文件既有惯例断言收口，避免多处日志构造重复转换。
   const traceId = trace?.traceId as TraceId | undefined;
-  context.logger?.debug("ZCode Protocol runtime preferences request started", {
+  context.logger?.debug("XCode Protocol runtime preferences request started", {
     event: "zcode_protocol.runtime_preferences.request_started",
     module: "bootstrap.zcode_protocol",
     scope,
@@ -3209,11 +3182,11 @@ async function requestSessionRuntimePreferences(
       { sessionId, scope },
       zcodeSessionRuntimePreferencesResultSchema,
       {
-        timeoutMs: ZCODE_SESSION_RUNTIME_PREFERENCES_REQUEST_TIMEOUT_MS,
+        timeoutMs: XCODE_SESSION_RUNTIME_PREFERENCES_REQUEST_TIMEOUT_MS,
         ...(trace ? { trace } : {}),
       },
     );
-    context.logger?.debug("ZCode Protocol runtime preferences response received", {
+    context.logger?.debug("XCode Protocol runtime preferences response received", {
       durationMs: Math.max(0, Date.now() - startedAt),
       event: "zcode_protocol.runtime_preferences.response_received",
       module: "bootstrap.zcode_protocol",
@@ -3238,12 +3211,12 @@ async function requestSessionRuntimePreferences(
     if (errorCode === -32022) {
       // 诊断：偏好请求超时发生在 runtime 注册前；记录 session/scope，区分
       // “Host 没收到/没回包”和“恢复过程中其他阶段失败”。
-      context.logger?.warn("ZCode Protocol runtime preferences request timed out", diagnostic);
+      context.logger?.warn("XCode Protocol runtime preferences request timed out", diagnostic);
     } else if (errorCode !== -32601 && errorCode !== -32020) {
-      context.logger?.warn("ZCode Protocol runtime preferences request failed", diagnostic);
+      context.logger?.warn("XCode Protocol runtime preferences request failed", diagnostic);
     } else {
       context.logger?.debug(
-        "ZCode Protocol runtime preferences compatibility fallback",
+        "XCode Protocol runtime preferences compatibility fallback",
         diagnostic,
       );
     }
@@ -3253,7 +3226,7 @@ async function requestSessionRuntimePreferences(
       return {
         askUserQuestionAutoResolutionEnabled: true,
         memoryEnabled: false,
-        modelContextBudgetStrategy: DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
+        modelContextBudgetStrategy: DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
         nativeSearchEnhancementsEnabled: true,
       };
     }
@@ -3262,18 +3235,20 @@ async function requestSessionRuntimePreferences(
 }
 
 async function resolveSessionStartupPreferences(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   sessionId: SessionId,
   source: SessionStartupPreferencesSource,
-  trace?: ZCodeProtocolTrace,
+  trace?: XCodeProtocolTrace,
 ): Promise<SessionStartupPreferences> {
   if (source.kind === "inherit") {
     const inheritedShellSelection = source.parent.app.runtime.getSessionShellSelection();
     return {
       memoryEnabled: source.parent.memoryEnabled,
-      subagentRuntimeConfigEnabled: source.parent.subagentRuntimeConfigEnabled,
-      modelContextBudgetStrategy: DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
+      modelContextBudgetStrategy: DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
       nativeSearchEnhancementsEnabled: source.parent.nativeSearchEnhancementsEnabled,
+      ...(source.parent.customSystemMessages
+        ? { customSystemMessages: source.parent.customSystemMessages }
+        : {}),
       resolveInitialBashShellSelection: async () => inheritedShellSelection,
     };
   }
@@ -3289,10 +3264,12 @@ async function resolveSessionStartupPreferences(
     runtimePreferences.askUserQuestionAutoResolutionEnabled,
   );
   return {
-    subagentRuntimeConfigEnabled: runtimePreferences.subagentRuntimeConfigEnabled,
     memoryEnabled: runtimePreferences.memoryEnabled,
-    modelContextBudgetStrategy: DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
+    modelContextBudgetStrategy: DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
     nativeSearchEnhancementsEnabled: runtimePreferences.nativeSearchEnhancementsEnabled,
+    ...(runtimePreferences.customSystemMessages
+      ? { customSystemMessages: runtimePreferences.customSystemMessages }
+      : {}),
     resolveInitialBashShellSelection: async () => {
       const executionPreferences = await requestSessionRuntimePreferences(
         context,
@@ -3309,13 +3286,13 @@ async function resolveSessionStartupPreferences(
 }
 
 async function materializeSessionRecord(
-  context: ZCodeProtocolAgentServerContext,
-  params: ZCodeSessionRecordParams,
+  context: XCodeProtocolAgentServerContext,
+  params: XCodeSessionRecordParams,
   sessionId: SessionId,
   resume: boolean,
   source: SessionStartupPreferencesSource,
-  trace?: ZCodeProtocolTrace,
-): Promise<ZCodeProtocolSessionRecord> {
+  trace?: XCodeProtocolTrace,
+): Promise<XCodeProtocolSessionRecord> {
   const startupPreferences = await resolveSessionStartupPreferences(
     context,
     sessionId,
@@ -3326,13 +3303,13 @@ async function materializeSessionRecord(
 }
 
 async function createRecord(
-  context: ZCodeProtocolAgentServerContext,
-  params: ZCodeSessionRecordParams,
+  context: XCodeProtocolAgentServerContext,
+  params: XCodeSessionRecordParams,
   sessionId: SessionId,
   resume: boolean,
   startupPreferences: SessionStartupPreferences,
-  trace?: ZCodeProtocolTrace,
-): Promise<ZCodeProtocolSessionRecord> {
+  trace?: XCodeProtocolTrace,
+): Promise<XCodeProtocolSessionRecord> {
   const workspace =
     "workspace" in params && params.workspace
       ? params.workspace
@@ -3346,7 +3323,7 @@ async function createRecord(
       : undefined;
   const taskType = params.taskType ?? "interactive";
   const runtimeMcp = protocolMcpServersToRuntimeMcpConfig(params.mcpServers);
-  context.logger?.info("ZCode Protocol createRecord MCP config", {
+  context.logger?.info("XCode Protocol createRecord MCP config", {
     event: "zcode_protocol.create_record.mcp_config",
     rootTraceId: traceContext.traceId,
     inboundTraceId: trace?.traceId,
@@ -3359,8 +3336,8 @@ async function createRecord(
   });
   // automation-port 需要读取「本会话」的实时 model/mode/thought；record 在 app 之后才建。
   // 用可变持有者做惰性绑定：CronCreate 在 turn 中调用 create() 时 record 早已就绪。
-  let ownSessionRecord: ZCodeProtocolSessionRecord | undefined;
-  const app = await createWorkspaceZCodeApp(context, workspace, {
+  let ownSessionRecord: XCodeProtocolSessionRecord | undefined;
+  const app = await createWorkspaceXCodeApp(context, workspace, {
     env: context.deps.env,
     eventStore,
     resume,
@@ -3369,34 +3346,34 @@ async function createRecord(
       modelSelection: "model" in params ? toRuntimeModelSelection(initialModel) : undefined,
       parentSessionId,
       taskType,
-      // 动态工作流灰度门（docs/dynamic-workflow/launch.md「Gray release」「On demand: activation」）：
-      // 与 offPeakPort 同一套读法——本次 create/resume 参数优先，缺席时读 Host 同步到进程的
-      // workspace 级结论。取值与「必须显式布尔」的理由收在 resolveDynamicWorkflowRuntimeGate。
-      ...resolveDynamicWorkflowRuntimeGate(
-        {
-          dynamicWorkflowEnabled:
-            "dynamicWorkflowEnabled" in params ? params.dynamicWorkflowEnabled : undefined,
-          dynamicWorkflowMode:
-            "dynamicWorkflowMode" in params ? params.dynamicWorkflowMode : undefined,
-        },
-        context.appRuntimePreferences,
-      ),
-      // 修复原因：协议侧的工具允许/拒绝列表是 session 级安全边界，必须进入 runtimeConfig，
+      // 动态工作流灰度门：与 offPeakPort
+      // 同一套读法——本次 create/resume 参数优先，缺席时读 Host 同步到进程的 workspace 级
+      // 结论；两者都没有就是 false（fail-closed）。这里**必须写出显式布尔**，不能省成
+      // undefined：core 把「缺席」定义为「不参与灰度、保留全部工具」（TUI / headless /
+      // workflow_child 的语义），受信 Host 创建的会话不能落进那条豁免。
+      dynamicWorkflowEnabled:
+        ("dynamicWorkflowEnabled" in params && params.dynamicWorkflowEnabled === true) ||
+        context.appRuntimePreferences.dynamicWorkflowEnabled === true,
+      // 协议侧的工具允许/拒绝列表是 session 级安全边界，必须进入 runtimeConfig，
       // 不能只依赖 prompt 文本约束，否则内置工具和动态 MCP 工具仍可能越过调用面。
       toolAllowlist: "toolAllowlist" in params ? params.toolAllowlist : undefined,
-      toolDisallowlist: resolveSessionToolDenylist(params, workspace),
+      toolDisallowlist: "toolDenylist" in params ? params.toolDenylist : undefined,
       nativeSearchEnhancementsEnabled: startupPreferences.nativeSearchEnhancementsEnabled,
       modelContextBudgetStrategy: startupPreferences.modelContextBudgetStrategy,
       // Memory Settings 是现有 CLI features.memory/use 之外的总开关。只在关闭时
       // 写入 override，避免开启值反向覆盖用户已有的 CLI 禁用配置。
       ...(startupPreferences.memoryEnabled ? {} : { memory: { enabled: false } }),
-      // desktop-continuous session/create 由 UI 先解析 ~/.zcode/.agents 的 enabled MCP，
+      // XCode fork：设置页自定义的 system 消息追加内容（仅第 1 条），会话物化时一次性冻结。
+      ...(startupPreferences.customSystemMessages
+        ? { systemPromptOverrides: startupPreferences.customSystemMessages }
+        : {}),
+      // desktop-continuous session/create 由 UI 先解析 ~/.xcode/.agents 的 enabled MCP，
       // 但 protocol app-server 自己不会读取 UI/main 侧的 MCP store；之前 createRecord 没把
       // params.mcpServers 注入 runtimeConfig，导致日志里 runtimeHasMcpConfig=false，工具永远不启动。
       // MCP 是 runtime 启动期配置，因此必须在 session 创建/恢复边界一次性写入 runtimeConfig.mcp。
       ...(runtimeMcp ? { mcp: runtimeMcp } : {}),
       // 之前只有 TUI 路径（tui-prompt-handler）注入 titleGeneration，
-      // ZCode Protocol app-server 创建的 session（desktop/web/mobile）没有传，导致
+      // XCode Protocol app-server 创建的 session（desktop/web/mobile）没有传，导致
       // shouldAttemptSessionTitleGeneration 的 `if (!config.titleGeneration) return false`
       // 永远命中，模型生成 title 的请求从不触发，侧边栏标题一直停在 first_input 的用户 query。
       // 这里补一份默认配置开启；具体是否生成仍由 runtime 按 parent/taskType/turnNumber 把关。
@@ -3407,12 +3384,11 @@ async function createRecord(
       // workingDirectory 仍是远端机器上的实际路径；本地 workspace 保持 undefined。
       workspaceIdentity: workspace.workspaceIdentity as WorkspaceId | undefined,
     },
-    // ZCode Protocol app-server 以前没有注入可等待的交互 broker，
+    // XCode Protocol app-server 以前没有注入可等待的交互 broker，
     // core 遇到 permission / AskUserQuestion 只能走默认拒绝，UI 永远收不到阻塞请求。
     // 这里把阻塞交互转换成 server-to-client JSON-RPC request，由 app 通过 response 释放 runtime。
     permissionBroker: createProtocolInteractionBroker(context),
     automationPort: createProtocolAutomationPort(context, () => ownSessionRecord),
-    topicResourcePort: createProtocolTopicResourcePort(context),
     // 只接入 Host 已开放的工具面；缺省不注入。复用现行异步工厂，
     // 不恢复旧 deferred ModelAdapter/Registry overlay，也不改变 Session Selection。
     ...(("offPeakToolEnabled" in params && params.offPeakToolEnabled === true) ||
@@ -3420,26 +3396,6 @@ async function createRecord(
       ? { offPeakPort: createProtocolOffPeakPort(context, () => ownSessionRecord) }
       : {}),
     resolveInitialBashShellSelection: startupPreferences.resolveInitialBashShellSelection,
-    ...(startupPreferences.subagentRuntimeConfigEnabled &&
-    !(workspace.workspaceIdentity && isRemoteWorkspaceIdentity(workspace.workspaceIdentity))
-      ? {
-          readSubagentRuntimeConfig: async ({ signal, traceContext }) => {
-            signal.throwIfAborted();
-            const result = await context.requestClient(
-              zcodeProtocolMethods.subagentsReadRuntimeConfig,
-              { sessionId },
-              subagentRuntimeConfigSchema,
-              {
-                signal,
-                timeoutMs: ZCODE_SESSION_RUNTIME_PREFERENCES_REQUEST_TIMEOUT_MS,
-                trace: { traceId: traceContext.traceId },
-              },
-            );
-            signal.throwIfAborted();
-            return result;
-          },
-        }
-      : {}),
     // browser-use：agent.browsers.* 经此把命令转成 interaction/browserExecute 反向请求。
     browserControlPort: createProtocolBrowserControlBroker(context),
     // Protocol server 是受信任的 Desktop/Web/Mobile Host；灰度开关由这里显式注入，
@@ -3462,14 +3418,16 @@ async function createRecord(
     modelIoFullRetentionEnabled: context.appRuntimePreferences.modelIoFullRetentionEnabled,
   });
   const now = Date.now();
-  const record: ZCodeProtocolSessionRecord = {
+  const record: XCodeProtocolSessionRecord = {
     app,
     createdAt: now,
     eventStore,
     memoryEnabled: startupPreferences.memoryEnabled,
-    subagentRuntimeConfigEnabled: startupPreferences.subagentRuntimeConfigEnabled,
     modelContextBudgetStrategy: startupPreferences.modelContextBudgetStrategy,
     nativeSearchEnhancementsEnabled: startupPreferences.nativeSearchEnhancementsEnabled,
+    ...(startupPreferences.customSystemMessages
+      ? { customSystemMessages: startupPreferences.customSystemMessages }
+      : {}),
     ...(parentSessionId ? { parentSessionId } : {}),
     persistence: "persistence" in params ? (params.persistence ?? "immediate") : "immediate",
     protocolEventSequences: new Map(),
@@ -3491,24 +3449,8 @@ async function createRecord(
   return record;
 }
 
-function resolveSessionToolDenylist(
-  params: Pick<ZCodeSessionCreateParams, "toolDenylist">,
-  workspace: ZCodeWorkspaceRef,
-): readonly string[] | undefined {
-  const tools = new Set(params.toolDenylist ?? []);
-  if (workspace.workspaceIdentity && isRemoteWorkspaceIdentity(workspace.workspaceIdentity)) {
-    // Bug 原因：SSH/WSL/Docker 等远程会话仍注入 automationPort，导致 Cron 工具在远端被注册；
-    // 远程 workspace 没有本地调度器的可靠触发边界，所以必须在 session 初始化时统一禁用，
-    // 不能只依赖 UI 或 prompt 文本约束。
-    for (const toolName of REMOTE_AUTOMATION_TOOL_NAMES) {
-      tools.add(toolName);
-    }
-  }
-  return tools.size > 0 ? [...tools] : undefined;
-}
-
 async function readPersistedSessionMessages(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   sessionId: string,
 ): Promise<MessageWithParts[]> {
   return await (context.deps.sessionStore?.messages({
@@ -3518,29 +3460,28 @@ async function readPersistedSessionMessages(
 
 function derivePersistedSessionMode(
   messages: readonly MessageWithParts[],
-): ZCodeSessionCreateParams["mode"] | undefined {
+): XCodeSessionCreateParams["mode"] | undefined {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const info = messages[index]?.info;
-    if (info?.role === "assistant" && isZCodeSessionMode(info.mode)) return info.mode;
+    if (info?.role === "assistant" && isXCodeSessionMode(info.mode)) return info.mode;
   }
   return undefined;
 }
 
-function isZCodeSessionMode(
+function isXCodeSessionMode(
   value: unknown,
-): value is NonNullable<ZCodeSessionCreateParams["mode"]> {
+): value is NonNullable<XCodeSessionCreateParams["mode"]> {
   return (
     value === "plan" ||
     value === "build" ||
     value === "edit" ||
     value === "yolo" ||
-    value === "guarded" ||
     value === "auto"
   );
 }
 
 function toRuntimeModelSelection(
-  model: ZCodeSessionCreateParams["model"],
+  model: XCodeSessionCreateParams["model"],
 ): ModelSelection | undefined {
   if (!model) return undefined;
   return {
@@ -3568,8 +3509,8 @@ interface SnapshotWithDiagnostics {
 }
 
 async function snapshot(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   knownSession?: SessionInfo | null,
   options: {
     messageLimit?: number;
@@ -3580,8 +3521,8 @@ async function snapshot(
 }
 
 async function snapshotWithDiagnostics(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   knownSession?: SessionInfo | null,
   options: {
     messageLimit?: number;
@@ -3671,7 +3612,7 @@ async function snapshotWithDiagnostics(
   if (totalDurationMs >= SLOW_SNAPSHOT_LOG_THRESHOLD_MS) {
     // SSH 场景下慢点集中在 session snapshot，但旧日志只有总耗时。
     // 超过阈值时记录各子阶段，便于区分 sqlite 等待、消息读取和 projection 构建。
-    context.logger?.warn("ZCode Protocol session snapshot slow", {
+    context.logger?.warn("XCode Protocol session snapshot slow", {
       durationMs: totalDurationMs,
       event: "zcode_protocol.session_snapshot.slow",
       messageCount: messages.length,
@@ -3687,8 +3628,8 @@ async function snapshotWithDiagnostics(
 }
 
 async function readSnapshotTarget(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
 ) {
   try {
     return await record.app.readTarget();
@@ -3705,8 +3646,8 @@ async function readSnapshotTarget(
 }
 
 async function readSnapshotTodos(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
 ) {
   try {
     return await record.app.readTodos();
@@ -3723,8 +3664,8 @@ async function readSnapshotTodos(
 }
 
 async function readSessionTargetCompletionVerificationEvents(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
 ): Promise<SessionEvent[]> {
   const sessionStore = context.deps.sessionStore;
   if (!sessionStore?.sessionEntries) {
@@ -3843,8 +3784,8 @@ function limitMessages<T>(messages: T[], limit?: number): T[] {
 }
 
 async function readSessionMessages(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
 ) {
   if (!context.deps.sessionStore) return [];
   return await context.deps.sessionStore.messages({
@@ -3853,15 +3794,15 @@ async function readSessionMessages(
 }
 
 async function readSessionContextUsageBreakdownEvents(
-  record: ZCodeProtocolSessionRecord,
+  record: XCodeProtocolSessionRecord,
 ): Promise<SessionEvent[]> {
   const events = await record.eventStore.getEvents(record.app.sessionId as SessionId);
   return events.filter((event) => event.type === SessionEventType.ModelComplete);
 }
 
 async function readActiveSessionMessages(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
 ): Promise<MessageWithParts[]> {
   const [messages, session, rewindEvents] = await Promise.all([
     readSessionMessages(context, record),
@@ -3872,7 +3813,7 @@ async function readActiveSessionMessages(
 }
 
 async function readSessionRewindEvents(
-  record: ZCodeProtocolSessionRecord,
+  record: XCodeProtocolSessionRecord,
 ): Promise<SessionEvent[]> {
   const events = await record.eventStore.getEvents(record.app.sessionId as SessionId);
   return events.filter((event) => event.type === SessionEventType.RewindTriggered);
@@ -4044,7 +3985,7 @@ function applyRewindBranch(
 }
 
 async function getPersistedSession(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   sessionId: string,
 ): Promise<SessionInfo | null> {
   const sessionStore = context.deps.sessionStore;
@@ -4076,8 +4017,8 @@ const CONFIG_ONLY_MUTATION_REASONS = new Set([
 ]);
 
 export async function afterStateMutation(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   reason: string,
 ) {
   if (!record.activeAbortController) {
@@ -4099,8 +4040,8 @@ export async function afterStateMutation(
 }
 
 function afterPromptAccepted(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   reason: string,
 ) {
   record.stateRevision++;
@@ -4114,12 +4055,12 @@ function afterPromptAccepted(
 }
 
 function emitStateUpdated(
-  context: ZCodeProtocolAgentServerContext,
-  record: ZCodeProtocolSessionRecord,
+  context: XCodeProtocolAgentServerContext,
+  record: XCodeProtocolSessionRecord,
   reason: string,
   patch: unknown,
 ): void {
-  const notification: ZCodeStateUpdatedNotification = {
+  const notification: XCodeStateUpdatedNotification = {
     patch,
     reason,
     revision: record.stateRevision,

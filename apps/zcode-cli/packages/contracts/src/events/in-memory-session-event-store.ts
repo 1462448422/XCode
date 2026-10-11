@@ -5,7 +5,6 @@ import {
   createSessionEventRetentionPolicy,
   isTransientSessionEvent,
   SEALED_TURN_TRANSIENT_GRACE_MS,
-  slimRetainedModelRequest,
   type SessionEventRetentionMode,
   type SessionEventRetentionPolicy,
 } from "./session-event-retention.js";
@@ -102,10 +101,7 @@ export class InMemorySessionEventStore implements SessionEventStorePort {
         state.evictedEvents += 1;
         continue;
       }
-      // 同一淘汰节拍：已 sealed 且已持久化的 turn，其 model_request 只需保留元数据。
-      retained.push(
-        event.turnId && turnIds.has(event.turnId) ? slimRetainedModelRequest(event) : event,
-      );
+      retained.push(event);
     }
     state.events = retained;
   }

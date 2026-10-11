@@ -8,9 +8,9 @@ import type {
   McpSyncRemoteStatusResult,
   RemoteSyncWriteAccessResult,
   SaveCliMcpToUserDirectoryRequest,
-  ZCodeAgentMcpServer,
-  ZCodeMcpListMode,
-  ZCodeMcpListResult,
+  XCodeAgentMcpServer,
+  XCodeMcpListMode,
+  XCodeMcpListResult,
 } from "@zcode/shared";
 import { ServiceChannels } from "@zcode/shared";
 import { createServiceDescriptor } from "../descriptors.js";
@@ -27,9 +27,9 @@ export interface IMcpSyncService {
   listWorkspaceMcpServerStatuses(params: {
     workspacePath: string;
     workspaceIdentity?: string;
-    mcpServers?: ZCodeAgentMcpServer[];
-    mode?: ZCodeMcpListMode;
-  }): Promise<ZCodeMcpListResult>;
+    mcpServers?: XCodeAgentMcpServer[];
+    mode?: XCodeMcpListMode;
+  }): Promise<XCodeMcpListResult>;
   saveMcpToUserDirectory(payload: SaveCliMcpToUserDirectoryRequest): Promise<void>;
   listLocalUserMcpCandidates(): Promise<McpSyncCandidateListResult>;
   listRemoteUserMcpStatuses(params: { names: string[] }): Promise<McpSyncRemoteStatusResult>;

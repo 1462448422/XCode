@@ -5,7 +5,7 @@ import type {
   IMcpSyncService,
   IPluginSyncService,
   ISkillSyncService,
-  IZCodeAgentService,
+  IXCodeAgentService,
 } from "@zcode/services";
 import { Button } from "@/components/ui/button.js";
 import {
@@ -14,15 +14,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { RemoteMcpSyncDialog } from "@/settings/RemoteMcpSyncDialog.js";
 import { RemotePluginSyncDialog } from "@/settings/RemotePluginSyncDialog.js";
 import { RemoteSkillSyncDialog } from "@/settings/RemoteSkillSyncDialog.js";
 
-export type RemoteSyncClientMode = "desktop-continuous" | "web-remote-replayable";
-export const REMOTE_SYNC_PREFLIGHT_TIMEOUT_MS = 15_000;
+type RemoteSyncClientMode = "desktop-continuous" | "web-remote-replayable";
+const REMOTE_SYNC_PREFLIGHT_TIMEOUT_MS = 15_000;
 
-export class RemoteSyncPreflightTimeoutError extends Error {
+class RemoteSyncPreflightTimeoutError extends Error {
   constructor(readonly timeoutMs: number) {
     super(`Remote sync preflight timed out after ${timeoutMs}ms`);
     this.name = "RemoteSyncPreflightTimeoutError";
@@ -60,18 +60,13 @@ export function shouldStartRemoteSyncOperation(params: {
   return !params.inFlight && params.selectedCount > 0;
 }
 
-export function useRemoteSyncDialogIntent(params: {
-  rpcReady: boolean;
-  targetKey: string;
-}): {
+export function useRemoteSyncDialogIntent(params: { rpcReady: boolean; targetKey: string }): {
   open: boolean;
   setOpen: (open: boolean) => void;
 } {
   const [openedTargetKey, setOpenedTargetKey] = useState<string | null>(null);
   const open =
-    params.rpcReady &&
-    params.targetKey.length > 0 &&
-    openedTargetKey === params.targetKey;
+    params.rpcReady && params.targetKey.length > 0 && openedTargetKey === params.targetKey;
 
   useEffect(() => {
     // 弹窗 open 曾只绑定 PluginList 组件生命周期，远端断连或切换目标时
@@ -87,9 +82,7 @@ export function useRemoteSyncDialogIntent(params: {
   const setOpen = useCallback(
     (nextOpen: boolean) => {
       setOpenedTargetKey(
-        nextOpen && params.rpcReady && params.targetKey.length > 0
-          ? params.targetKey
-          : null,
+        nextOpen && params.rpcReady && params.targetKey.length > 0 ? params.targetKey : null,
       );
     },
     [params.rpcReady, params.targetKey],
@@ -137,7 +130,7 @@ export function RemoteSyncMenuItems({
   stopMouseDownPropagation?: boolean;
   mcpDisabled?: boolean;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const handleMouseDown = stopMouseDownPropagation
     ? (event: MouseEvent) => {
         event.stopPropagation();
@@ -189,7 +182,7 @@ export function RemoteSyncDropdownButton({
   onOpenMcpSync: () => void;
   onOpenPluginSync?: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   if (!canSyncSkills && !canSyncMcp && !canSyncPlugins) {
     return null;
@@ -198,12 +191,7 @@ export function RemoteSyncDropdownButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="gap-1"
-        >
+        <Button type="button" variant="secondary" size="sm" className="gap-1">
           <UploadCloud className="size-3.5" aria-hidden="true" />
           {intl.formatMessage({ id: "settings.remoteSync.open" })}
           <ChevronDown className="size-3.5 text-foreground-subtle" aria-hidden="true" />
@@ -240,8 +228,8 @@ export function RemoteSyncDialogs({
   remoteMcpSyncService,
   localPluginSyncService,
   remotePluginSyncService,
-  localZCodeAgentService,
-  remoteZCodeAgentService,
+  localXCodeAgentService,
+  remoteXCodeAgentService,
   remoteTarget,
   skillWorkspacePath,
   mcpWorkspacePath,
@@ -268,8 +256,8 @@ export function RemoteSyncDialogs({
   remoteMcpSyncService?: IMcpSyncService | null;
   localPluginSyncService?: IPluginSyncService | null;
   remotePluginSyncService?: IPluginSyncService | null;
-  localZCodeAgentService?: IZCodeAgentService | null;
-  remoteZCodeAgentService?: IZCodeAgentService | null;
+  localXCodeAgentService?: IXCodeAgentService | null;
+  remoteXCodeAgentService?: IXCodeAgentService | null;
   remoteTarget?: RemoteTarget | null;
   skillWorkspacePath: string;
   mcpWorkspacePath: string;
@@ -282,11 +270,7 @@ export function RemoteSyncDialogs({
   onPluginsSynced?: () => Promise<void> | void;
 }) {
   const skillDialogProps =
-    canSyncSkills &&
-    skillOpen &&
-    remoteTarget &&
-    localSkillSyncService &&
-    remoteSkillSyncService
+    canSyncSkills && skillOpen && remoteTarget && localSkillSyncService && remoteSkillSyncService
       ? {
           localSkillSyncService,
           remoteSkillSyncService,
@@ -294,11 +278,7 @@ export function RemoteSyncDialogs({
         }
       : null;
   const mcpDialogProps =
-    canSyncMcp &&
-    mcpOpen &&
-    remoteTarget &&
-    localMcpSyncService &&
-    remoteMcpSyncService
+    canSyncMcp && mcpOpen && remoteTarget && localMcpSyncService && remoteMcpSyncService
       ? {
           localMcpSyncService,
           remoteMcpSyncService,
@@ -350,8 +330,8 @@ export function RemoteSyncDialogs({
           onOpenChange={onPluginOpenChange ?? (() => {})}
           localPluginSyncService={pluginDialogProps.localPluginSyncService}
           remotePluginSyncService={pluginDialogProps.remotePluginSyncService}
-          localZCodeAgentService={localZCodeAgentService}
-          remoteZCodeAgentService={remoteZCodeAgentService}
+          localXCodeAgentService={localXCodeAgentService}
+          remoteXCodeAgentService={remoteXCodeAgentService}
           remoteTarget={pluginDialogProps.remoteTarget}
           localWorkspacePath={pluginLocalWorkspacePath}
           workspacePath={pluginWorkspacePath ?? mcpWorkspacePath}

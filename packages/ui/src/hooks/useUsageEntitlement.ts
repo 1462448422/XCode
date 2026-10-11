@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   UsageEntitlementSnapshot,
-  ZCodeAccountAccess,
-  ZCodeProviderAccountAccess,
+  XCodeAccountAccess,
+  XCodeProviderAccountAccess,
 } from "@zcode/shared";
 import type { IUsageStatsService } from "@zcode/services";
 import { useOptionalBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
@@ -42,7 +42,7 @@ const INITIAL_STATE: UsageEntitlementState = {
   error: null,
 };
 
-export const USAGE_ENTITLEMENT_REFRESH_TIMEOUT_MS = 20_000;
+const USAGE_ENTITLEMENT_REFRESH_TIMEOUT_MS = 20_000;
 
 export interface UsageEntitlementRefreshOptions {
   silent?: boolean;
@@ -114,7 +114,7 @@ function createUsageEntitlementTimeoutError(timeoutMs: number): Error {
   return new Error(`usage_entitlement_request_timeout:${timeoutMs}`);
 }
 
-export function withUsageEntitlementTimeout<T>(
+function withUsageEntitlementTimeout<T>(
   request: Promise<T>,
   timeoutMs = USAGE_ENTITLEMENT_REFRESH_TIMEOUT_MS,
 ): Promise<T> {
@@ -136,7 +136,7 @@ export interface UseUsageEntitlementOptions {
   enabled?: boolean;
   includeSubscription?: boolean;
   preferredProviderId?: string;
-  accountAccess?: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+  accountAccess?: XCodeProviderAccountAccess | XCodeAccountAccess;
   allowDisabledPreferredProvider?: boolean;
   requirePreferredProvider?: boolean;
   allowEnvApiKey?: boolean;

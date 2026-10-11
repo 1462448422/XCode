@@ -1,5 +1,10 @@
 import path from "node:path";
-import { bundledLanguages, createHighlighter, type BundledLanguage, type BundledTheme } from "shiki";
+import {
+  bundledLanguages,
+  createHighlighter,
+  type BundledLanguage,
+  type BundledTheme,
+} from "shiki";
 import type { TuiThemeMode } from "./theme/index.js";
 
 const SHIKI_DARK_THEME = "github-dark";
@@ -38,7 +43,7 @@ let highlighterPromise: Promise<ShikiHighlighter> | undefined;
 const loadedLanguages = new Set<BundledLanguage>();
 const highlightCache = new Map<string, ShikiHighlightSegment[][] | undefined>();
 
-export function inferShikiLanguage(filePath: string | undefined): BundledLanguage | undefined {
+function inferShikiLanguage(filePath: string | undefined): BundledLanguage | undefined {
   if (!filePath) return undefined;
   const basename = path.basename(filePath).toLowerCase();
   const filenameMatch = LANGUAGE_BY_FILENAME[basename];
@@ -72,12 +77,6 @@ export async function highlightShikiCodeLines(input: {
   );
   highlightCache.set(cacheKey, highlighted);
   return highlighted;
-}
-
-export function resetShikiHighlighterForTest(): void {
-  highlighterPromise = undefined;
-  loadedLanguages.clear();
-  highlightCache.clear();
 }
 
 async function tokenizeLines(input: {

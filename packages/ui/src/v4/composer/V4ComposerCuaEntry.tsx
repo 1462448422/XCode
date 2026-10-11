@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { useOptionalPlatform } from "@/hooks/usePlatform.js";
 import { useOptionalServices } from "@/hooks/useServices.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   supportsLocalMacCuaPermissionOnboarding,
   supportsLocalWindowsCuaEntry,
@@ -21,7 +21,7 @@ import {
   type UseCuaComposerEntryParams,
 } from "@/hooks/useCuaComposerEntry.js";
 
-export type V4ComposerCuaEntryProps = UseCuaComposerEntryParams;
+type V4ComposerCuaEntryProps = UseCuaComposerEntryParams;
 
 /**
  * 平台门前置层：平台不支持（或宿主根本没提供 platform / services context）时连内层都不挂载。
@@ -45,7 +45,7 @@ function V4ComposerCuaEntryImpl(props: V4ComposerCuaEntryProps) {
 }
 
 function V4ComposerCuaEntryMounted(props: V4ComposerCuaEntryProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { view, onActivate } = useCuaComposerEntry(props);
   const label = intl.formatMessage({ id: "chat.toolbar.computerUse.label" });
 

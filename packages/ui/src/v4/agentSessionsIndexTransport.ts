@@ -1,6 +1,6 @@
-// sessions-index 传输面（desktop/host 实现）：桥到 IZCodeAgentService 的 v4 sessions-index 转发面
+// sessions-index 传输面（desktop/host 实现）：桥到 IXCodeAgentService 的 v4 sessions-index 转发面
 // （与 agentConversationTransport 同构；web 直连 relay 时换实现即可）。
-import type { IZCodeAgentService } from "@zcode/services";
+import type { IXCodeAgentService } from "@zcode/services";
 import {
   sessionsIndexTopicFrameSchema,
   TopicWireFrameAssembler,
@@ -43,13 +43,13 @@ export interface SessionsIndexTransport {
   onRuntimeLifecycle?: (listener: (state: "available" | "unavailable") => void) => () => void;
 }
 
-export interface AgentSessionsIndexTransportTarget {
+interface AgentSessionsIndexTransportTarget {
   workspacePath: string;
   workspaceIdentity?: string;
 }
 
 type SessionsIndexV4AgentService = Pick<
-  IZCodeAgentService,
+  IXCodeAgentService,
   | "subscribeSessionsIndexV4"
   | "resyncSessionsIndexV4"
   | "unsubscribeSessionsIndexV4"
@@ -58,7 +58,7 @@ type SessionsIndexV4AgentService = Pick<
 > &
   Partial<
     Pick<
-      IZCodeAgentService,
+      IXCodeAgentService,
       "helloConversationV4" | "initializeConversationV4" | "onAgentRuntimeLifecycle"
     >
   >;
@@ -77,15 +77,12 @@ export function createAgentSessionsIndexTransport(
       return Promise.reject(new Error("fault.connection.handshakeUnavailable"));
     }
     return ensureAgentV4ConnectionHandshake(
-      agentService as Pick<IZCodeAgentService, "helloConversationV4" | "initializeConversationV4">,
+      agentService as Pick<IXCodeAgentService, "helloConversationV4" | "initializeConversationV4">,
     );
   };
   const topic = sessionsIndexTopic(target.workspaceIdentity?.trim() || target.workspacePath);
   const listeners = new Set<
-    (
-      frame: SessionsIndexTopicFrame,
-      context?: { deliveryKind: TopicFrameDeliveryKind },
-    ) => void
+    (frame: SessionsIndexTopicFrame, context?: { deliveryKind: TopicFrameDeliveryKind }) => void
   >();
   const faultListeners = new Set<
     (fault: {
@@ -96,9 +93,7 @@ export function createAgentSessionsIndexTransport(
     }) => void
   >();
   const restartListeners = new Set<() => void>();
-  const runtimeLifecycleListeners = new Set<
-    (state: "available" | "unavailable") => void
-  >();
+  const runtimeLifecycleListeners = new Set<(state: "available" | "unavailable") => void>();
   const decoder = createTopicWireDecoder(
     new TopicWireFrameAssembler(sessionsIndexTopicFrameSchema),
     (frame: SessionsIndexTopicFrame, deliveryKind) => {
@@ -227,16 +222,17 @@ export function createAgentSessionsIndexTransport(
           onRuntimeLifecycle(listener: (state: "available" | "unavailable") => void) {
             const lifecycleListeners = runtimeLifecycleListeners;
             lifecycleListeners.add(listener);
-            lifecycleUpstream ??= agentService.onAgentRuntimeLifecycle?.((event) => {
-              if (event.workspaceKey !== targetWorkspaceKey) return;
-              runtimeGeneration += 1;
-              barrier.clear();
-              decoder.clear();
-              activeSubscriptionId = null;
-              for (const lifecycleListener of lifecycleListeners) {
-                lifecycleListener(event.state);
-              }
-            }) ?? null;
+            lifecycleUpstream ??=
+              agentService.onAgentRuntimeLifecycle?.((event) => {
+                if (event.workspaceKey !== targetWorkspaceKey) return;
+                runtimeGeneration += 1;
+                barrier.clear();
+                decoder.clear();
+                activeSubscriptionId = null;
+                for (const lifecycleListener of lifecycleListeners) {
+                  lifecycleListener(event.state);
+                }
+              }) ?? null;
             return () => {
               lifecycleListeners.delete(listener);
               if (lifecycleListeners.size === 0) {

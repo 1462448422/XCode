@@ -3,11 +3,11 @@ import {
   TID_MCP_SERVER_ROW,
   testId,
   type McpServerStatus,
-  type ZCodeMcpServer,
+  type XCodeMcpServer,
 } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import { Switch } from "@/components/ui/switch.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { settingsResourceRowInteraction } from "@/settings/settingsResourceRowInteraction.js";
 import { SettingsScopeBadge } from "@/settings/SettingsScopeBadge.js";
@@ -68,13 +68,13 @@ function McpServerItem({
   onOpenAuthorization,
   hideMetadata,
 }: {
-  server: ZCodeMcpServer;
-  onEdit: (server: ZCodeMcpServer) => void;
+  server: XCodeMcpServer;
+  onEdit: (server: XCodeMcpServer) => void;
   onToggle: (id: string, enabled: boolean) => void;
-  onOpenAuthorization?: (server: ZCodeMcpServer) => void;
+  onOpenAuthorization?: (server: XCodeMcpServer) => void;
   hideMetadata: boolean;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const typeLabel = server.config.command
     ? "stdio"
     : (server.config.type ?? (server.config.url ? "http" : "?"));
@@ -175,16 +175,16 @@ export function McpServerList({
   emptyDescription,
   hideMetadata = false,
 }: {
-  servers: ZCodeMcpServer[];
+  servers: XCodeMcpServer[];
   onCreate: () => void;
-  onEdit: (server: ZCodeMcpServer) => void;
+  onEdit: (server: XCodeMcpServer) => void;
   onToggle: (id: string, enabled: boolean) => void;
-  onOpenAuthorization?: (server: ZCodeMcpServer) => void;
+  onOpenAuthorization?: (server: XCodeMcpServer) => void;
   emptyTitle: string;
   emptyDescription: string;
   hideMetadata?: boolean;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
 
   if (servers.length === 0) {
     return (

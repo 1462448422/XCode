@@ -30,8 +30,6 @@ export interface AnalysisCoreJson {
     worldReadData: MapEntries<TaintOcc[]>;
     joinIn: MapEntries<TaintOcc[]>;
     fanoutIn: MapEntries<TaintOcc[]>;
-    /** 留白提示的 sink（2026-09-28 加入）；早于它冻结的样例包没有这个键，解码按空表补。 */
-    holeData?: MapEntries<TaintOcc[]>;
     returnData: TaintOcc[];
   };
   trace: OrderTrace;
@@ -51,7 +49,6 @@ export function encodeAnalysisCore(core: AnalysisCore): AnalysisCoreJson {
       askActor: [...core.facts.askActor],
       askData: [...core.facts.askData],
       fanoutIn: [...core.facts.fanoutIn],
-      holeData: [...core.facts.holeData],
       joinIn: [...core.facts.joinIn],
       returnData: core.facts.returnData,
       worldReadData: [...core.facts.worldReadData],
@@ -79,13 +76,11 @@ export function decodeAnalysisCore(json: AnalysisCoreJson): AnalysisCore {
       askActor: new Map(json.facts.askActor),
       askData: new Map(json.facts.askData),
       fanoutIn: new Map(json.facts.fanoutIn),
-      holeData: new Map(json.facts.holeData ?? []),
       joinIn: new Map(json.facts.joinIn),
       returnData: json.facts.returnData,
       worldReadData: new Map(json.facts.worldReadData),
     },
-    // 留白站点表同样是后加的键：老样例包按「没有留白」解码。
-    sites: { ...json.sites, holes: json.sites.holes ?? [] },
+    sites: json.sites,
     trace: json.trace,
     types: {
       joinPortTypes: new Map(

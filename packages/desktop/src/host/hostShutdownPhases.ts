@@ -1,4 +1,4 @@
-export interface HostShutdownPhase {
+interface HostShutdownPhase {
   name: string;
   run: () => Promise<void>;
   timeoutMs?: number;

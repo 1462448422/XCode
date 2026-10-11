@@ -37,10 +37,10 @@ import {
   TID_AUTOMATION_YEAR_DAY_OPTION,
   TID_AUTOMATION_YEAR_MONTH_OPTION,
   TID_AUTOMATION_YEAR_MONTHDAY,
-  ZCODE_AGENT_PROVIDER,
-  type ZCodeAutomation,
-  type ZCodeAutomationRun,
-  type ZCodeAutomationScheduleRule,
+  XCODE_AGENT_PROVIDER,
+  type XCodeAutomation,
+  type XCodeAutomationRun,
+  type XCodeAutomationScheduleRule,
 } from "@zcode/shared";
 import {
   AutomationAddScheduleIcon,
@@ -124,7 +124,7 @@ import {
   resolveAutomationEditRequiredFieldErrors,
   type AutomationEditRequiredField,
 } from "@/settings/automationEditValidation.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useAutomationProjectOptions } from "@/hooks/useAutomationProjectOptions.js";
 import { useModelSelectionView } from "@/hooks/useModelSelectionView.js";
@@ -375,7 +375,7 @@ function MonthDayPicker({
 }: {
   month: number;
   day: number;
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   onChange: (month: number, day: number) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -433,7 +433,7 @@ function WeekdayPicker({
   onChange,
 }: {
   weekdays: number[];
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   onChange: (weekdays: number[]) => void;
 }) {
   const label = WEEKDAY_ORDER.filter((day) => weekdays.includes(day))
@@ -470,7 +470,7 @@ function WeekdayPicker({
               }}
               className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-ui-base text-foreground transition-colors hover:bg-menu-hover"
             >
-              {/* Bug 原因：勾选位放在行首会让星期菜单偏离标准的尾部状态布局。 */}
+              {/* 勾选位放在行首会让星期菜单偏离标准的尾部状态布局。 */}
               <span className="min-w-0 flex-1 truncate">
                 {intl.formatMessage({ id: `automations.weekday.${day}` })}
               </span>
@@ -512,7 +512,7 @@ function EndDatePicker({
   value,
 }: {
   disabled: boolean;
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   min: string;
   onChange: (value: string) => void;
   value: string;
@@ -638,7 +638,7 @@ function CustomRepeatDialog({
 }: {
   builder: CronBuilderState;
   endAt: number | undefined;
-  intl: ReturnType<typeof useZCodeIntl>["intl"];
+  intl: ReturnType<typeof useXCodeIntl>["intl"];
   onConfirm: (value: {
     interval: number;
     unit: CustomRepeatUnit;
@@ -1011,7 +1011,7 @@ function CustomRepeatDialog({
                 })}
               </button>
             </div>
-            {/* 修复原因：原生 date input 会在暗色主题中弹出不可控的系统白色月历。 */}
+            {/* 原生 date input 会在暗色主题中弹出不可控的系统白色月历。*/}
             <EndDatePicker
               value={endDate}
               min={toDateInputValue(Date.now())}
@@ -1064,9 +1064,9 @@ export interface AutomationEditSubmit {
   workspaceIdentity?: string;
 }
 
-export interface AutomationEditViewProps {
+interface AutomationEditViewProps {
   /** null = 新建；否则编辑。 */
-  editing: ZCodeAutomation | null;
+  editing: XCodeAutomation | null;
   /** 新建预填(来自 More ideas 模板)。 */
   initialDraft?: { title: string; cronExpr: string; prompt: string } | null;
   /** 当前列表所在项目,作为新建的默认目标项目。 */
@@ -1077,9 +1077,9 @@ export interface AutomationEditViewProps {
   onSubmit: (params: AutomationEditSubmit) => Promise<boolean>;
   onBack: () => void;
   /** 编辑态:立即运行 / 启停 / 删除。 */
-  onRunNow?: (automation: ZCodeAutomation) => Promise<void> | void;
-  onToggle?: (automation: ZCodeAutomation, enabled: boolean) => void;
-  onDelete?: (automation: ZCodeAutomation) => void;
+  onRunNow?: (automation: XCodeAutomation) => Promise<void> | void;
+  onToggle?: (automation: XCodeAutomation, enabled: boolean) => void;
+  onDelete?: (automation: XCodeAutomation) => void;
   /** History tab 运行历史。 */
   runsEntry?: AutomationRunsEntry;
   onLoadRuns?: () => void;
@@ -1087,7 +1087,7 @@ export interface AutomationEditViewProps {
   onOpenSession?: (sessionId: string) => void;
 }
 
-export async function saveAndRunAutomation(
+async function saveAndRunAutomation(
   save: () => Promise<boolean>,
   run: () => Promise<void> | void,
 ): Promise<boolean> {
@@ -1114,7 +1114,7 @@ function defaultBuilder(): CronBuilderState {
 }
 
 function initialBuilder(
-  editing: ZCodeAutomation | null,
+  editing: XCodeAutomation | null,
   initialDraft?: { title: string; cronExpr: string; prompt: string } | null,
 ): CronBuilderState {
   if (!editing) {
@@ -1141,7 +1141,7 @@ function initialBuilder(
 
 // ---- 运行历史状态映射(与 AutomationRunsDialog 保持一致) ----
 type RunStatusKind = "running" | "succeeded" | "failed" | "stopped" | "skipped";
-function resolveRunStatus(run: ZCodeAutomationRun): RunStatusKind {
+function resolveRunStatus(run: XCodeAutomationRun): RunStatusKind {
   if (run.dispatchStatus === "skipped") return "skipped";
   if (run.dispatchStatus === "failed_to_dispatch") return "failed";
   switch (run.outcome) {
@@ -1179,7 +1179,7 @@ const AUTOMATION_STATUS_DOT_CLASS: Record<AutomationStatusKind, string> = {
 };
 
 function normalizeAutomationScheduleRule(
-  rule: ZCodeAutomationScheduleRule | null | undefined,
+  rule: XCodeAutomationScheduleRule | null | undefined,
 ): Record<string, unknown> | null {
   if (!rule) return null;
   return {
@@ -1212,7 +1212,7 @@ export function AutomationEditView({
   onDeleteRun,
   onOpenSession,
 }: AutomationEditViewProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const confirmDialog = useConfirmDialog();
   const [tab, setTab] = useState<AutomationSettingsHistoryTab>("settings");
   const [runsPage, setRunsPage] = useState(1);
@@ -1485,7 +1485,7 @@ export function AutomationEditView({
   const modelSelectGroups = useMemo(() => {
     if (!modelSelectionView) return [];
     return buildAutomationModelSelectGroups({
-      selectedProvider: ZCODE_AGENT_PROVIDER,
+      selectedProvider: XCODE_AGENT_PROVIDER,
       labels: {
         apiKeyLabel: intl.formatMessage({ id: "settings.modelProvider.apiKey" }),
         apiKeyBadgeLabel: intl.formatMessage({
@@ -1665,7 +1665,7 @@ export function AutomationEditView({
     [editing?.automationId, requiredFieldErrors],
   );
 
-  const currentScheduleRule = useMemo<ZCodeAutomationScheduleRule | undefined>(
+  const currentScheduleRule = useMemo<XCodeAutomationScheduleRule | undefined>(
     () =>
       builder.frequency === "custom"
         ? {
@@ -2088,7 +2088,7 @@ export function AutomationEditView({
                   {intl.formatMessage({ id: "automations.form.status.label" })}
                 </div>
                 <div className="flex min-h-8 flex-wrap items-center gap-2">
-                  {/* Bug 原因：状态圆点与胶囊沿用了偏大的 8px / 36px 尺寸，未遵循 6px glyph + 20px frame 的规格。 */}
+                  {/* 状态圆点与胶囊沿用了偏大的 8px / 36px 尺寸，未遵循 6px glyph + 20px frame 的规格。 */}
                   <span className="inline-flex h-8 max-w-full items-center gap-1 rounded-lg bg-card pl-2 pr-4 text-ui-base leading-5 text-foreground">
                     <span className="flex size-5 shrink-0 items-center justify-center">
                       <span
@@ -2117,7 +2117,7 @@ export function AutomationEditView({
               >
                 {intl.formatMessage({ id: "automations.form.title.label" })}
               </label>
-              {/* 修复原因：Task title 是标准 Input，不能局部移除全局描边语义。 */}
+              {/* Task title 是标准 Input，不能局部移除全局描边语义。*/}
               <Input
                 id="automation-title"
                 size="lg"
@@ -2227,7 +2227,7 @@ export function AutomationEditView({
                   </DropdownMenu>
                 ) : (
                   <>
-                    {/* Bugfix：调度栏原先使用 min-height、换行布局和全行摘要，新增 tag 后会被第二行撑高。
+                    {/* 调度栏不用 min-height、换行布局和全行摘要——那些会在新增 tag 后被第二行撑高。
                         恢复全局 Input 的 1px 描边后，用 7px 左内边距抵消边框占位，保持首个 tag
                         距外边缘仍为 8px；tag 增加上下各 1px padding 后仍在 36px input 内垂直居中。 */}
                     <div className="relative flex h-9 flex-nowrap items-center gap-1 overflow-hidden rounded-xl border border-input-border bg-input py-1 pl-[7px] pr-9 text-ui-base leading-5 text-foreground transition-colors hover:border-input-border-hover focus-within:border-input-border-focused focus-within:bg-input-focused">
@@ -2255,7 +2255,7 @@ export function AutomationEditView({
                           }));
                         }}
                       >
-                        {/* 修复原因：频率触发器曾写死深色值，导致浅色主题下对比失真；
+                        {/* 频率触发器曾写死深色值，导致浅色主题下对比失真；
                             改用 hover/selected 语义 token，并在 20px 行高外增加上下各 1px padding。 */}
                         <SelectTrigger
                           variant="ghost"
@@ -2326,7 +2326,7 @@ export function AutomationEditView({
                         />
                       ) : null}
 
-                      {/* Bugfix：重复周期曾写死 #F8F8F8 且三段 tag 圆角不一致；统一语义文字色与 pill 圆角。 */}
+                      {/* 重复周期曾写死 #F8F8F8 且三段 tag 圆角不一致；统一语义文字色与 pill 圆角。*/}
                       {builder.frequency === "custom" ? (
                         <button
                           type="button"
@@ -2366,7 +2366,7 @@ export function AutomationEditView({
 
                       {builder.frequency !== "custom" && builder.frequency !== "hourly" ? (
                         <>
-                          {/* 修复原因：连接词曾单独使用二级色，和相邻 tag 主文字形成错误的高亮断层。 */}
+                          {/* 连接词曾单独使用二级色，和相邻 tag 主文字形成错误的高亮断层。*/}
                           <span className="text-foreground">
                             {intl.formatMessage({
                               id: "automations.form.schedule.at",
@@ -2638,7 +2638,7 @@ export function AutomationEditView({
                       </Button>
                     )}
 
-                    {/* Bugfix：自动化曾复制首页权限菜单，导致图标、字号和选中态逐渐分叉。
+                    {/* 自动化曾复制首页权限菜单，导致图标、字号和选中态逐渐分叉。
                         直接复用首页 ConfigSelect，只覆盖紧凑 trigger 布局。 */}
                     <ConfigSelect
                       option={modeOption}
@@ -2657,7 +2657,7 @@ export function AutomationEditView({
                         "w-fit max-w-56 min-w-0 shrink justify-start gap-1 px-2",
                       )}
                       labelVisibilityClassName="inline-flex min-w-0 truncate text-left"
-                      provider={ZCODE_AGENT_PROVIDER}
+                      provider={XCODE_AGENT_PROVIDER}
                       restoreFocusSelector={null}
                     />
                   </div>
@@ -2704,7 +2704,7 @@ export function AutomationEditView({
                       <ThoughtLevelCycleControl
                         intl={intl}
                         option={thoughtLevelOption}
-                        provider={ZCODE_AGENT_PROVIDER}
+                        provider={XCODE_AGENT_PROVIDER}
                         triggerRef={thoughtTriggerRef}
                         indicatorClassName="hidden @xl/composer:block"
                         triggerClassName={cn(
@@ -2733,7 +2733,7 @@ export function AutomationEditView({
         ) : (
           // History tab：运行历史内联表
           <div>
-            {/* 修复原因：运行条件已在设置入口说明，历史页重复提示会挤占表格上方空间。 */}
+            {/* 运行条件已在设置入口说明，历史页重复提示会挤占表格上方空间。*/}
             {runsLoading && runs.length === 0 ? (
               <div className="flex h-32 items-center justify-center">
                 <Spinner className="size-5" />
@@ -2749,7 +2749,7 @@ export function AutomationEditView({
               </AutomationHistoryEmptyState>
             ) : (
               <div className="overflow-x-auto rounded-[8px]">
-                {/* 修复原因：运行历史使用可缩放字号，不能继续绑定固定 18px 行高。 */}
+                {/* 运行历史使用可缩放字号，不能继续绑定固定 18px 行高。*/}
                 <table className="w-full text-left text-ui-base font-normal leading-normal tracking-[-0.08px]">
                   <thead className="bg-surface text-foreground-subtle">
                     <tr className="h-[30px] border-b border-border">

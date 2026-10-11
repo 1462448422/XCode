@@ -33,11 +33,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip.js";
-import { AlertCircle, CheckIcon, ChevronDownIcon, LoaderIcon, PackageIcon } from "lucide-react";
+import { AlertCircle, BrainIcon, CheckIcon, ChevronDownIcon, LoaderIcon, PackageIcon, WandSparklesIcon } from "lucide-react";
 import {
   TID_CHAT_MODEL_SELECT_GROUP,
   TID_CHAT_MODEL_SELECT_ITEM,
   TID_CHAT_MODEL_SELECT_TRIGGER,
+  TID_CHAT_THOUGHT_LEVEL_SELECT_ITEM,
+  TID_CHAT_THOUGHT_LEVEL_SELECT_TRIGGER,
   testId,
 } from "@zcode/shared";
 import {
@@ -83,11 +85,29 @@ export interface ModelSelectFooterAction {
   onSelect?: () => void;
 }
 
+/** 模型弹层里的「推理强度 / 思考强度」子菜单段（预计算标签，组件自身不依赖 intl）。 */
+export interface ModelSelectThoughtSection {
+  label: string;
+  currentLabel: string;
+  items: Array<{ value: string; label: string; selected: boolean }>;
+  onValueChange: (value: string) => void;
+}
+
+/** 模型弹层里的「高级」段：Parseltongue 输入混淆档位（关闭/轻度/标准/重度），与「推理强度」同形态。 */
+export interface ModelSelectAdvancedSection {
+  /** 「高级」子菜单标题。 */
+  label: string;
+  /** 当前档位展示名（如「关闭/轻度/标准/重度」）。 */
+  currentLabel: string;
+  items: Array<{ value: string; label: string; selected: boolean }>;
+  onValueChange: (value: string) => void;
+}
+
 const EMPTY_MODEL_SELECT_FOOTER_ACTIONS: readonly ModelSelectFooterAction[] = [];
 export const MODEL_CONFIG_SELECT_BADGE_CLASS_NAME =
   "shrink-0 rounded-full bg-surface px-1 py-px text-ui-xs font-medium leading-normal text-foreground-subtle";
 
-export function shouldShowModelProviderLevel(modelGroups: readonly ModelSelectGroup[]): boolean {
+function shouldShowModelProviderLevel(modelGroups: readonly ModelSelectGroup[]): boolean {
   return modelGroups.length > 0;
 }
 
@@ -101,7 +121,7 @@ function isFamilyConnectionGroup(
   );
 }
 
-export function shouldRenderModelGroupSeparator(
+function shouldRenderModelGroupSeparator(
   previousGroup: Pick<ModelSelectGroup, "connectionOptions" | "key" | "labelBadge"> | undefined,
   currentGroup: Pick<ModelSelectGroup, "connectionOptions" | "key" | "labelBadge">,
 ): boolean {
@@ -111,14 +131,14 @@ export function shouldRenderModelGroupSeparator(
   return isFamilyConnectionGroup(previousGroup) || isFamilyConnectionGroup(currentGroup);
 }
 
-export function isModelSelectGroupSelected(
+function isModelSelectGroupSelected(
   group: Pick<ModelSelectGroup, "items">,
   normalizedValue: string,
 ): boolean {
   return group.items.some((item) => item.value === normalizedValue);
 }
 
-export function getModelTriggerLabelClassName({
+function getModelTriggerLabelClassName({
   labelVisibilityClassName,
   triggerLabelClassName,
 }: {
@@ -161,7 +181,6 @@ interface ModelConfigSelectProps {
   indicatorClassName?: string;
   triggerClassName?: string;
   triggerIconClassName?: string;
-  triggerIcon?: ReactNode;
   triggerLabelClassName?: string;
   triggerTestId?: string;
   formatTriggerLabel?: (label: string) => string;
@@ -182,6 +201,10 @@ interface ModelConfigSelectProps {
   leadingItems?: readonly ModelSelectGroupItem[];
   /** 触发器里标签之后的小徽标（如「会话模型」「不可用」）；缺省即无。 */
   triggerBadge?: ReactNode;
+  /** 模型分组之后、footer 之前渲染的「推理强度」子菜单段；缺省不渲染（向后兼容）。 */
+  thoughtSection?: ModelSelectThoughtSection | null;
+  /** 「高级」段：输入混淆开关 + 档位；缺省不渲染（向后兼容）。 */
+  advancedSection?: ModelSelectAdvancedSection | null;
 }
 
 export const ModelConfigSelect = memo(function ModelConfigSelectComponent({
@@ -212,7 +235,6 @@ export const ModelConfigSelect = memo(function ModelConfigSelectComponent({
   indicatorClassName,
   triggerClassName,
   triggerIconClassName = "hidden",
-  triggerIcon,
   triggerLabelClassName: customTriggerLabelClassName,
   triggerTestId = TID_CHAT_MODEL_SELECT_TRIGGER,
   formatTriggerLabel,
@@ -226,6 +248,8 @@ export const ModelConfigSelect = memo(function ModelConfigSelectComponent({
   contentAlign = "start",
   leadingItems,
   triggerBadge,
+  thoughtSection,
+  advancedSection,
 }: ModelConfigSelectProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = controlledOpen ?? uncontrolledOpen;
@@ -498,12 +522,10 @@ export const ModelConfigSelect = memo(function ModelConfigSelectComponent({
           triggerClassName,
         )}
       >
-        {triggerIcon ?? (
-          <PackageIcon
-            className={cn("pointer-events-none size-4 shrink-0 text-current", triggerIconClassName)}
-            aria-hidden="true"
-          />
-        )}
+        <PackageIcon
+          className={cn("pointer-events-none size-4 shrink-0 text-current", triggerIconClassName)}
+          aria-hidden="true"
+        />
         <span className={triggerLabelClassName} title={currentTriggerTitle}>
           <RollingToolbarLabel
             label={currentTriggerLabel}
@@ -640,6 +662,86 @@ export const ModelConfigSelect = memo(function ModelConfigSelectComponent({
             : hasSelectableModel
               ? renderModelItems(modelGroups[0]?.items ?? [])
               : null}
+          {thoughtSection && thoughtSection.items.length > 0 ? (
+            <Fragment>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger
+                  className="min-h-8 gap-2"
+                  data-testid={TID_CHAT_THOUGHT_LEVEL_SELECT_TRIGGER}
+                  data-thought-current-value={
+                    thoughtSection.items.find((item) => item.selected)?.value ?? ""
+                  }
+                >
+                  <BrainIcon className="pointer-events-none size-4 text-current" />
+                  <span className="min-w-0 flex-1 truncate text-left">{thoughtSection.label}</span>
+                  <span className="shrink-0 text-ui-sm text-foreground-subtle">
+                    {thoughtSection.currentLabel}
+                  </span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-max min-w-40 max-w-72">
+                  <DropdownMenuRadioGroup
+                    value={thoughtSection.items.find((item) => item.selected)?.value ?? ""}
+                  >
+                    {thoughtSection.items.map((item) => (
+                      <DropdownMenuRadioItem
+                        key={item.value}
+                        value={item.value}
+                        className="min-h-8 gap-2 pr-8 text-ui-base"
+                        data-testid={testId(TID_CHAT_THOUGHT_LEVEL_SELECT_ITEM, item.value)}
+                        onSelect={() => thoughtSection.onValueChange(item.value)}
+                      >
+                        <span className="min-w-0 flex-1 truncate text-left first-letter:uppercase">
+                          {item.label}
+                        </span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </Fragment>
+          ) : null}
+          {advancedSection ? (
+            <Fragment>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger
+                  className="min-h-8 gap-2"
+                  data-testid={testId(TID_CHAT_MODEL_SELECT_TRIGGER, "advanced")}
+                  data-advanced-current-value={
+                    advancedSection.items.find((item) => item.selected)?.value ?? ""
+                  }
+                >
+                  <WandSparklesIcon className="pointer-events-none size-4 shrink-0 text-current" />
+                  <span className="min-w-0 flex-1 truncate text-left">
+                    {advancedSection.label}
+                  </span>
+                  <span className="shrink-0 text-ui-sm text-foreground-subtle">
+                    {advancedSection.currentLabel}
+                  </span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-max min-w-48 max-w-72">
+                  <DropdownMenuRadioGroup
+                    value={advancedSection.items.find((item) => item.selected)?.value ?? ""}
+                  >
+                    {advancedSection.items.map((item) => (
+                      <DropdownMenuRadioItem
+                        key={item.value}
+                        value={item.value}
+                        className="min-h-8 gap-2 pr-8 text-ui-base"
+                        data-testid={testId(TID_CHAT_MODEL_SELECT_TRIGGER, `advanced-${item.value}`)}
+                        onSelect={() => advancedSection.onValueChange(item.value)}
+                      >
+                        <span className="min-w-0 flex-1 truncate text-left first-letter:uppercase">
+                          {item.label}
+                        </span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </Fragment>
+          ) : null}
           {renderedFooterActions.length > 0 ? (
             <div className="sticky bottom-0 z-10 bg-menu after:absolute after:left-0 after:top-full after:h-1 after:w-full after:bg-menu after:content-['']">
               {hasSelectableModel ? <DropdownMenuSeparator /> : null}

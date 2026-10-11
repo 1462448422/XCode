@@ -6,7 +6,7 @@ import {
   type WorkspaceServiceResolverState,
 } from "@/lib/workspaceServiceResolver.js";
 
-export function resolveRemoteWorkspaceSessionIdForTarget<TServices>(params: {
+function resolveRemoteWorkspaceSessionIdForTarget<TServices>(params: {
   workspacePath: string | null | undefined;
   preferredRemoteSessionId?: string | null;
   workspaceIdentity?: string | null;

@@ -12,7 +12,7 @@ import {
 } from "./turn-output-token-continuation.js";
 import { createRuntimeAssistantEntry } from "../../agent/message-history.js";
 
-export interface AssistantPersistenceAnchor {
+interface AssistantPersistenceAnchor {
   latestAssistantMessageId: AgentRuntimeInternal["latestAssistantMessageId"];
   latestAssistantTurnId: AgentRuntimeInternal["latestAssistantTurnId"];
   latestConversationMessageId: AgentRuntimeInternal["latestConversationMessageId"];

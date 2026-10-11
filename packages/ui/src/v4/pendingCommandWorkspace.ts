@@ -19,9 +19,7 @@ interface WorkspaceScopedPendingCommand {
   };
 }
 
-export function resolvePendingCommandWorkspaceKey(
-  entry: WorkspaceScopedPendingCommand,
-): string | null {
+function resolvePendingCommandWorkspaceKey(entry: WorkspaceScopedPendingCommand): string | null {
   const workspace = entry.clientContext?.workspace;
   if (workspace) {
     return workspace.workspaceIdentity?.trim() || workspace.workspacePath;

@@ -7,7 +7,6 @@ import { inferVideoMimeFromPath } from "./attachment-video.js";
 type PathReferenceReason =
   | "binary_file"
   | "deferred_clipboard_text"
-  | "deferred_topic_history"
   | "image_too_large"
   | "pdf_too_large"
   | "text_too_large"
@@ -94,13 +93,12 @@ export function inferAttachmentMimeFromPath(path: string): string {
 }
 
 function formatPathReferenceReason(reason: PathReferenceReason): string {
-  if (reason === "deferred_topic_history") return "topic history is provided for on-demand reading";
   if (reason === "deferred_clipboard_text") {
     return "it is a pasted-text temporary attachment that is deferred to keep the model context small";
   }
   if (reason === "image_too_large") return "the image is larger than the inline media budget";
   if (reason === "pdf_too_large") return "the PDF is larger than the inline PDF input limit";
   if (reason === "text_too_large") return "the text file is larger than the inline text budget";
-  if (reason === "video_too_large") return "the video is larger than the ZCode video input limit";
+  if (reason === "video_too_large") return "the video is larger than the XCode video input limit";
   return "the file is not a known text attachment";
 }

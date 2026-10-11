@@ -6,7 +6,7 @@ import {
 } from "@zcode/shared";
 import { thoughtLevelLabelId } from "@/chat-input-toolbar/thoughtLevelOptions.js";
 import { useWorkflowSubagentModelProviderName } from "@/hooks/useWorkflowSubagentModelProviderName.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { ToolSnapshotFieldNotice } from "@/ToolCallBlocks/ToolSnapshotFieldNotice.js";
 import { FallbackToolCallBlock } from "@/ToolCallBlocks/renderers/fallback.js";
 import { readToolResultDisplay } from "@/ToolCallBlocks/toolResultDisplay.js";
@@ -116,7 +116,7 @@ function readResultRecord(value: unknown): ListModelsResult | null {
  * 命中，正是今天掉进 raw 兜底卡的根因）；legacy JSON 探针兜老会话与非 v4 宿主。一个都读不
  * 出来就回 null——「这台机器没有模型」与「读不懂这次结果」必须可分辨。
  */
-export function readListModelsResult(
+function readListModelsResult(
   toolCall: ToolCallBlockRenderContext["toolCallNode"]["toolCall"],
 ): ListModelsResult | null {
   const display = readToolResultDisplay(toolCall.raw);
@@ -179,7 +179,7 @@ function listModelsGroupName(
  * 上下文窗口的读法：千位以下原样，百万以下取整到 K，再往上到 M 且只在有小数时留一位
  * （`1M` / `1.5M`）。这一列是给人扫一眼比大小的，不是给人核对精确 token 数的。
  */
-export function formatContextWindow(contextWindow: number): string {
+function formatContextWindow(contextWindow: number): string {
   if (contextWindow < 1_000) {
     return String(contextWindow);
   }
@@ -200,10 +200,7 @@ function levelWord(level: string, formatMessage: FormatMessage): string {
  * 行的 tooltip：第一行是思考强度档位（没有档位就说没有），换行后是规范 id。规范 id 是给
  * 机器回填 `subagent_model` 用的，它只该住在这里（subagent-model-label.ts 的同款分工）。
  */
-function listModelsRowTooltip(
-  model: ListModelsEntryView,
-  formatMessage: FormatMessage,
-): string {
+function listModelsRowTooltip(model: ListModelsEntryView, formatMessage: FormatMessage): string {
   let levelsLine: string;
   if (model.reasoningLevels.length === 0) {
     levelsLine = formatMessage({ id: "chat.toolCall.workflow.models.noLevels" });
@@ -254,7 +251,7 @@ function groupModelsByProvider(models: ListModelsEntryView[]): ListModelsGroup[]
  * providerId 一个字符都不上屏。
  */
 export function ListModelsToolCallBlock(context: ToolCallBlockRenderContext) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { toolCall } = context.toolCallNode;
   const providerName = useWorkflowSubagentModelProviderName(context.workspacePath);
 

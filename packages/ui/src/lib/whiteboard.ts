@@ -26,7 +26,7 @@ export interface WhiteboardDocument {
   updatedAt: number;
 }
 
-export interface WhiteboardAddToChatPayload {
+interface WhiteboardAddToChatPayload {
   workspacePath: string;
   workspaceIdentity?: string;
   boardId: string;

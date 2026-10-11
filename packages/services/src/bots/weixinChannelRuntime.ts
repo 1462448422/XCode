@@ -29,8 +29,6 @@ interface WeixinChannelRuntimeDeps {
     provider: "weixin",
     payload: unknown,
   ): Promise<BotProviderCallbackResult>;
-  getUpdates?: typeof getWeixinUpdates;
-  acquirePollingLock?: typeof acquireWeixinPollingLock;
 }
 
 export function createWeixinChannelRuntime(deps: WeixinChannelRuntimeDeps) {
@@ -71,7 +69,7 @@ export function createWeixinChannelRuntime(deps: WeixinChannelRuntimeDeps) {
     while (!signal.aborted) {
       let lock: Awaited<ReturnType<typeof acquireWeixinPollingLock>>;
       try {
-        lock = await (deps.acquirePollingLock ?? acquireWeixinPollingLock)(
+        lock = await acquireWeixinPollingLock(
           token,
           bot.id,
         );
@@ -92,7 +90,7 @@ export function createWeixinChannelRuntime(deps: WeixinChannelRuntimeDeps) {
           botId: bot.id,
           provider: "weixin",
           status: "idle",
-          message: "Weixin long polling is handled by another ZCode window.",
+          message: "Weixin long polling is handled by another XCode window.",
         });
         await waitFor(BOT_RUNTIME_LOCK_RETRY_MS, signal);
         continue;
@@ -108,7 +106,7 @@ export function createWeixinChannelRuntime(deps: WeixinChannelRuntimeDeps) {
         });
         while (!signal.aborted) {
           const buf = await deps.readWeixinGetUpdatesBuf(bot.id);
-          const result = await (deps.getUpdates ?? getWeixinUpdates)({
+          const result = await getWeixinUpdates({
             bot,
             deps: { loadCredential: (key) => deps.credentialService.load(key) },
             buf,

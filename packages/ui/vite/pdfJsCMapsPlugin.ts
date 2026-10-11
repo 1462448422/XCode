@@ -31,7 +31,9 @@ export async function listPdfJsCMapAssets(): Promise<PdfJsCMapAsset[]> {
 export function pdfJsCMapsPlugin(): Plugin {
   return {
     name: "zcode:pdfjs-cmaps",
-    async buildStart() {
+    // buildStart 在 Vite serve 也会执行，但开发态不支持 emitFile。
+    // CMap 产物只在 generateBundle 输出，开发态继续由下方中间件提供。
+    async generateBundle() {
       for (const asset of await listPdfJsCMapAssets()) {
         this.emitFile({
           type: "asset",

@@ -14,7 +14,7 @@ import type { TuiListWorkflowRuns, TuiReplayWorkflowRuns, TuiWorkflowRunSummary 
 import type { TuiWorkflowRunSeed } from "./app-workflow-mirror.js";
 
 /** 摘要 → 补种条目。只搬服务端给的展示事实，缺省一律保持缺省（不造 label）。 */
-export function workflowRunSeedFromSummary(summary: TuiWorkflowRunSummary): TuiWorkflowRunSeed {
+function workflowRunSeedFromSummary(summary: TuiWorkflowRunSummary): TuiWorkflowRunSeed {
   return {
     runId: summary.runId,
     ...(summary.label === undefined ? {} : { label: summary.label }),
@@ -23,7 +23,7 @@ export function workflowRunSeedFromSummary(summary: TuiWorkflowRunSummary): TuiW
 }
 
 /** 一条 notice 文本。label 缺省时退回 runId——列表少一个标签是退化，不是错误。 */
-export function workflowInterruptedNoticeText(seed: TuiWorkflowRunSeed, copy: TuiCopy): string {
+function workflowInterruptedNoticeText(seed: TuiWorkflowRunSeed, copy: TuiCopy): string {
   return copy.transcript.workflow.interruptedNotice({
     label: seed.label ?? seed.runId,
     runId: seed.runId,
@@ -35,7 +35,7 @@ export function workflowInterruptedNoticeText(seed: TuiWorkflowRunSeed, copy: Tu
  *
  * 用 system 行而不是伪造 user 行：这不是用户说的话。
  */
-export function appendWorkflowInterruptedNotices(
+function appendWorkflowInterruptedNotices(
   messages: Message[],
   seeds: readonly TuiWorkflowRunSeed[],
   copy: TuiCopy,
@@ -56,7 +56,7 @@ export function appendWorkflowInterruptedNotices(
  * **刻意不排序**：`updatedAt` 是纯展示字段，端口注释明确禁止读侧拿它重排——排序是存储层的职责
  * （最近更新在前），读侧再排一次就会与服务端的 tie-break 漂移。
  */
-export function interruptedWorkflowNotices(
+function interruptedWorkflowNotices(
   summaries: readonly TuiWorkflowRunSummary[],
 ): readonly TuiWorkflowRunSeed[] {
   return summaries.filter((summary) => summary.resumable === true).map(workflowRunSeedFromSummary);

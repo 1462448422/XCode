@@ -142,11 +142,7 @@ export async function emitPermissionRequested(
   reason: string | undefined,
   suggestedPermissionUpdates: PermissionUpdate[],
   traceContext: TraceContext,
-  approval?: {
-    approvalMode?: "user-once";
-    display?: ToolResultDisplayPayload;
-    optionsPolicy?: PermissionOptionsPolicy;
-  },
+  approval?: { display?: ToolResultDisplayPayload; optionsPolicy?: PermissionOptionsPolicy },
 ): Promise<void> {
   await deps.emitEvent({
     id: crypto.randomUUID() as any,
@@ -164,11 +160,9 @@ export async function emitPermissionRequested(
       reason: reason ?? `Tool ${toolCall.name} requires approval`,
       input,
       suggestedPermissionUpdates,
-      ...(approval?.approvalMode ? { approvalMode: approval.approvalMode } : {}),
       ...(approval?.display ? { display: approval.display } : {}),
       ...(approval?.optionsPolicy ? { optionsPolicy: approval.optionsPolicy } : {}),
-      ...(approval?.approvalMode !== "user-once" &&
-      deps.sessionModePort?.supportsPermissionFullAccess?.()
+      ...(deps.sessionModePort?.supportsPermissionFullAccess?.()
         ? { fullAccessSupported: true }
         : {}),
     },

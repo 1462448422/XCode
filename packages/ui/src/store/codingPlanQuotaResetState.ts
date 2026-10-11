@@ -22,7 +22,7 @@ export interface CodingPlanQuotaResetAutoPlayedSlot {
   week: number | null;
 }
 
-export interface CodingPlanQuotaResetStoreState {
+interface CodingPlanQuotaResetStoreState {
   authSessionSeq: number;
   codingPlanQuotaResetUiBySource: Record<string, CodingPlanQuotaResetUiEntries>;
   codingPlanQuotaResetAutomaticObservationsBySource: Record<
@@ -33,15 +33,15 @@ export interface CodingPlanQuotaResetStoreState {
 }
 
 /** 自动完成"多窗口只播一次"的跨窗口广播频道（state: 前缀符合跨窗口状态同步约定）。 */
-export const CODING_PLAN_QUOTA_RESET_AUTO_PLAYED_CHANNEL = "state:codereset-autoplayed";
+const CODING_PLAN_QUOTA_RESET_AUTO_PLAYED_CHANNEL = "state:codereset-autoplayed";
 
-export interface CodingPlanQuotaResetAutoPlayedBroadcastPayload {
+interface CodingPlanQuotaResetAutoPlayedBroadcastPayload {
   sourceKey: string;
   resetType: CodingPlanResetType;
   completedAt: number;
 }
 
-export function buildCodingPlanQuotaResetAutoPlayClaimKey(
+function buildCodingPlanQuotaResetAutoPlayClaimKey(
   sourceKey: string,
   resetType: CodingPlanResetType,
   completedAt: number,
@@ -49,7 +49,7 @@ export function buildCodingPlanQuotaResetAutoPlayClaimKey(
   return `coding-plan-reset-autoplay:${encodeURIComponent(sourceKey)}:${resetType}:${completedAt}`;
 }
 
-export function parseCodingPlanQuotaResetAutoPlayedPayload(
+function parseCodingPlanQuotaResetAutoPlayedPayload(
   payload: unknown,
 ): CodingPlanQuotaResetAutoPlayedBroadcastPayload | null {
   if (!payload || typeof payload !== "object") {
@@ -91,7 +91,7 @@ export function parseCodingPlanQuotaResetAutoPlayedBroadcastMessage(
 /**
  * 广播本窗口首次播放的自动完成 used_at，其他窗口收到后抑制同 used_at 的提示。
  */
-export function broadcastCodingPlanQuotaResetAutoPlayed(
+function broadcastCodingPlanQuotaResetAutoPlayed(
   broadcastService: Pick<IBroadcastService, "send">,
   sourceKey: string,
   resetType: CodingPlanResetType,
@@ -103,7 +103,7 @@ export function broadcastCodingPlanQuotaResetAutoPlayed(
   });
 }
 
-export interface CodingPlanQuotaResetStoreUpdate {
+interface CodingPlanQuotaResetStoreUpdate {
   patch: Pick<
     CodingPlanQuotaResetStoreState,
     | "codingPlanQuotaResetUiBySource"
@@ -118,7 +118,7 @@ export interface CodingPlanQuotaResetStoreUpdate {
  * status 观察和 Composer 播放资格必须分离。设置页 / Usage 页也会调用本函数，
  * 如果在这里直接写 played，就会在没有展示 Tooltip/撒花时提前消耗跨窗口播放资格。
  */
-export function updateCodingPlanQuotaResetStoreState(
+function updateCodingPlanQuotaResetStoreState(
   state: CodingPlanQuotaResetStoreState,
   sourceKey: string,
   resetType: CodingPlanResetType,
@@ -401,7 +401,7 @@ export async function releaseCodingPlanQuotaResetAutoPlay(params: {
   await params.broadcastService.releaseClaim(params.reservation.lease);
 }
 
-export interface CodingPlanQuotaResetStoreActions {
+interface CodingPlanQuotaResetStoreActions {
   setCodingPlanQuotaResetUiEntry: (
     sourceKey: string,
     resetType: CodingPlanResetType,

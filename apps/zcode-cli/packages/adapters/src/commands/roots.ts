@@ -7,14 +7,14 @@ const COMMANDS_DIR = "commands";
 const GIT_MARKER = ".git";
 const HOME_PREFIX = "~/";
 const PRIORITY_STEP = 10;
-const ZCODE_DIR = ".zcode";
+const XCODE_DIR = ".xcode";
 const AGENTS_DIR = ".agents";
 
 export interface CustomCommandRootResolutionOptions {
   extraRoots?: string[];
   extraResolvedRoots?: CustomCommandRoot[];
   homeDirectory?: string;
-  includeZcodeCommands?: boolean;
+  includeXcodeCommands?: boolean;
 }
 
 export async function resolveDefaultCustomCommandRoots(
@@ -23,7 +23,7 @@ export async function resolveDefaultCustomCommandRoots(
 ): Promise<CustomCommandRoot[]> {
   const resolvedWorkingDirectory = resolve(workingDirectory);
   const roots: CustomCommandRoot[] = [];
-  const includeZcode = options.includeZcodeCommands ?? true;
+  const includeXcode = options.includeXcodeCommands ?? true;
   const home = options.homeDirectory ?? homedir();
   let priority = 0;
   const nextPriority = () => {
@@ -42,13 +42,13 @@ export async function resolveDefaultCustomCommandRoots(
     );
   }
 
-  if (includeZcode) {
+  if (includeXcode) {
     roots.push(...commandRootsForBase(home, "user", nextPriority));
   }
 
   const projectDirectories = await resolveProjectDirectories(resolvedWorkingDirectory);
   for (const directory of projectDirectories) {
-    if (includeZcode) {
+    if (includeXcode) {
       roots.push(...commandRootsForBase(directory, "project", nextPriority));
     }
   }
@@ -96,10 +96,10 @@ function commandRootsForBase(
   scope: CustomCommandRoot["scope"],
   nextPriority: () => number,
 ): CustomCommandRoot[] {
-  // 合并而不是 fallback：兼容 `.agents` 命令和原生 `.zcode` 命令需要同时可见。
-  // 同一级别 `.zcode` 先扫描，命令同名时仍按“先到先赢”处理。
+  // 合并而不是 fallback：兼容 `.agents` 命令和原生 `.xcode` 命令需要同时可见。
+  // 同一级别 `.xcode` 先扫描，命令同名时仍按“先到先赢”处理。
   return [
-    root(join(baseDirectory, ZCODE_DIR, COMMANDS_DIR), scope, "zcode", nextPriority()),
+    root(join(baseDirectory, XCODE_DIR, COMMANDS_DIR), scope, "zcode", nextPriority()),
     root(join(baseDirectory, AGENTS_DIR, COMMANDS_DIR), scope, "agents", nextPriority()),
   ];
 }

@@ -1,10 +1,9 @@
 import { Hourglass, MessageCircleQuestion, Workflow } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { WorkflowNotificationMeta, WorkflowRunHole } from "@zcode/shared/zcode-protocol-v4";
+import type { WorkflowNotificationMeta } from "@zcode/shared/zcode-protocol-v4";
 import { CodeBlock, CodeBlockHeader } from "@/components/ai-elements/code-block.js";
-import { WorkflowNotificationHoleRow } from "@/v4/WorkflowNotificationHoleRow.js";
 import { ToolLayout } from "@/ToolCallBlocks/ToolLayout.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type { Theme } from "@/useTheme.js";
 import { workflowRunQuestionWaitedLabel } from "@/app-shell/workflowRunQuestions.js";
 import { WorkflowNotificationArtifactChips } from "@/v4/WorkflowNotificationArtifactChips.js";
@@ -81,7 +80,7 @@ function escalationState(
   return pendingQids.has(qid) ? "waiting" : "answered";
 }
 
-export interface WorkflowNotificationToolRowProps {
+interface WorkflowNotificationToolRowProps {
   notification: WorkflowNotificationMeta;
   /** run 名 = originMeta.title（CLI 权威给出，不本地化）。 */
   runName: string;
@@ -100,32 +99,9 @@ export interface WorkflowNotificationToolRowProps {
   pendingQids?: ReadonlySet<string>;
   /** 测试/宿主强制展开（透传 ToolLayout.forceOpen）；产品默认折叠。 */
   forceOpen?: boolean;
-  /**
-   * 留白行的在场性联查（docs/dynamic-workflow/transcript-and-notifications.md「The hole row's live state」）：
-   * run 投影里的 `holes`；undefined = run 不在活投影（中性词）。
-   */
-  holes?: readonly WorkflowRunHole[];
 }
 
-export function WorkflowNotificationToolRow(props: WorkflowNotificationToolRowProps) {
-  // 留白行整个另起一件（WorkflowNotificationHoleRow.tsx）：它有自己的三态与展开体，塞进下面的
-  // 三分支只会让每个分支都多一句「不是 hole」。
-  if (props.notification.kind === "hole") {
-    return (
-      <WorkflowNotificationHoleRow
-        forceOpen={props.forceOpen ?? false}
-        holes={props.holes}
-        notification={props.notification}
-        runName={props.runName}
-        toolId={`${TID_CHAT_WORKFLOW_NOTIFICATION_ROW}-${props.testIdKey}`}
-        {...(props.onOpenRun === undefined ? {} : { onOpenRun: props.onOpenRun })}
-      />
-    );
-  }
-  return <WorkflowNotificationBaseRow {...props} notification={props.notification} />;
-}
-
-function WorkflowNotificationBaseRow({
+export function WorkflowNotificationToolRow({
   notification,
   runName,
   testIdKey,
@@ -134,10 +110,8 @@ function WorkflowNotificationBaseRow({
   onOpenArtifact,
   pendingQids,
   forceOpen = false,
-}: WorkflowNotificationToolRowProps & {
-  notification: Exclude<WorkflowNotificationMeta, { kind: "hole" }>;
-}) {
-  const { intl } = useZCodeIntl();
+}: WorkflowNotificationToolRowProps) {
+  const { intl } = useXCodeIntl();
 
   // 等待时长要在没有事件流时也照走（停驻的 run 恰恰不发事件），按固定间隔喂新的"现在"。
   const [now, setNow] = useState(() => Date.now());

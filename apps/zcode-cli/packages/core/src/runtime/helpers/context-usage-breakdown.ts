@@ -29,7 +29,7 @@ export interface ContextUsageCategoryBreakdown extends ContextUsageCategory {
   contributors: ContextUsageContributor[];
 }
 
-export type ContextUsageSectionDetail = ContextUsageMetric & {
+type ContextUsageSectionDetail = ContextUsageMetric & {
   cacheHint: string;
   injectionTarget: string;
   name: string;

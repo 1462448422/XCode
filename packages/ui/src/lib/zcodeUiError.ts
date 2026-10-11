@@ -1,27 +1,26 @@
-import type { ZCodeError, ZCodeTaskMeta, TraceId } from "@zcode/shared";
+import type { XCodeError, TraceId } from "@zcode/shared";
 import { errorAttributionSchema, type ErrorAttribution } from "@zcode/shared/zcode-protocol-v4";
-import { resolveRequestVerificationBusinessCode } from "@/lib/providerBusinessError.js";
 
-export interface ZCodeUiError extends ZCodeError {
+export interface XCodeUiError extends XCodeError {
   attribution?: ErrorAttribution;
   detail?: string;
   underlyingErrorMessage?: string;
   underlyingErrorDetail?: string;
 }
 
-interface NormalizeZCodeUiErrorOptions {
+interface NormalizeXCodeUiErrorOptions {
   fallbackCode?: string;
   fallbackMessage?: string;
   traceId?: TraceId;
   taskId?: string;
 }
 
-const GENERIC_ZCODE_UI_ERROR_MESSAGES = new Set([
+const GENERIC_XCODE_UI_ERROR_MESSAGES = new Set([
   "Internal error",
   "Turn execution failed",
   "Compact failed",
   "Rewind failed",
-  "ZCode session failed",
+  "XCode session failed",
 ]);
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -75,7 +74,7 @@ function collectMessageCandidatesFromRecord(record: Record<string, unknown>): st
     ["detail"],
     ["data", "message"],
     ["data", "detail"],
-    // ZCode Agent 常把可读原因放在 data.details（复数）里；之前只识别 detail，
+    // XCode Agent 常把可读原因放在 data.details（复数）里；之前只识别 detail，
     // 会导致 UI 只能看到 “Internal error” 而丢掉关键可执行提示。
     ["data", "details"],
     ["data", "reason"],
@@ -189,20 +188,20 @@ function readFirstAttributionFromPaths(error: unknown): ErrorAttribution | undef
   return undefined;
 }
 
-export function normalizeZCodeUiError(
+export function normalizeXCodeUiError(
   error: unknown,
-  options: NormalizeZCodeUiErrorOptions = {},
-): ZCodeUiError {
+  options: NormalizeXCodeUiErrorOptions = {},
+): XCodeUiError {
   const candidates = collectMessageCandidates(error);
   // zcode-cli 已经把 provider/network 根因放进 detail 或 data.zcode.error，
   // 外层仍可能保留 "Internal error" 这类包装文案。主提示优先选非泛化候选，避免根因被盖住。
   const primaryMessage =
-    candidates.find((candidate) => !GENERIC_ZCODE_UI_ERROR_MESSAGES.has(candidate)) ??
+    candidates.find((candidate) => !GENERIC_XCODE_UI_ERROR_MESSAGES.has(candidate)) ??
     candidates[0] ??
     options.fallbackMessage ??
     "Internal error";
   const detailMessage = candidates.find(
-    (candidate) => candidate !== primaryMessage && !GENERIC_ZCODE_UI_ERROR_MESSAGES.has(candidate),
+    (candidate) => candidate !== primaryMessage && !GENERIC_XCODE_UI_ERROR_MESSAGES.has(candidate),
   );
   const codeFromError = readFirstStringFromPaths(error, [
     ["code"],
@@ -234,10 +233,6 @@ export function normalizeZCodeUiError(
     ["data", "zcode", "error", "underlyingErrorDetail"],
   ]);
   const providerCodeFromDetail = detailFromError?.match(/provider_code=([0-9]+)/)?.[1];
-  const verificationRejectedCode = resolveRequestVerificationBusinessCode(
-    codeFromError ?? providerCodeFromDetail,
-    primaryMessage,
-  );
   const traceIdFromError = readFirstStringFromPaths(error, [
     ["traceId"],
     ["data", "traceId"],
@@ -256,12 +251,7 @@ export function normalizeZCodeUiError(
     // 部分上游错误外层 code 只是 PROVIDER_BUSINESS_ERROR，
     // 真实 GLM / zcode-plan 业务码只保存在 detail 的 provider_code=xxxx。
     // 业务码需要进入统一错误分类层，否则 ChatView quota 横幅无法命中。
-    code:
-      verificationRejectedCode ??
-      providerCodeFromDetail ??
-      codeFromError ??
-      options.fallbackCode ??
-      "UNKNOWN",
+    code: providerCodeFromDetail ?? codeFromError ?? options.fallbackCode ?? "UNKNOWN",
     message: primaryMessage,
     detail: detailMessage,
     ...(underlyingErrorMessage ? { underlyingErrorMessage } : {}),
@@ -270,18 +260,4 @@ export function normalizeZCodeUiError(
     taskId: options.taskId ?? taskIdFromError,
     ...(attribution ? { attribution } : {}),
   };
-}
-
-export function normalizeRestoredTaskFailureError(meta: ZCodeTaskMeta): ZCodeUiError | null {
-  if (!meta.lastError) {
-    return null;
-  }
-
-  // Bugfix: 手机 Web 断连恢复时可能只拿到 error snapshot，看不到断连期间的 task_error。
-  // 没有服务端持久化的 lastError 时不再编造兜底文案，避免展示没有实际根因的错误。
-  return normalizeZCodeUiError(meta.lastError, {
-    fallbackCode: meta.lastError.code,
-    traceId: meta.lastError.traceId ?? meta.traceId,
-    taskId: meta.lastError.taskId ?? meta.taskId,
-  });
 }

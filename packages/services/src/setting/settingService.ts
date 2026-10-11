@@ -28,14 +28,14 @@ import {
   type LegacyTeamConnection,
 } from "#src/setting/legacyAccountConnectionSettings.js";
 const MAX_RECENT_PROJECTS = 10;
-const DEFAULT_PROJECT_NAME = "ZCodeProject";
+const DEFAULT_PROJECT_NAME = "XCodeProject";
 const SETTINGS_PARSE_RETRY_DELAY_MS = 300;
 const SETTINGS_PARSE_RETRY_COUNT = 3;
 
 const log = (...args: unknown[]) =>
   console.log(formatLogPrefix("settingService", process.pid), ...args);
 const debugLog = (...args: unknown[]) => {
-  // NODE_ENV 来自用户 shell 时会误导服务层 debug 开关；统一使用 ZCODE_RUNTIME_ENV。
+  // NODE_ENV 来自用户 shell 时会误导服务层 debug 开关；统一使用 XCODE_RUNTIME_ENV。
   if (!isEffectiveDevelopmentNodeEnv()) {
     return;
   }
@@ -46,14 +46,14 @@ function resolveUserHomeDir() {
   // 独立桌面 Dev 实例已设置自己的 home，设置服务却仍写真实 HOME，
   // 导致启动迁移和外观操作污染其他实例。与 Electron 的显式 home 覆盖保持一致。
   const envHome =
-    process.env.ZCODE_DESKTOP_HOME_DIR?.trim() ||
+    process.env.XCODE_DESKTOP_HOME_DIR?.trim() ||
     process.env.HOME?.trim() ||
     process.env.USERPROFILE?.trim();
   return envHome && envHome.length > 0 ? envHome : homedir();
 }
 
 function getSettingsDir() {
-  return join(resolveUserHomeDir(), ".zcode", "v2");
+  return join(resolveUserHomeDir(), ".xcode", "v2");
 }
 
 function getSettingsFile() {
@@ -311,10 +311,14 @@ export function createSettingServiceWithMigrations(): {
             throw new Error("Account connection settings changed");
           }
         }
-        const merged = appSettingsSchema.parse({
-          ...current,
-          ...validatedPatch,
-        });
+        const nextSettings = { ...current, ...validatedPatch };
+        if (validatedPatch.customSkin === null) {
+          // 皮肤清空走 null（RPC/JSON 会吞 undefined，undefined 表达不了"删除"）。
+          // spread 只能覆盖不能删键，这里显式 delete：落盘的 setting.json 既不留 null
+          // 也不留旧皮肤，下次启动 applyCustomSkin(null) 直接回官方主题。
+          delete nextSettings.customSkin;
+        }
+        const merged = appSettingsSchema.parse(nextSettings);
 
         // 打开工作区后会几乎同时写 recentProjects 和 lastWorkspaceSession。
         // 之前两个 update 都是基于各自读到的旧 settings 直接覆盖写回，
@@ -341,7 +345,7 @@ export function createSettingServiceWithMigrations(): {
       const targetBaseDir = newDir?.trim() || homedir();
       const validation = validateDataBaseDirTarget(targetBaseDir);
       if (!validation.ok) {
-        // Windows 安装目录由安装器/自动更新管理，把 .zcode/v2 放进去可能在升级时被覆盖。
+        // Windows 安装目录由安装器/自动更新管理，把 .xcode/v2 放进去可能在升级时被覆盖。
         // 迁移前在 service 层拦截，避免 UI 入口变化或 RPC 调用绕过前端判断。
         const error = new Error(`${validation.code}: ${validation.forbiddenDir}`);
         (error as Error & { code: string }).code = validation.code;

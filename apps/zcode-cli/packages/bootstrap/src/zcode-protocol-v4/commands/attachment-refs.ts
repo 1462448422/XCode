@@ -12,23 +12,22 @@
 //    localPath 分支映射为 path 引用，core 已有读取阈值与降级策略。
 import type { TurnAttachment } from "@zcode/core";
 import type { AttachmentRef } from "@zcode/shared/zcode-protocol-v4";
-import type { ZCodeApp } from "../../app/types.js";
+import type { XCodeApp } from "../../app/types.js";
 
 const URI_REF_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//;
 const INLINE_TEXT_ATTACHMENT_MAX_BYTES = 64 * 1024;
 
-export function isUriAttachmentRef(ref: string): boolean {
+function isUriAttachmentRef(ref: string): boolean {
   return URI_REF_PATTERN.test(ref);
 }
 
 function displayMetaOf(
   ref: AttachmentRef,
-): Pick<TurnAttachment, "filename" | "mimeType" | "sizeBytes" | "sourceKind" | "messageCount"> {
+): Pick<TurnAttachment, "filename" | "mimeType" | "sizeBytes"> {
   return {
     filename: ref.fileName,
     mimeType: ref.mime,
     sizeBytes: ref.bytes,
-    ...(ref.sourceKind ? { sourceKind: ref.sourceKind, messageCount: ref.messageCount } : {}),
   };
 }
 
@@ -59,7 +58,7 @@ function decodeDataUrlText(content: string): string | undefined {
   }
 }
 
-async function mapAttachmentRef(app: ZCodeApp, ref: AttachmentRef): Promise<TurnAttachment> {
+async function mapAttachmentRef(app: XCodeApp, ref: AttachmentRef): Promise<TurnAttachment> {
   const displayMeta = displayMetaOf(ref);
   if (!isUriAttachmentRef(ref.ref)) {
     // 本地路径引用：交给 core 的文件/图片读取链路（阈值与降级已内建）。
@@ -71,10 +70,6 @@ async function mapAttachmentRef(app: ZCodeApp, ref: AttachmentRef): Promise<Turn
       type: isImageRef(ref) ? "image" : isPdfRef(ref) ? "pdf" : "file",
       ...displayMeta,
     };
-  }
-  if (ref.sourceKind === "topic-history" || ref.sourceKind === "clipboard-text") {
-    // 文本材料必须保留 durable 引用；按普通小文件解码会重新隐藏注入整份历史。
-    return { content: ref.ref, type: "file", ...displayMeta };
   }
   if (isImageRef(ref)) {
     // 图片 URI ref：content 携带 artifact URI，模型请求阶段由 resolveAttachmentDataUrl
@@ -110,7 +105,7 @@ async function mapAttachmentRef(app: ZCodeApp, ref: AttachmentRef): Promise<Turn
  * 空数组/缺省 → undefined（sendInput 语义：无附件不带字段）。
  */
 export async function mapAttachmentRefsToTurnAttachments(
-  app: ZCodeApp,
+  app: XCodeApp,
   refs: readonly AttachmentRef[] | undefined,
 ): Promise<TurnAttachment[] | undefined> {
   if (!refs || refs.length === 0) return undefined;

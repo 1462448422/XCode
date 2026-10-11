@@ -35,7 +35,7 @@ export function serializeWorkspaceFileDragPayload(payload: WorkspaceFileDragPayl
   return JSON.stringify(payload);
 }
 
-export function parseWorkspaceFileDragPayload(
+function parseWorkspaceFileDragPayload(
   rawPayload: string | null | undefined,
 ): WorkspaceFileDragPayload | null {
   if (!rawPayload) {

@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import type { ZCodeImportSessionsResult, ZCodeTaskMeta } from "@zcode/shared";
-import { generateTraceId, ZCODE_AGENT_PROVIDER } from "@zcode/shared";
+import type { XCodeImportSessionsResult, XCodeTaskMeta } from "@zcode/shared";
+import { generateTraceId, XCODE_AGENT_PROVIDER } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import { getConversationWorkspaceDir } from "#src/paths.js";
 import type { TaskIndexRepo } from "#src/session/taskIndexRepo.js";
@@ -20,8 +20,8 @@ import { getZcodeHomeRoots } from "#src/paths.js";
 const logger = createServiceLogger("zcode-native-import");
 
 /**
- * ZCode 旧默认工作区（~/.zcode/workspace/default）里的会话归属 ZCode 的共享会话工作区。
- * 其余真实项目目录原样保留；找不到 workspace 信息时落到 ZCode 默认工作区。
+ * ZCode 旧默认工作区（~/.zcode/workspace/default）里的会话归属 XCode 的共享会话工作区。
+ * 其余真实项目目录原样保留；找不到 workspace 信息时落到 XCode 默认工作区。
  */
 function mapZcodeWorkspacePath(raw: string | null): string {
   const path = raw?.trim();
@@ -36,7 +36,7 @@ function mapZcodeWorkspacePath(raw: string | null): string {
   return path;
 }
 
-function buildZcodeTaskMeta(row: ZcodeSessionRow): ZCodeTaskMeta {
+function buildZcodeTaskMeta(row: ZcodeSessionRow): XCodeTaskMeta {
   return {
     taskId: row.id,
     traceId: generateTraceId(row.id),
@@ -45,9 +45,9 @@ function buildZcodeTaskMeta(row: ZcodeSessionRow): ZCodeTaskMeta {
     createdAt: row.time_created,
     updatedAt: row.time_updated,
     mode: "build",
-    // 侧栏 listTasks 按当前 runtime provider 过滤；导入的历史会话归属 ZCode Agent
+    // 侧栏 listTasks 按当前 runtime provider 过滤；导入的历史会话归属 XCode Agent
     // 才能进入默认任务列表（与 Claude 迁移走 agent 真实建会话的行为对齐）。
-    provider: ZCODE_AGENT_PROVIDER,
+    provider: XCODE_AGENT_PROVIDER,
     migrationSource: "zcodeSession",
   };
 }
@@ -59,10 +59,10 @@ function yieldToEventLoop(): Promise<void> {
 }
 
 function markAllFailed(
-  result: ZCodeImportSessionsResult,
+  result: XCodeImportSessionsResult,
   sessionIds: readonly string[],
   reason: string,
-): ZCodeImportSessionsResult {
+): XCodeImportSessionsResult {
   for (const sessionId of sessionIds) {
     result.failed.push({ provider: "zcode", sessionId, reason });
   }
@@ -70,21 +70,21 @@ function markAllFailed(
 }
 
 /**
- * 逐条把选中的 ZCode 会话复制进当前 ZCode 会话库。
+ * 逐条把选中的 ZCode 会话复制进当前 XCode 会话库。
  * 关键语义：只 INSERT、绝不整库覆盖；目标库已有同 id 会话时跳过，
  * 导入完成后把会话补进 tasks-index 并广播列表变更，让侧边栏即时可见。
  */
 export async function importZcodeNativeSessions(params: {
   taskIndexRepo: TaskIndexRepo;
   sessionIds: string[];
-  onTaskImported: (meta: ZCodeTaskMeta) => void;
+  onTaskImported: (meta: XCodeTaskMeta) => void;
   /** 每个会话处理完回调一次（0 基索引 + 总数），供后台任务注册表上报进度。 */
   onProgress?: (processed: number, total: number) => void;
-}): Promise<ZCodeImportSessionsResult> {
+}): Promise<XCodeImportSessionsResult> {
   const normalizedSessionIds = [
     ...new Set(params.sessionIds.map((item) => item.trim()).filter(Boolean)),
   ];
-  const result: ZCodeImportSessionsResult = { imported: [], skipped: [], failed: [] };
+  const result: XCodeImportSessionsResult = { imported: [], skipped: [], failed: [] };
   if (normalizedSessionIds.length === 0) {
     return result;
   }
@@ -125,7 +125,7 @@ export async function importZcodeNativeSessions(params: {
             taskId: sessionId,
             workspacePath: mapZcodeWorkspacePath(row.directory ?? row.path),
           });
-          if (indexMeta?.provider === ZCODE_AGENT_PROVIDER) {
+          if (indexMeta?.provider === XCODE_AGENT_PROVIDER) {
             result.skipped.push({ provider: "zcode", sessionId, reason: "already_imported" });
             continue;
           }

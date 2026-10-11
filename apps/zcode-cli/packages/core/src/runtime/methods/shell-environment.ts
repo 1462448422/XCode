@@ -1,9 +1,7 @@
 import type { ExecutionShellSelection } from "../deps.js";
 import type { BashShellSnapshotRestore } from "./bash-shell-snapshot.js";
 
-export type ShellEnvironmentResumeNoticeKind =
-  | "display_change"
-  | "windows_git_bash_auto_migration";
+type ShellEnvironmentResumeNoticeKind = "display_change" | "windows_git_bash_auto_migration";
 
 export function getShellEnvironmentResumeNoticeKind(options: {
   persistedShell: string | undefined;
@@ -34,7 +32,7 @@ export function buildShellEnvironmentResumeNotice(
   return `The Bash tool shell is ${selection.display.name}.`;
 }
 
-export function hasShellDisplayChanged(
+function hasShellDisplayChanged(
   previousShell: string | undefined,
   selection: ExecutionShellSelection | undefined,
 ): selection is ExecutionShellSelection {

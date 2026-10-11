@@ -1,4 +1,3 @@
-import { ExecuteCommand } from "@/ToolCallBlocks/renderers/ExecuteCommand.js";
 import {
   bashOutputDisplaySchema,
   executionOutputPreviewSchema,
@@ -6,7 +5,7 @@ import {
 import { ExecuteOutput } from "@/ToolCallBlocks/renderers/ExecuteOutput.js";
 import { SquareTerminalIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { ToolSnapshotFieldNotice } from "@/ToolCallBlocks/ToolSnapshotFieldNotice.js";
 import { ToolLayout } from "../ToolLayout.js";
 import type { ToolCallBlockRenderContext } from "../shared.js";
@@ -267,7 +266,7 @@ function extractExecuteResultText(output: unknown): string | null {
 }
 
 export function ExecuteToolCallBlock(context: ToolCallBlockRenderContext) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { toolCallNode, isRunning, statusLabel, errorText, isOfficeMode = false } = context;
   const { toolCall } = toolCallNode;
   const secondaryText = getExecuteSecondaryText(toolCall.input);
@@ -297,20 +296,17 @@ export function ExecuteToolCallBlock(context: ToolCallBlockRenderContext) {
   );
   const renderContent = useCallback(
     () => (
-      <div
-        data-testid="execute-detail"
-        className="space-y-3 mb-2 rounded-xl border border-border bg-panel px-4 py-3"
-      >
+      <div className="space-y-3 mb-2 rounded-xl border border-border bg-panel px-4 py-3">
         <div className="space-y-1">
           <div className="flex items-start gap-2 font-sans text-ui-base text-foreground">
-            <ExecuteCommand
-              key={contentParts.executionCommand}
-              command={contentParts.executionCommand}
-            />
+            <span className="shrink-0 text-foreground-subtle">$</span>
+            <pre className="min-w-0 flex-1 block max-h-15 overflow-over truncate whitespace-pre-wrap break-words">
+              {contentParts.executionCommand}
+            </pre>
           </div>
         </div>
 
-        {context.isPermissionPreview ? null : outputPreview || failureVisibleText || resultText ? (
+        {outputPreview || failureVisibleText || resultText ? (
           <ExecuteOutput
             text={outputPreview?.fullText ?? failureVisibleText ?? resultText ?? ""}
             running={isRunning}
@@ -328,15 +324,7 @@ export function ExecuteToolCallBlock(context: ToolCallBlockRenderContext) {
         )}
       </div>
     ),
-    [
-      contentParts.executionCommand,
-      context.isPermissionPreview,
-      failureVisibleText,
-      intl,
-      isRunning,
-      resultText,
-      outputPreview,
-    ],
+    [contentParts.executionCommand, failureVisibleText, intl, isRunning, resultText, outputPreview],
   );
 
   return (

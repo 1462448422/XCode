@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ZCodeImportSessionsResult, ZCodeImportableSessionCandidate } from "@zcode/shared";
+import type { XCodeImportSessionsResult, XCodeImportableSessionCandidate } from "@zcode/shared";
 import { logger } from "@/logger.js";
 import { useXCodeTaskService } from "@/hooks/useXCodeTaskService.js";
 import { useTabStoreApi } from "@/store/TabStoreProvider.js";
@@ -28,7 +28,7 @@ export interface ZcodeImportJobSnapshot {
   finishStatus?: "success" | "error";
   progress?: number;
   total?: number;
-  result?: ZCodeImportSessionsResult;
+  result?: XCodeImportSessionsResult;
   error?: string;
 }
 
@@ -36,9 +36,9 @@ interface PersistedState {
   workspaceFilterMode: ClaudeMigrationWorkspaceFilterMode;
   range: ClaudeMigrationRange;
   limitInput: string;
-  candidates: ZCodeImportableSessionCandidate[];
+  candidates: XCodeImportableSessionCandidate[];
   selectedSessionIds: string[];
-  lastImportResult: ZCodeImportSessionsResult | null;
+  lastImportResult: XCodeImportSessionsResult | null;
 }
 
 function loadPersistedState(): PersistedState | null {
@@ -79,7 +79,7 @@ type ZCodeImportCapableTaskService = ReturnType<typeof useXCodeTaskService> & {
     workspacePath?: string;
     modifiedSince?: number;
     limit?: number;
-  }): Promise<ZCodeImportableSessionCandidate[]>;
+  }): Promise<XCodeImportableSessionCandidate[]>;
   importZCodeSessions(params: { sessionIds: string[] }): Promise<{ started: boolean }>;
   getZcodeImportStatus(): Promise<ZcodeImportJobSnapshot | null>;
 };
@@ -113,13 +113,13 @@ export function useZCodeSessionMigration(params: {
     );
   const [range, setRange] = useState<ClaudeMigrationRange>(initial?.range ?? "30d");
   const [limitInput, setLimitInput] = useState(initial?.limitInput ?? String(DEFAULT_LIMIT));
-  const [candidates, setCandidates] = useState<ZCodeImportableSessionCandidate[]>(
+  const [candidates, setCandidates] = useState<XCodeImportableSessionCandidate[]>(
     initial?.candidates ?? [],
   );
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>(
     initial?.selectedSessionIds ?? [],
   );
-  const [lastImportResult, setLastImportResult] = useState<ZCodeImportSessionsResult | null>(
+  const [lastImportResult, setLastImportResult] = useState<XCodeImportSessionsResult | null>(
     initial?.lastImportResult ?? null,
   );
   const [scanError, setScanError] = useState<string | null>(null);
@@ -171,7 +171,7 @@ export function useZCodeSessionMigration(params: {
 
   // 处理导入结果（轮询到 finished 时调用）：失效缓存、让新会话进侧栏、清已处理勾选。
   const applyImportResult = useCallback(
-    (result: ZCodeImportSessionsResult) => {
+    (result: XCodeImportSessionsResult) => {
       setLastImportResult(result);
       const handledSessionIds = new Set([
         ...result.imported.map((item) => item.sessionId),
@@ -232,7 +232,7 @@ export function useZCodeSessionMigration(params: {
           pollTimerRef.current = null;
         }
         if (snap.result) {
-          applyImportResult(snap.result as ZCodeImportSessionsResult);
+          applyImportResult(snap.result as XCodeImportSessionsResult);
         } else if (snap.error) {
           setImportError(snap.error);
         }

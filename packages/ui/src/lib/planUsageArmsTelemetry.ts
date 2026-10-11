@@ -4,15 +4,15 @@ import {
   sanitizeTelemetryModelValue,
   type ArmsCustomEventPayload,
   type IPlatformService,
-  type ZCodeTaskNetworkDebugStatus,
+  type XCodeTaskNetworkDebugStatus,
 } from "@zcode/shared";
 import { logger } from "@/logger.js";
 
-export const PLAN_USAGE_ARMS_GROUP = "plan_usage";
-export const PLAN_USAGE_ARMS_EVENT_REQUEST = "plan_request";
-export const PLAN_USAGE_ARMS_EVENT_TTFT = "plan_ttft";
+const PLAN_USAGE_ARMS_GROUP = "plan_usage";
+const PLAN_USAGE_ARMS_EVENT_REQUEST = "plan_request";
+const PLAN_USAGE_ARMS_EVENT_TTFT = "plan_ttft";
 
-export type PlanUsageRequestStatus =
+type PlanUsageRequestStatus =
   | "accepted"
   | "queued"
   | "started"
@@ -57,7 +57,7 @@ function nonNegativeInteger(value: number | undefined): number | undefined {
 }
 
 function networkRequestStatus(
-  statusType: ZCodeTaskNetworkDebugStatus["statusType"],
+  statusType: XCodeTaskNetworkDebugStatus["statusType"],
 ): PlanUsageRequestStatus {
   switch (statusType) {
     case "model_request_started":
@@ -118,55 +118,9 @@ function providerTelemetryProjection(
   };
 }
 
-export function reportPlanUsageRequestToArms(
-  reporter: ArmsReporter | null | undefined,
-  params: {
-    providerId?: string | null;
-    modelName?: string | null;
-    askMode?: string | null;
-    requestStatus?: PlanUsageRequestStatus;
-    properties?: Record<string, string | number | boolean | undefined>;
-  },
-): void {
-  if (!reporter) {
-    return;
-  }
-
-  const providerId = params.providerId?.trim();
-  if (!providerId) {
-    return;
-  }
-
-  const payload: ArmsCustomEventPayload = {
-    name: PLAN_USAGE_ARMS_EVENT_REQUEST,
-    group: PLAN_USAGE_ARMS_GROUP,
-    value: 1,
-    properties: {
-      ask_mode: params.askMode?.trim() || undefined,
-      ...providerTelemetryProjection(providerId, params.modelName?.trim()),
-      request_status: params.requestStatus ?? "accepted",
-      ...params.properties,
-    },
-  };
-
-  try {
-    void Promise.resolve(reporter.reportArmsCustomEvent(payload)).catch((error) => {
-      logger.warn("[plan-usage] ARMS 上报失败", {
-        providerId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-  } catch (error) {
-    logger.warn("[plan-usage] ARMS 上报异常", {
-      providerId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
 export function reportPlanUsageModelRequestStartedToArms(
   reporter: ArmsReporter | null | undefined,
-  event: ZCodeTaskNetworkDebugStatus,
+  event: XCodeTaskNetworkDebugStatus,
 ): void {
   if (!reporter) {
     return;

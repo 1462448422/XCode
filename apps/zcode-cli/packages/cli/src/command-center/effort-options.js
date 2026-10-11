@@ -1,10 +1,10 @@
-import { getZCodeCopy } from "@zcode/i18n";
+import { getXCodeCopy } from "@zcode/i18n";
 export async function listAppEffortOptions(app) {
     const levels = app.listThoughtLevels ? await app.listThoughtLevels() : undefined;
     return levels ? thoughtLevelsToEffortOptions(levels, app.getLocale?.()) : undefined;
 }
 export function thoughtLevelsToEffortOptions(levels, locale) {
-    const effortCopy = getZCodeCopy(locale).tui.effort;
+    const effortCopy = getXCodeCopy(locale).tui.effort;
     return levels.map((level) => ({
         id: level,
         label: effortLabel(level, effortCopy),

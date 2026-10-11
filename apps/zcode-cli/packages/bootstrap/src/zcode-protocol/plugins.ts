@@ -13,49 +13,48 @@ import {
   zcodePluginsValidateParamsSchema,
   zcodePluginsDescribeParamsSchema,
   zcodePluginsRestoreBuiltinParamsSchema,
-  type ZCodeAvailablePluginSummary,
-  type ZCodeInstalledPluginSummary,
-  type ZCodePluginComponentGroup,
-  type ZCodePluginDiagnostic,
-  type ZCodePluginInfo,
-  type ZCodePluginMarketplaceSummary,
-  type ZCodePluginsConfigureResult,
-  type ZCodePluginsDescribeResult,
-  type ZCodePluginsInstallResult,
-  type ZCodePluginsListResult,
-  type ZCodePluginsMarketplaceMutationResult,
-  type ZCodePluginsOverviewResult,
-  type ZCodePluginsRestoreBuiltinResult,
-  type ZCodePluginsSetEnabledResult,
-  type ZCodePluginsUninstallResult,
-  type ZCodePluginsValidateResult,
+  type XCodeAvailablePluginSummary,
+  type XCodeInstalledPluginSummary,
+  type XCodePluginComponentGroup,
+  type XCodePluginDiagnostic,
+  type XCodePluginInfo,
+  type XCodePluginMarketplaceSummary,
+  type XCodePluginsConfigureResult,
+  type XCodePluginsDescribeResult,
+  type XCodePluginsInstallResult,
+  type XCodePluginsListResult,
+  type XCodePluginsMarketplaceMutationResult,
+  type XCodePluginsOverviewResult,
+  type XCodePluginsRestoreBuiltinResult,
+  type XCodePluginsSetEnabledResult,
+  type XCodePluginsUninstallResult,
+  type XCodePluginsValidateResult,
 } from "@zcode/shared";
 import type { PluginDiagnostic, PluginMetadata } from "@zcode/contracts";
 import {
-  addZCodePluginMarketplace,
-  configureZCodePlugin,
-  describeZCodePlugin,
-  enrichCachedClaudeMarketplaceIconsForOverview,
-  getZCodePluginsOverview,
-  installZCodeMarketplacePlugin,
-  removeZCodePluginMarketplace,
-  resolveZCodePlugins,
-  resetZCodePluginConfig,
+  addXCodePluginMarketplace,
+  configureXCodePlugin,
+  describeXCodePlugin,
+  getXCodePluginsOverview,
+  installXCodeMarketplacePlugin,
+  removeXCodePluginMarketplace,
+  resolveXCodePlugins,
+  resetXCodePluginConfig,
   restoreBuiltinPlugin as restoreBuiltinPluginCore,
-  setZCodePluginEnabled,
-  uninstallZCodeMarketplacePlugin,
-  updateZCodePluginMarketplace,
-  validateZCodePlugin,
+  setXCodePluginEnabled,
+  uninstallXCodeMarketplacePlugin,
+  updateXCodePluginMarketplace,
+  validateXCodePlugin,
 } from "../plugins.js";
 import { listInstalledPluginRecords } from "@zcode/adapters/plugins";
 import { withPluginStorageLock } from "../lib/plugin-storage-lock.js";
 import { getCliStorageRoot, getPluginStorageRoot } from "../app/paths.js";
 import { resolveOfficialPluginHostMcpServerNames } from "../app/official-plugin-definitions.js";
 import { createConfig, resolvePath, type ConfigResult } from "@zcode/adapters/config";
-import { parseParams, type ZCodeProtocolAgentServerContext } from "./server-types.js";
+import { parseParams, type XCodeProtocolAgentServerContext } from "./server-types.js";
 
-// 把 CLI 的 PluginMetadata 投影成协议可序列化的 ZCodePluginInfo (只保留 UI 需要的字段)。
-function toPluginInfo(plugin: PluginMetadata, configResult?: ConfigResult): ZCodePluginInfo {
+// 把 CLI 的 PluginMetadata 投影成协议可序列化的 XCodePluginInfo (只保留 UI 需要的字段)。
+function toPluginInfo(plugin: PluginMetadata, configResult?: ConfigResult): XCodePluginInfo {
   const hostMcpServerNames = resolveOfficialPluginHostMcpServerNames(plugin.id);
   const configuredOptions = Object.fromEntries(
     Object.entries(plugin.configuredOptions ?? {}).filter(
@@ -128,7 +127,7 @@ function resolveInlinePluginRootSource(
 }
 
 function createPluginConfigView(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   workspacePath: string,
   configScope: "user" | "workspace" | undefined,
 ): ConfigResult {
@@ -145,7 +144,7 @@ function createPluginConfigView(
 function createMissingConfiguredPluginInfos(
   configResult: ConfigResult,
   discoveredPluginIds: ReadonlySet<string>,
-): ZCodePluginInfo[] {
+): XCodePluginInfo[] {
   const configuredPluginIds = new Set([
     ...Object.keys(configResult.config.plugins.enabledPlugins),
     ...Object.keys(configResult.config.plugins.options),
@@ -174,27 +173,23 @@ function createMissingConfiguredPluginInfos(
         rootPath: "",
         packageStatus: "missing",
         ...(enabledSource ? { enabledSource } : {}),
-        ...(optionSources && Object.keys(optionSources).length > 0
-          ? { optionSources }
-          : {}),
+        ...(optionSources && Object.keys(optionSources).length > 0 ? { optionSources } : {}),
       },
     ];
   });
 }
 
-export function normalizePluginRootForComparison(
+function normalizePluginRootForComparison(
   rootPath: string,
   platform: NodeJS.Platform = process.platform,
 ): string {
   const resolvedRoot = resolvePath(rootPath);
   // Windows 路径不区分大小写，且配置与 loader 可能分别返回正斜杠和反斜杠。
   // 若直接做字符串比较，会把同一个 Workspace plugins.dirs 根误判为无归属。
-  return platform === "win32"
-    ? resolvedRoot.replaceAll("\\", "/").toLowerCase()
-    : resolvedRoot;
+  return platform === "win32" ? resolvedRoot.replaceAll("\\", "/").toLowerCase() : resolvedRoot;
 }
 
-function toPluginDiagnostic(diagnostic: PluginDiagnostic): ZCodePluginDiagnostic {
+function toPluginDiagnostic(diagnostic: PluginDiagnostic): XCodePluginDiagnostic {
   return {
     code: diagnostic.code,
     message: diagnostic.message,
@@ -204,23 +199,21 @@ function toPluginDiagnostic(diagnostic: PluginDiagnostic): ZCodePluginDiagnostic
 }
 
 export async function listPlugins(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsListResult> {
+): Promise<XCodePluginsListResult> {
   const params = parseParams(zcodePluginsListParamsSchema, rawParams);
   const configResult = createPluginConfigView(
     context,
     params.workspace.workspacePath,
     params.configScope,
   );
-  const outcome = resolveZCodePlugins({
+  const outcome = resolveXCodePlugins({
     configResult,
     logger: context.logger,
     workingDirectory: params.workspace.workspacePath,
   });
-  const plugins = outcome.plugins.map((plugin) =>
-    toPluginInfo(plugin, configResult),
-  );
+  const plugins = outcome.plugins.map((plugin) => toPluginInfo(plugin, configResult));
   return {
     plugins: [
       ...plugins,
@@ -234,13 +227,13 @@ export async function listPlugins(
 }
 
 export async function setPluginEnabled(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
   abortSignal?: AbortSignal,
-): Promise<ZCodePluginsSetEnabledResult> {
+): Promise<XCodePluginsSetEnabledResult> {
   const params = parseParams(zcodePluginsSetEnabledParamsSchema, rawParams);
   abortSignal?.throwIfAborted();
-  const result = await setZCodePluginEnabled({
+  const result = await setXCodePluginEnabled({
     enabled: params.enabled,
     logger: context.logger,
     plugin: params.pluginId,
@@ -259,15 +252,11 @@ export async function setPluginEnabled(
 }
 
 export async function getPluginsOverview(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsOverviewResult> {
+): Promise<XCodePluginsOverviewResult> {
   const params = parseParams(zcodePluginsOverviewParamsSchema, rawParams);
-  enrichCachedClaudeMarketplaceIconsForOverview({
-    logger: context.logger,
-    workingDirectory: params.workspace.workspacePath,
-  });
-  const overview = getZCodePluginsOverview({
+  const overview = getXCodePluginsOverview({
     configResult: createPluginConfigView(
       context,
       params.workspace.workspacePath,
@@ -287,14 +276,14 @@ export async function getPluginsOverview(
 }
 
 export async function addPluginMarketplace(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
   abortSignal?: AbortSignal,
-): Promise<ZCodePluginsMarketplaceMutationResult> {
+): Promise<XCodePluginsMarketplaceMutationResult> {
   const params = parseParams(zcodePluginsMarketplaceAddParamsSchema, rawParams);
   const pluginStorageRoot = resolvePluginStorageRoot(params.workspace.workspacePath);
   const marketplace = await withPluginStorageLock(pluginStorageRoot, async () =>
-    addZCodePluginMarketplace({
+    addXCodePluginMarketplace({
       abortSignal,
       dryRun: params.dryRun,
       logger: context.logger,
@@ -306,13 +295,13 @@ export async function addPluginMarketplace(
 }
 
 export async function removePluginMarketplace(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsMarketplaceMutationResult> {
+): Promise<XCodePluginsMarketplaceMutationResult> {
   const params = parseParams(zcodePluginsMarketplaceRemoveParamsSchema, rawParams);
   const pluginStorageRoot = resolvePluginStorageRoot(params.workspace.workspacePath);
   await withPluginStorageLock(pluginStorageRoot, async () =>
-    removeZCodePluginMarketplace({
+    removeXCodePluginMarketplace({
       logger: context.logger,
       marketplace: params.marketplace,
       workingDirectory: params.workspace.workspacePath,
@@ -322,14 +311,14 @@ export async function removePluginMarketplace(
 }
 
 export async function updatePluginMarketplace(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
   abortSignal?: AbortSignal,
-): Promise<ZCodePluginsMarketplaceMutationResult> {
+): Promise<XCodePluginsMarketplaceMutationResult> {
   const params = parseParams(zcodePluginsMarketplaceUpdateParamsSchema, rawParams);
   const pluginStorageRoot = resolvePluginStorageRoot(params.workspace.workspacePath);
   const result = await withPluginStorageLock(pluginStorageRoot, async () =>
-    updateZCodePluginMarketplace({
+    updateXCodePluginMarketplace({
       abortSignal,
       logger: context.logger,
       marketplace: params.marketplace,
@@ -343,14 +332,14 @@ export async function updatePluginMarketplace(
 }
 
 export async function installPlugin(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
   abortSignal?: AbortSignal,
-): Promise<ZCodePluginsInstallResult> {
+): Promise<XCodePluginsInstallResult> {
   const params = parseParams(zcodePluginsInstallParamsSchema, rawParams);
   const pluginStorageRoot = resolvePluginStorageRoot(params.workspace.workspacePath);
   const result = await withPluginStorageLock(pluginStorageRoot, async () =>
-    installZCodeMarketplacePlugin({
+    installXCodeMarketplacePlugin({
       abortSignal,
       dryRun: params.dryRun,
       logger: context.logger,
@@ -368,11 +357,11 @@ export async function installPlugin(
 }
 
 export async function uninstallPlugin(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsUninstallResult> {
+): Promise<XCodePluginsUninstallResult> {
   const params = parseParams(zcodePluginsUninstallParamsSchema, rawParams);
-  const removed = await uninstallZCodeMarketplacePlugin({
+  const removed = await uninstallXCodeMarketplacePlugin({
     logger: context.logger,
     marketplace: params.marketplace,
     pluginId: params.pluginId,
@@ -387,9 +376,9 @@ export async function uninstallPlugin(
 }
 
 export async function updatePlugin(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsInstallResult> {
+): Promise<XCodePluginsInstallResult> {
   const params = parseParams(zcodePluginsUpdateParamsSchema, rawParams);
   const pluginStorageRoot = resolvePluginStorageRoot(params.workspace.workspacePath);
   const installed = listInstalledPluginRecords(pluginStorageRoot).filter((record) => {
@@ -400,15 +389,15 @@ export async function updatePlugin(
   // 与 uninstall 一样把整个重装循环串行化到同一 storageRoot 的 in-process 锁里，
   // 避免并发 update/install 交错读改写 installed_plugins.json / cache。
   return withPluginStorageLock(pluginStorageRoot, async () => {
-    const installedPlugins: ZCodeInstalledPluginSummary[] = [];
+    const installedPlugins: XCodeInstalledPluginSummary[] = [];
     const dependencyClosure: string[] = [];
-    // 聚合每条记录重装产生的诊断：installZCodeMarketplacePlugin 失败时不抛错，而是返回
+    // 聚合每条记录重装产生的诊断：installXCodeMarketplacePlugin 失败时不抛错，而是返回
     // CLI 形态的 PluginDiagnostic（见其错误分支的 toMarketplaceInstallDiagnostic），
-    // 这里逐条经协议侧 toPluginDiagnostic 投影成 ZCodePluginDiagnostic 回传，
+    // 这里逐条经协议侧 toPluginDiagnostic 投影成 XCodePluginDiagnostic 回传，
     // 让失败的重装显式暴露，而不是静默"成功"。
-    const diagnostics: ZCodePluginDiagnostic[] = [];
+    const diagnostics: XCodePluginDiagnostic[] = [];
     for (const record of installed) {
-      const result = await installZCodeMarketplacePlugin({
+      const result = await installXCodeMarketplacePlugin({
         logger: context.logger,
         marketplace: record.marketplace,
         pluginName: record.name,
@@ -426,9 +415,9 @@ export async function updatePlugin(
 // 恢复一个被抑制（"卸载"）的内置插件：清除 suppressedBuiltins 标记并立即重新 seed。
 // bootstrap 侧的同名函数被别名为 restoreBuiltinPluginCore，避免与本协议处理器重名。
 export async function restoreBuiltinPlugin(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsRestoreBuiltinResult> {
+): Promise<XCodePluginsRestoreBuiltinResult> {
   const params = parseParams(zcodePluginsRestoreBuiltinParamsSchema, rawParams);
   await restoreBuiltinPluginCore({
     logger: context.logger,
@@ -439,11 +428,11 @@ export async function restoreBuiltinPlugin(
 }
 
 export async function configurePlugin(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsConfigureResult> {
+): Promise<XCodePluginsConfigureResult> {
   const params = parseParams(zcodePluginsConfigureParamsSchema, rawParams);
-  await configureZCodePlugin({
+  await configureXCodePlugin({
     clearOptionKeys: params.clearOptionKeys,
     dryRun: params.dryRun,
     logger: context.logger,
@@ -456,11 +445,11 @@ export async function configurePlugin(
 }
 
 export async function resetPluginConfig(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsConfigureResult> {
+): Promise<XCodePluginsConfigureResult> {
   const params = parseParams(zcodePluginsResetConfigParamsSchema, rawParams);
-  await resetZCodePluginConfig({
+  await resetXCodePluginConfig({
     logger: context.logger,
     pluginId: params.pluginId,
     scope: params.scope,
@@ -470,13 +459,13 @@ export async function resetPluginConfig(
 }
 
 export async function validatePlugin(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsValidateResult> {
+): Promise<XCodePluginsValidateResult> {
   const params = parseParams(zcodePluginsValidateParamsSchema, rawParams);
   const pluginStorageRoot = resolvePluginStorageRoot(params.workspace.workspacePath);
   const diagnostics = await withPluginStorageLock(pluginStorageRoot, async () =>
-    validateZCodePlugin({
+    validateXCodePlugin({
       logger: context.logger,
       marketplace: params.marketplace,
       pluginName: params.pluginName,
@@ -496,20 +485,20 @@ export async function validatePlugin(
 }
 
 export async function describePlugin(
-  context: ZCodeProtocolAgentServerContext,
+  context: XCodeProtocolAgentServerContext,
   rawParams: unknown,
-): Promise<ZCodePluginsDescribeResult> {
+): Promise<XCodePluginsDescribeResult> {
   const params = parseParams(zcodePluginsDescribeParamsSchema, rawParams);
   const pluginStorageRoot = resolvePluginStorageRoot(params.workspace.workspacePath);
   const result = await withPluginStorageLock(pluginStorageRoot, async () =>
-    describeZCodePlugin({
+    describeXCodePlugin({
       logger: context.logger,
       marketplace: params.marketplace,
       pluginName: params.pluginName,
       workingDirectory: params.workspace.workspacePath,
     }),
   );
-  const components: ZCodePluginComponentGroup[] = result.components.map((group) => ({
+  const components: XCodePluginComponentGroup[] = result.components.map((group) => ({
     kind: group.kind,
     items: group.items.map((item) => ({
       name: item.name,
@@ -533,8 +522,8 @@ function toMarketplaceSummary(input: {
   pluginCount: number;
   isOfficial?: boolean;
   featured?: string[];
-  refreshFailure?: ZCodePluginMarketplaceSummary["refreshFailure"];
-}): ZCodePluginMarketplaceSummary {
+  refreshFailure?: XCodePluginMarketplaceSummary["refreshFailure"];
+}): XCodePluginMarketplaceSummary {
   return {
     id: input.id,
     name: input.name,
@@ -556,8 +545,8 @@ function toAvailablePluginSummary(input: {
   version?: string;
   installed: boolean;
   componentTypes?: string[];
-  listing?: ZCodeAvailablePluginSummary["listing"];
-}): ZCodeAvailablePluginSummary {
+  listing?: XCodeAvailablePluginSummary["listing"];
+}): XCodeAvailablePluginSummary {
   return {
     id: input.id,
     name: input.name,
@@ -581,11 +570,11 @@ function toInstalledPluginSummary(input: {
   installPath?: string;
   installedAt?: string;
   componentTypes?: string[];
-  hookDetails?: ZCodeInstalledPluginSummary["hookDetails"];
+  hookDetails?: XCodeInstalledPluginSummary["hookDetails"];
   updateStatus?: "none" | "update-available" | "version-changed";
   latestVersion?: string;
-  listing?: ZCodeInstalledPluginSummary["listing"];
-}): ZCodeInstalledPluginSummary {
+  listing?: XCodeInstalledPluginSummary["listing"];
+}): XCodeInstalledPluginSummary {
   return {
     id: input.id,
     name: input.name,

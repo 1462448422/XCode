@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  isZCodeAgentProvider,
-  ZCODE_AGENT_PROVIDER,
-  type ZCodeProvider,
-} from "@zcode/shared";
+import { isXCodeAgentProvider, XCODE_AGENT_PROVIDER, type XCodeProvider } from "@zcode/shared";
 import type { IModelSelectionService, ModelSelectionView } from "@zcode/services";
 import {
   buildModelConfigMissingUiError,
@@ -19,7 +15,7 @@ interface DraftModelReadinessState {
   dismissed: boolean;
 }
 
-export interface DraftModelReadinessGate {
+interface DraftModelReadinessGate {
   /** 只有 readiness 已确认或检查本身不可用时，才允许进入 workspace prepare/prewarm。 */
   agentStartupAllowed: boolean;
   error: ModelConfigMissingUiError | null;
@@ -30,12 +26,10 @@ export interface DraftModelReadinessGate {
   markProviderNotReady(): void;
 }
 
-export function resolveModelSelectionReadinessStatus(
+function resolveModelSelectionReadinessStatus(
   view: ModelSelectionView,
 ): Extract<DraftModelReadinessStatus, "ready" | "missing"> {
-  return view.providers.some((provider) => provider.models.length > 0)
-    ? "ready"
-    : "missing";
+  return view.providers.some((provider) => provider.models.length > 0) ? "ready" : "missing";
 }
 
 /**
@@ -48,20 +42,14 @@ export function resolveModelSelectionReadinessStatus(
 export function useDraftModelReadinessGate(params: {
   workspacePath: string;
   workspaceIdentity?: string;
-  provider?: ZCodeProvider;
+  provider?: XCodeProvider;
   sessionId: string | null;
   modelSelectionService: Pick<IModelSelectionService, "getView" | "onDidChange">;
 }): DraftModelReadinessGate {
-  const {
-    workspacePath,
-    workspaceIdentity,
-    provider,
-    sessionId,
-    modelSelectionService,
-  } = params;
+  const { workspacePath, workspaceIdentity, provider, sessionId, modelSelectionService } = params;
   const workspaceKey = workspaceIdentity?.trim() || workspacePath;
-  const displayProvider = provider ?? ZCODE_AGENT_PROVIDER;
-  const enabled = sessionId === null && isZCodeAgentProvider(displayProvider);
+  const displayProvider = provider ?? XCODE_AGENT_PROVIDER;
+  const enabled = sessionId === null && isXCodeAgentProvider(displayProvider);
   const gateKey = `${workspaceKey}\u0000${displayProvider}`;
   const [state, setState] = useState<DraftModelReadinessState>(() => ({
     gateKey,
@@ -131,12 +119,7 @@ export function useDraftModelReadinessGate(params: {
       disposed = true;
       subscription?.dispose();
     };
-  }, [
-    commitStatus,
-    enabled,
-    modelSelectionService,
-    workspaceKey,
-  ]);
+  }, [commitStatus, enabled, modelSelectionService, workspaceKey]);
 
   const effectiveState: DraftModelReadinessState =
     state.gateKey === gateKey
@@ -171,12 +154,7 @@ export function useDraftModelReadinessGate(params: {
       });
       return true;
     }
-  }, [
-    commitStatus,
-    enabled,
-    modelSelectionService,
-    workspaceKey,
-  ]);
+  }, [commitStatus, enabled, modelSelectionService, workspaceKey]);
 
   const error = useMemo(
     () =>

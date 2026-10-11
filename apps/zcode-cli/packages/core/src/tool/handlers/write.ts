@@ -63,7 +63,7 @@ function formatWriteModelContent(output: unknown): string {
   return `The file ${filePath} has been updated successfully.${userModifiedNote}${storageSuffixNote}`;
 }
 
-export const writeHandler: ToolHandler = async (input, context) => {
+const writeHandler: ToolHandler = async (input, context) => {
   const { file_path, content } = WriteInputSchema.parse(input) as WriteInput;
   const fileSystemPort = context.fileSystemPort;
 

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ZCodeSkillReferenceCatalogEntry } from "@zcode/shared";
+import type { XCodeSkillReferenceCatalogEntry } from "@zcode/shared";
 import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js";
 import { logger } from "@/logger.js";
 
-export interface ConversationSkillCatalogState {
-  skills: ZCodeSkillReferenceCatalogEntry[];
+interface ConversationSkillCatalogState {
+  skills: XCodeSkillReferenceCatalogEntry[];
   authority: "session" | "workspace" | null;
   loading: boolean;
   error: string | null;
@@ -27,7 +27,7 @@ const EMPTY_SCOPED_STATE: ScopedConversationSkillCatalogState = {
   value: EMPTY_STATE,
 };
 
-export interface UseSkillsOptions {
+interface UseSkillsOptions {
   workspacePath: string;
   workspaceIdentity?: string;
   sessionId: string | null;
@@ -131,7 +131,12 @@ export function useSkills(options: UseSkillsOptions): ConversationSkillCatalogSt
     services,
   ]);
 
-  if (!options.enabled || !options.workspacePath || !rpcReady || scopedState.scope !== requestScope) {
+  if (
+    !options.enabled ||
+    !options.workspacePath ||
+    !rpcReady ||
+    scopedState.scope !== requestScope
+  ) {
     return EMPTY_STATE;
   }
   return scopedState.value;

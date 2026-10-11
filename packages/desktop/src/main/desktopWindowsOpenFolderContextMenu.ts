@@ -2,12 +2,12 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import type { Locale } from "@zcode/shared";
 
-const MENU_KEY_NAME = "ZCode.OpenInZCode";
+const MENU_KEY_NAME = "XCode.OpenInXCode";
 const DIRECTORY_MENU_KEY = `HKCU\\Software\\Classes\\Directory\\shell\\${MENU_KEY_NAME}`;
 const DRIVE_MENU_KEY = `HKCU\\Software\\Classes\\Drive\\shell\\${MENU_KEY_NAME}`;
 const MENU_LABELS: Record<Locale, string> = {
-  "zh-CN": "在ZCode中打开",
-  "en-US": "Open in ZCode",
+  "zh-CN": "在XCode中打开",
+  "en-US": "Open in XCode",
 };
 
 type Logger = {
@@ -15,11 +15,11 @@ type Logger = {
   warn: (...args: unknown[]) => void;
 };
 
-export interface WindowsOpenFolderRegistryOperation {
+interface WindowsOpenFolderRegistryOperation {
   args: string[];
 }
 
-export function getWindowsOpenFolderMenuName(locale: Locale): string {
+function getWindowsOpenFolderMenuName(locale: Locale): string {
   return MENU_LABELS[locale] ?? MENU_LABELS["en-US"];
 }
 
@@ -27,7 +27,7 @@ function quoteWindowsCommandArg(value: string): string {
   return `"${value.replace(/"/g, '\\"')}"`;
 }
 
-export function buildWindowsOpenFolderCommand(
+function buildWindowsOpenFolderCommand(
   executablePath: string,
   appArgs: readonly string[] = [],
 ): string {
@@ -39,7 +39,7 @@ export function buildWindowsOpenFolderCommand(
   ].join(" ");
 }
 
-export function buildWindowsOpenFolderRegistryOperations(options: {
+function buildWindowsOpenFolderRegistryOperations(options: {
   executablePath: string;
   appArgs?: readonly string[];
   locale: Locale;

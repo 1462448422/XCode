@@ -1,6 +1,6 @@
-import { getZCodeCopy } from "@zcode/i18n";
+import { getXCodeCopy } from "@zcode/i18n";
 export function loginRequiredResponse(locale) {
-    const copy = getZCodeCopy(locale).tui.loginRequired;
+    const copy = getXCodeCopy(locale).tui.loginRequired;
     return [copy.message, copy.help].join("\n");
 }
 /** Registry already applies provider/account availability, including personal providers. */

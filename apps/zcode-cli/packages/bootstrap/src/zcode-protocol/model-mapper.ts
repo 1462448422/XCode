@@ -5,7 +5,7 @@ export function formatProtocolModelSelection(ref: ModelSelection): string {
   return `${ref.providerId}/${ref.modelId}`;
 }
 
-export function modelSelectionFromString(input: string): ModelSelection {
+function modelSelectionFromString(input: string): ModelSelection {
   const selection = parseProviderQualifiedModelSelection(input);
   if (!selection) throw new Error(`Invalid provider-qualified model selection: ${input}`);
   return selection;

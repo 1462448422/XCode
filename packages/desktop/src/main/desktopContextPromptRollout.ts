@@ -1,8 +1,8 @@
 import {
-  buildZCodeEndpointUrls,
-  buildZCodeSourceHeadersFromContext,
-  ZCODE_ENV,
-  ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
+  buildXCodeEndpointUrls,
+  buildXCodeSourceHeadersFromContext,
+  XCODE_ENV,
+  XCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
 } from "@zcode/shared";
 import {
   createSingleFeatureRollout,
@@ -10,23 +10,20 @@ import {
   type SingleFeatureRolloutLogger,
 } from "./singleFeatureRollout.js";
 
-export { ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV };
+export { XCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV };
 
-export type DesktopContextPromptRolloutLogger = SingleFeatureRolloutLogger;
-export const DESKTOP_CONTEXT_PROMPT_REQUEST_TIMEOUT_MS = 3_000;
+type DesktopContextPromptRolloutLogger = SingleFeatureRolloutLogger;
 export const DESKTOP_CONTEXT_PROMPT_CACHE_TTL_MS = 60 * 60 * 1_000;
 const DESKTOP_CONTEXT_PROMPT_MAX_RESPONSE_BYTES = 1024 * 1024;
 
-export interface DesktopContextPromptConfig {
+interface DesktopContextPromptConfig {
   enabled: boolean;
   configVersion?: string;
 }
 
-export type DesktopContextPromptRollout = SingleFeatureRollout<DesktopContextPromptConfig>;
+type DesktopContextPromptRollout = SingleFeatureRollout<DesktopContextPromptConfig>;
 
-export function resolveDesktopContextPromptConfig(
-  payload: unknown,
-): DesktopContextPromptConfig | null {
+function resolveDesktopContextPromptConfig(payload: unknown): DesktopContextPromptConfig | null {
   if (typeof payload !== "object" || payload === null) {
     return null;
   }
@@ -88,7 +85,7 @@ export function createElectronDesktopContextPromptConfigFetcher(options: {
   return async (signal) => {
     const { net } = await import("electron");
     const endpointOrigin = await options.resolveEndpointOrigin();
-    const url = new URL(`${buildZCodeEndpointUrls(endpointOrigin).origin}/api/v1/client/configs`);
+    const url = new URL(`${buildXCodeEndpointUrls(endpointOrigin).origin}/api/v1/client/configs`);
     url.searchParams.set("app_version", options.appVersion);
     url.searchParams.set("platform", `${process.platform}-${process.arch}`);
 
@@ -113,13 +110,13 @@ export function createElectronDesktopContextPromptConfigFetcher(options: {
       };
       signal.addEventListener("abort", onAbort, { once: true });
 
-      const sourceHeaders = buildZCodeSourceHeadersFromContext({
+      const sourceHeaders = buildXCodeSourceHeadersFromContext({
         appVersion: options.appVersion,
         arch: process.arch,
         deviceMid: options.deviceMid,
         endpointOrigin,
         platform: process.platform,
-        releaseChannel: ZCODE_ENV,
+        releaseChannel: XCODE_ENV,
         sourceTitle: "electron",
       });
       for (const [name, value] of Object.entries(sourceHeaders)) {

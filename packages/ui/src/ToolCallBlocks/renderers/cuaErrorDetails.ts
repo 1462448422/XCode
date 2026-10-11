@@ -1,6 +1,6 @@
 import type { ToolCallBlockRenderContext } from "@/ToolCallBlocks/shared.js";
 
-export interface CuaErrorDetails {
+interface CuaErrorDetails {
   code: string;
   stateId: string | null;
   elementIndex: number | null;

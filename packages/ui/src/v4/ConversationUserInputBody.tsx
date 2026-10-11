@@ -2,22 +2,19 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
 import { Button } from "@/components/ui/button.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
-export const COLLAPSED_USER_INPUT_CONTENT_MAX_HEIGHT_PX = 120;
+const COLLAPSED_USER_INPUT_CONTENT_MAX_HEIGHT_PX = 120;
 const USER_INPUT_CONTENT_OVERFLOW_TOLERANCE_PX = 1;
 
-export function isUserInputContentOverflowing(scrollHeight: number): boolean {
+function isUserInputContentOverflowing(scrollHeight: number): boolean {
   return (
     scrollHeight >
     COLLAPSED_USER_INPUT_CONTENT_MAX_HEIGHT_PX + USER_INPUT_CONTENT_OVERFLOW_TOLERANCE_PX
   );
 }
 
-export function resolveUserInputContentMaxHeight(
-  expanded: boolean,
-  contentScrollHeight: number,
-): string {
+function resolveUserInputContentMaxHeight(expanded: boolean, contentScrollHeight: number): string {
   const height = expanded
     ? Math.max(contentScrollHeight, COLLAPSED_USER_INPUT_CONTENT_MAX_HEIGHT_PX)
     : COLLAPSED_USER_INPUT_CONTENT_MAX_HEIGHT_PX;
@@ -31,9 +28,9 @@ export function ConversationUserInputBody({
 }: {
   children: ReactNode;
   contentText: string;
-  rowId: string | number;
+  rowId: number;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const [contentScrollHeight, setContentScrollHeight] = useState(

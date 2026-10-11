@@ -1,12 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { availableParallelism, totalmem } from "node:os";
 import {
-  ZCODE_CLI_RESOURCE_SAMPLE_INTERVAL_MS,
-  type ZCodeProcessResourceSample,
+  XCODE_CLI_RESOURCE_SAMPLE_INTERVAL_MS,
+  type XCodeProcessResourceSample,
 } from "@zcode/shared";
 
 /** 采样周期与 app 侧聚合共用 shared 的同一个常量，避免两侧节拍各自漂移。 */
-export const ZCODE_PROCESS_RESOURCE_SAMPLE_INTERVAL_MS = ZCODE_CLI_RESOURCE_SAMPLE_INTERVAL_MS;
+const XCODE_PROCESS_RESOURCE_SAMPLE_INTERVAL_MS = XCODE_CLI_RESOURCE_SAMPLE_INTERVAL_MS;
 
 let processInstanceToken: string | undefined;
 
@@ -28,7 +28,7 @@ interface CpuUsageSnapshot {
 }
 
 /** 与 Node `process.memoryUsage()` 同形；本地内存诊断日志需要 heap 细分，协议样本只取 rss。 */
-export interface ProcessMemoryUsageSnapshot {
+interface ProcessMemoryUsageSnapshot {
   rss: number;
   heapTotal: number;
   heapUsed: number;
@@ -45,14 +45,14 @@ interface ResourceSamplerTimer {
   clearInterval(handle: ResourceSamplerTimerHandle): void;
 }
 
-interface CreateZCodeProcessResourceSamplerOptions {
+interface CreateXCodeProcessResourceSamplerOptions {
   /**
    * 第二个参数是本周期完整的内存快照，供进程内本地诊断日志使用；
    * 协议样本自身只带 rss 与 heapUsed 两项内存字段。
    */
-  onSample(sample: ZCodeProcessResourceSample, memoryUsage: ProcessMemoryUsageSnapshot): void;
-  platform?: ZCodeProcessResourceSample["platform"];
-  arch?: ZCodeProcessResourceSample["arch"];
+  onSample(sample: XCodeProcessResourceSample, memoryUsage: ProcessMemoryUsageSnapshot): void;
+  platform?: XCodeProcessResourceSample["platform"];
+  arch?: XCodeProcessResourceSample["arch"];
   logicalCpuCount?: number;
   readCpuUsage?: () => CpuUsageSnapshot;
   readMonotonicTimeNs?: () => bigint;
@@ -66,7 +66,7 @@ interface CreateZCodeProcessResourceSamplerOptions {
   timer?: ResourceSamplerTimer;
 }
 
-export interface ZCodeProcessResourceSampler {
+export interface XCodeProcessResourceSampler {
   start(): void;
   stop(): void;
 }
@@ -97,11 +97,11 @@ function toRoundedUnit(value: number, divisor: number): number | undefined {
   return Number.isFinite(value) && value >= 0 ? Math.round(value / divisor) : undefined;
 }
 
-export function createZCodeProcessResourceSampler(
-  options: CreateZCodeProcessResourceSamplerOptions,
-): ZCodeProcessResourceSampler {
-  const platform = options.platform ?? (process.platform as ZCodeProcessResourceSample["platform"]);
-  const arch = options.arch ?? (process.arch as ZCodeProcessResourceSample["arch"]);
+export function createXCodeProcessResourceSampler(
+  options: CreateXCodeProcessResourceSamplerOptions,
+): XCodeProcessResourceSampler {
+  const platform = options.platform ?? (process.platform as XCodeProcessResourceSample["platform"]);
+  const arch = options.arch ?? (process.arch as XCodeProcessResourceSample["arch"]);
   const logicalCpuCount = Math.max(
     1,
     Math.min(4_096, Math.trunc(options.logicalCpuCount ?? availableParallelism())),
@@ -151,7 +151,7 @@ export function createZCodeProcessResourceSampler(
       const rssKb = memoryUsage.rss / 1_024;
       const uptimeMinutes = toRoundedUnit(readUptimeSeconds(), 60);
       baseline = nextBaseline;
-      const resourceSample: ZCodeProcessResourceSample = {
+      const resourceSample: XCodeProcessResourceSample = {
         platform,
         arch,
         logicalCpuCount,
@@ -185,7 +185,7 @@ export function createZCodeProcessResourceSampler(
         baseline = undefined;
       }
       try {
-        timerHandle = timer.setInterval(sample, ZCODE_PROCESS_RESOURCE_SAMPLE_INTERVAL_MS);
+        timerHandle = timer.setInterval(sample, XCODE_PROCESS_RESOURCE_SAMPLE_INTERVAL_MS);
       } catch {
         timerHandle = undefined;
         return;

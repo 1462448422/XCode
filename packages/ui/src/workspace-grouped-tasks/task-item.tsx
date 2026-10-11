@@ -1,10 +1,10 @@
 import { memo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import type { UniqueIdentifier } from "@dnd-kit/core";
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { XCodeTaskMeta } from "@zcode/shared";
 import { MessageCirclePlus } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { GroupedTaskRow } from "@/workspace-grouped-tasks/task-row.js";
 import type { TaskGroupMenuItem } from "@/workspace-grouped-tasks/shared.js";
 
@@ -15,7 +15,7 @@ export function EmptyGroupDropZone({
   groupId: string;
   onCreateTask: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const droppable = useDroppable({
     id: `group-empty-drop:${groupId}`,
     data: {
@@ -55,7 +55,6 @@ function GroupedTaskItemComponent({
   activeWorkspacePath,
   activeWorkspaceIdentity,
   activeTaskId,
-  mobileActiveTaskKey,
   workspaceLabel,
   onSelectTask,
   onCloseTask,
@@ -70,23 +69,22 @@ function GroupedTaskItemComponent({
   dragOverlay,
   tooltipsDisabled,
 }: {
-  task: ZCodeTaskMeta;
+  task: XCodeTaskMeta;
   groupId?: string;
   groups: TaskGroupMenuItem[];
   remoteSessionId?: string;
   activeWorkspacePath: string;
   activeWorkspaceIdentity?: string;
   activeTaskId: string | null;
-  mobileActiveTaskKey?: string | null;
   workspaceLabel: string;
   onSelectTask: (workspacePath: string, taskId: string, workspaceIdentity?: string) => void;
-  onCloseTask: (task: ZCodeTaskMeta) => void;
-  onOpenFileTree?: (task: ZCodeTaskMeta) => void;
-  onMoveTaskToGroup: (task: ZCodeTaskMeta, groupId: string | null) => void;
-  onMoveTaskToTop: (task: ZCodeTaskMeta) => void;
-  onStartRenameTask: (task: ZCodeTaskMeta) => void;
-  onArchiveTask: (task: ZCodeTaskMeta) => void;
-  onMarkTaskAsUnread: (task: ZCodeTaskMeta) => void;
+  onCloseTask: (task: XCodeTaskMeta) => void;
+  onOpenFileTree?: (task: XCodeTaskMeta) => void;
+  onMoveTaskToGroup: (task: XCodeTaskMeta, groupId: string | null) => void;
+  onMoveTaskToTop: (task: XCodeTaskMeta) => void;
+  onStartRenameTask: (task: XCodeTaskMeta) => void;
+  onArchiveTask: (task: XCodeTaskMeta) => void;
+  onMarkTaskAsUnread: (task: XCodeTaskMeta) => void;
   dragId?: UniqueIdentifier;
   dragging?: boolean;
   dragOverlay?: boolean;
@@ -102,7 +100,6 @@ function GroupedTaskItemComponent({
         activeWorkspacePath={activeWorkspacePath}
         activeWorkspaceIdentity={activeWorkspaceIdentity}
         activeTaskId={activeTaskId}
-        mobileActiveTaskKey={mobileActiveTaskKey}
         workspaceLabel={workspaceLabel}
         onSelectTask={onSelectTask}
         onCloseTask={onCloseTask}

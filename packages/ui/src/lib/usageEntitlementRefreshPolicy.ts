@@ -1,23 +1,21 @@
-import { isStartPlanModelProviderId } from "@zcode/shared";
 import type { IUsageStatsService } from "@zcode/services";
 import type {
   UsageEntitlementSnapshot,
-  ZCodeAccountAccess,
-  ZCodeProviderAccountAccess,
+  XCodeAccountAccess,
+  XCodeProviderAccountAccess,
 } from "@zcode/shared";
 
 export interface UsageEntitlementRequestOptions {
   invalidateBalanceCache?: boolean;
   includeSubscription: boolean;
   preferredProviderId?: string;
-  accountAccess?: ZCodeProviderAccountAccess | ZCodeAccountAccess;
+  accountAccess?: XCodeProviderAccountAccess | XCodeAccountAccess;
   allowDisabledPreferredProvider: boolean;
   requirePreferredProvider: boolean;
   allowEnvApiKey?: boolean;
 }
 
 export type UsageEntitlementRefreshReason = "initial" | "access" | "manual" | "purchase" | "auth";
-export type UsageEntitlementScheduleState = "unknown" | "active" | "none" | "unavailable";
 
 export const USAGE_ENTITLEMENT_ACCESS_REFRESH_MS = 60_000;
 
@@ -93,7 +91,7 @@ export function recordSharedEntitlementAccess(params: {
   getAccessRequestMap(params.usageStatsService).set(params.freshnessKey, params.now);
 }
 
-export function buildEntitlementRequestKey(options: UsageEntitlementRequestOptions): string {
+function buildEntitlementRequestKey(options: UsageEntitlementRequestOptions): string {
   return JSON.stringify({
     ...(options.invalidateBalanceCache ? { invalidateBalanceCache: true } : {}),
     includeSubscription: options.includeSubscription,
@@ -258,26 +256,4 @@ export function shouldDeferSharedEntitlementRefresh(params: {
 }): boolean {
   const failure = getFailureBackoffMap(params.usageStatsService).get(params.freshnessKey);
   return Boolean(failure && failure.nextAllowedAt > params.now);
-}
-
-export function getUsageEntitlementScheduleState(
-  snapshot: UsageEntitlementSnapshot | null,
-): UsageEntitlementScheduleState {
-  if (!snapshot) {
-    return "unknown";
-  }
-  const hasEntitlement = Boolean(
-    snapshot.subscription?.details.length ||
-    (isStartPlanModelProviderId(snapshot.provider?.id ?? "") && snapshot.remaining),
-  );
-  if (hasEntitlement && snapshot.unavailableReason !== "no_plan") {
-    return "active";
-  }
-  if (snapshot.unavailableReason === "no_plan") {
-    return "none";
-  }
-  if (snapshot.unavailableReason) {
-    return "unavailable";
-  }
-  return "unknown";
 }

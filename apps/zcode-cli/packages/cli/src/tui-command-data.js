@@ -6,7 +6,7 @@ export async function listCustomCommandsForTui(deps) {
         return await deps.listCustomCommands({ env, logger: deps.logger, workingDirectory });
     }
     const bootstrap = await loadBootstrapModule();
-    return await bootstrap.listZCodeCustomCommands({ env, logger: deps.logger, workingDirectory });
+    return await bootstrap.listXCodeCustomCommands({ env, logger: deps.logger, workingDirectory });
 }
 export async function loadCustomCommandForTui(deps, name) {
     const env = deps.env ?? process.env;
@@ -15,7 +15,7 @@ export async function loadCustomCommandForTui(deps, name) {
         return await deps.loadCustomCommand({ env, logger: deps.logger, name, workingDirectory });
     }
     const bootstrap = await loadBootstrapModule();
-    return await bootstrap.loadZCodeCustomCommand({
+    return await bootstrap.loadXCodeCustomCommand({
         env,
         logger: deps.logger,
         name,
@@ -25,8 +25,8 @@ export async function loadCustomCommandForTui(deps, name) {
 export async function listSkillsForTui(deps) {
     const env = deps.env ?? process.env;
     const workingDirectory = (deps.cwd ?? process.cwd)();
-    const listZCodeSkillsForTui = deps.listSkills ?? (await loadBootstrapModule()).listZCodeSkills;
-    return await listZCodeSkillsForTui({
+    const listXCodeSkillsForTui = deps.listSkills ?? (await loadBootstrapModule()).listXCodeSkills;
+    return await listXCodeSkillsForTui({
         env,
         logger: deps.logger,
         workingDirectory,
@@ -35,8 +35,8 @@ export async function listSkillsForTui(deps) {
 export async function listSessionsForTui(deps) {
     const env = deps.env ?? process.env;
     const workingDirectory = (deps.cwd ?? process.cwd)();
-    const listZCodeSessionsForTui = deps.listSessions ?? (await loadBootstrapModule()).listZCodeSessions;
-    const sessions = await listZCodeSessionsForTui({
+    const listXCodeSessionsForTui = deps.listSessions ?? (await loadBootstrapModule()).listXCodeSessions;
+    const sessions = await listXCodeSessionsForTui({
         directory: workingDirectory,
         env,
         limit: 50,

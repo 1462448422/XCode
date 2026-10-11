@@ -1,14 +1,14 @@
 import type { IDisposable } from "@zcode/rpc";
 import { resolveWorkspaceKey } from "@zcode/shared";
 
-export interface HostRemoteTaskMeta {
+interface HostRemoteTaskMeta {
   taskId: string;
   traceId: string;
   workspacePath: string;
   workspaceIdentity?: string;
 }
 
-export interface HostRemoteWorkspaceContext {
+interface HostRemoteWorkspaceContext {
   workspacePath: string;
   workspaceIdentity?: string;
 }

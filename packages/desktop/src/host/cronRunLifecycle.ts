@@ -1,21 +1,14 @@
-import type {
-  ZCodeAutomationRunOutcome,
-  ZCodeAutomationTrigger,
-} from "@zcode/shared";
+import type { XCodeAutomationRunOutcome, XCodeAutomationTrigger } from "@zcode/shared";
 
-export interface CronRunLifecycleRepo {
+interface CronRunLifecycleRepo {
   ensureRunClaimed(params: {
     runId: string;
     automationId: string;
     workspaceKey: string;
     scheduledAt: number | null;
-    trigger: ZCodeAutomationTrigger;
+    trigger: XCodeAutomationTrigger;
   }): Promise<void>;
-  markRunOutcome(
-    runId: string,
-    outcome: ZCodeAutomationRunOutcome,
-    error?: string,
-  ): Promise<void>;
+  markRunOutcome(runId: string, outcome: XCodeAutomationRunOutcome, error?: string): Promise<void>;
   markRunDispatch(params: {
     runId: string;
     dispatchStatus: "failed_to_dispatch";
@@ -25,12 +18,12 @@ export interface CronRunLifecycleRepo {
   releaseManualClaim(automationId: string, workspaceKey: string): Promise<void>;
 }
 
-export interface CronRunLifecycleIdentity {
+interface CronRunLifecycleIdentity {
   runId: string;
   automationId: string;
   workspaceKey: string;
   scheduledAt: number | null;
-  trigger: ZCodeAutomationTrigger;
+  trigger: XCodeAutomationTrigger;
 }
 
 type LogWarn = (message: string, error: unknown) => void;
@@ -60,7 +53,7 @@ export function startManualClaimHeartbeat(
 export async function recordCronRunOutcomeBestEffort(
   params: CronRunLifecycleIdentity & {
     repo: CronRunLifecycleRepo;
-    outcome: ZCodeAutomationRunOutcome;
+    outcome: XCodeAutomationRunOutcome;
     error?: string;
     logWarn: LogWarn;
   },
@@ -76,7 +69,7 @@ export async function recordCronRunOutcomeBestEffort(
   }
 }
 
-export async function releaseManualClaimBestEffort(
+async function releaseManualClaimBestEffort(
   params: Pick<CronRunLifecycleIdentity, "automationId" | "runId" | "workspaceKey"> & {
     repo: Pick<CronRunLifecycleRepo, "releaseManualClaim">;
     logWarn: LogWarn;
@@ -123,7 +116,7 @@ export async function settleManualDispatchFailureBestEffort(
 export async function settleCronRunTerminalOutcome(
   params: CronRunLifecycleIdentity & {
     repo: CronRunLifecycleRepo;
-    outcome: Exclude<ZCodeAutomationRunOutcome, "running">;
+    outcome: Exclude<XCodeAutomationRunOutcome, "running">;
     error?: string;
     logWarn: LogWarn;
   },

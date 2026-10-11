@@ -13,7 +13,7 @@ import { parseOAuthLoginAttribution } from "../callbackAttribution.js";
 import type { OAuthProviderRuntimeConfig } from "../runtimeConfig.js";
 import type { OAuthProviderAdapter, OAuthProviderContext } from "./providerAdapter.js";
 
-interface BigModelZcodeTokenEnvelope {
+interface BigModelXcodeTokenEnvelope {
   code?: number;
   msg?: string;
   data?: {
@@ -119,14 +119,14 @@ export class BigModelProviderAdapter implements OAuthProviderAdapter {
     params: OAuthCallbackParams,
     _context: OAuthProviderContext,
   ): Promise<OAuthTokenSet> {
-    const tokenSet = await this.exchangeZcodeJwtToken(params, _context);
+    const tokenSet = await this.exchangeXcodeJwtToken(params, _context);
 
     return {
       ...tokenSet,
     };
   }
 
-  private async exchangeZcodeJwtToken(
+  private async exchangeXcodeJwtToken(
     params: OAuthCallbackParams,
     context: OAuthProviderContext,
   ): Promise<OAuthTokenSet> {
@@ -144,7 +144,7 @@ export class BigModelProviderAdapter implements OAuthProviderAdapter {
     });
 
     try {
-      const payload = await readApiJson<BigModelZcodeTokenEnvelope>(
+      const payload = await readApiJson<BigModelXcodeTokenEnvelope>(
         this.apiClient,
         this.config.tokenUrl,
         {
@@ -298,7 +298,7 @@ export class BigModelProviderAdapter implements OAuthProviderAdapter {
   }
 }
 
-function resolveBigModelBusinessAccessToken(payload: BigModelZcodeTokenEnvelope): string {
+function resolveBigModelBusinessAccessToken(payload: BigModelXcodeTokenEnvelope): string {
   return (
     payload.data?.bigmodel?.access_token?.trim() ??
     payload.data?.bigmodel?.accessToken?.trim() ??

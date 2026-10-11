@@ -7,7 +7,7 @@ import type {
 import { Button } from "@/components/ui/button.js";
 import { Checkbox } from "@/components/ui/checkbox.js";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   formatConversationShareAllowedArtifacts,
   formatConversationShareArtifactType,
@@ -22,7 +22,7 @@ export type ConversationShareSelectionPreflightState =
 // memo 组件的默认对象每次创建会破坏引用稳定性；idle 默认值仅供读取。
 const DEFAULT_PREFLIGHT: ConversationShareSelectionPreflightState = { status: "idle" };
 
-export interface ConversationShareSelectionDockProps {
+interface ConversationShareSelectionDockProps {
   selectedCount: number;
   totalCount: number;
   onCancel: () => void;
@@ -52,7 +52,7 @@ function ConversationShareSelectionDockImpl({
   preflight = DEFAULT_PREFLIGHT,
   pending = false,
 }: ConversationShareSelectionDockProps) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const selectAllState =
     selectedCount === 0 ? false : selectedCount === totalCount ? true : ("indeterminate" as const);
   const bulkActionMessageId =

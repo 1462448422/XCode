@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ZCodeSessionEndedSubagent, ZCodeSessionSubagentsResult } from "@zcode/shared";
+import type { XCodeSessionEndedSubagent, XCodeSessionSubagentsResult } from "@zcode/shared";
 import { useServices } from "@/hooks/useServices.js";
 import { logger } from "@/logger.js";
 
 const PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
-export interface SessionSubagentsViewState {
+interface SessionSubagentsViewState {
   revision: number;
-  ended: ZCodeSessionSubagentsResult["ended"];
+  ended: XCodeSessionSubagentsResult["ended"];
   error: string | null;
   loading: boolean;
 }
@@ -22,24 +22,22 @@ function emptyState(): SessionSubagentsViewState {
   };
 }
 
-export function mergeEndedSubagentPages(
-  current: readonly ZCodeSessionEndedSubagent[],
-  incoming: readonly ZCodeSessionEndedSubagent[],
-): ZCodeSessionEndedSubagent[] {
+function mergeEndedSubagentPages(
+  current: readonly XCodeSessionEndedSubagent[],
+  incoming: readonly XCodeSessionEndedSubagent[],
+): XCodeSessionEndedSubagent[] {
   const currentIds = new Set(current.map((item) => item.childSessionId));
   return [...current, ...incoming.filter((item) => !currentIds.has(item.childSessionId))];
 }
 
-export function resolveEndedSubagentRefreshTargetCount(options: {
+function resolveEndedSubagentRefreshTargetCount(options: {
   loadedItemCount: number;
   nextTotal: number;
   previousTotal: number;
   requestedCount: number;
 }): number {
   if (options.loadedItemCount === 0) return options.requestedCount;
-  return (
-    options.requestedCount + Math.max(0, options.nextTotal - options.previousTotal)
-  );
+  return options.requestedCount + Math.max(0, options.nextTotal - options.previousTotal);
 }
 
 export function useSessionSubagents(options: {
@@ -61,7 +59,7 @@ export function useSessionSubagents(options: {
   const enabled = options.enabled !== false && Boolean(options.sessionId);
 
   const requestPage = useCallback(
-    (endedLimit: number, endedCursor?: string): Promise<ZCodeSessionSubagentsResult> => {
+    (endedLimit: number, endedCursor?: string): Promise<XCodeSessionSubagentsResult> => {
       if (!options.sessionId) return Promise.reject(new Error("session_id_missing"));
       if (typeof zcodeAgentService?.listSessionSubagents !== "function") {
         return Promise.resolve({

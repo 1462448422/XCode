@@ -2,7 +2,7 @@ import { formatJson } from "@zcode/core";
 import { formatAvailablePluginJson, formatDiagnosticJson, formatDiagnosticLines, formatHumanAvailableList, formatHumanPluginList, formatHumanPluginSet, formatHumanPluginUninstall, formatInstalledPluginJson, formatPluginJson, formatPluginSetJson, writeWarnings, } from "./plugins-command-format.js";
 import { ambiguousPluginError, baseOptions, confirmUninstall, hasErrors, PluginsUsageError, reportPluginsError, requireOne, resolveDep, resolveLoadedPluginId, resolveScope, splitPluginIdentifier, } from "./plugins-command-shared.js";
 import { runMarketplaceCommand } from "./plugins-marketplace-command.js";
-const PLUGINS_COMMAND_USAGE = `Usage: zcode plugins <command> [options]
+const PLUGINS_COMMAND_USAGE = `Usage: xcode plugins <command> [options]
 
 Commands:
   list [--json] [--available]                  List installed plugins; --available also lists the marketplace catalog
@@ -19,7 +19,7 @@ Commands:
   marketplace remove <name>                    Remove a configured marketplace
   marketplace update [name]                    Refresh one marketplace, or all when omitted
 
-Scopes: user (default), project. \`zcode plugin\` is an alias of \`zcode plugins\`.`;
+Scopes: user (default), project. \`xcode plugin\` is an alias of \`xcode plugins\`.`;
 export async function runPluginsCommand(ctx, options, deps, args, flags = {}) {
     const [subcommand = "list", ...rest] = args;
     try {

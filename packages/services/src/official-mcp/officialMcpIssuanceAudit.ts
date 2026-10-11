@@ -1,4 +1,4 @@
-export interface OfficialMcpIssuanceAudit {
+interface OfficialMcpIssuanceAudit {
   markFirst(pluginId: string, mcpKey: string, workspaceKey: string): boolean;
 }
 

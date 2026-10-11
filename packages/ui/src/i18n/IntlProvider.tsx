@@ -1,9 +1,21 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import type { ReactNode } from "react";
 import type { Locale, LocalePreference } from "@zcode/shared";
 import { DEFAULT_LOCALE } from "@zcode/shared";
 import type { BroadcastMessage, IBroadcastService, ISettingService } from "@zcode/services";
-import { readNavigatorLanguage, readSafeLocalStorage, writeSafeLocalStorage } from "@/lib/browserEnvironment.js";
+import {
+  readNavigatorLanguage,
+  readSafeLocalStorage,
+  writeSafeLocalStorage,
+} from "@/lib/browserEnvironment.js";
 import zhCN from "./locales/zh-CN.js";
 import enUS from "./locales/en-US.js";
 
@@ -47,10 +59,7 @@ function resolveLocaleBroadcastPayload(payload: unknown): LocaleBroadcastPayload
   }
 
   const candidate = payload as Partial<LocaleBroadcastPayload>;
-  if (
-    isLocalePreference(candidate.preference) &&
-    isLocale(candidate.resolvedLocale)
-  ) {
+  if (isLocalePreference(candidate.preference) && isLocale(candidate.resolvedLocale)) {
     return {
       preference: candidate.preference,
       resolvedLocale: candidate.resolvedLocale,
@@ -60,7 +69,7 @@ function resolveLocaleBroadcastPayload(payload: unknown): LocaleBroadcastPayload
   return null;
 }
 
-export function resolveLocalePreferenceFromSettings({
+function resolveLocalePreferenceFromSettings({
   storedPreference,
   settingsLocale,
   settingsLocalePreference,
@@ -81,7 +90,7 @@ export function resolveLocalePreferenceFromSettings({
   return storedPreference ?? settingsLocalePreference ?? settingsLocale ?? null;
 }
 
-export function shouldApplyLocaleBroadcastMessage(
+function shouldApplyLocaleBroadcastMessage(
   message: Pick<BroadcastMessage, "channel" | "payload" | "sourceWindowId">,
   options: {
     ignoredLocalPayload?: LocaleBroadcastPayload | null;
@@ -131,7 +140,7 @@ const IntlContext = createContext<IntlContextValue | null>(null);
  * 国际化 Provider —— 管理当前语言和 intl 实例。
  * 如果传入 settingService，会从设置中读取初始语言并在切换时持久化。
  */
-export function ZCodeIntlProvider({
+export function XCodeIntlProvider({
   children,
   settingService,
   broadcastService,
@@ -155,9 +164,7 @@ export function ZCodeIntlProvider({
       return DEFAULT_LOCALE;
     }
 
-    return language.toLowerCase().startsWith("zh")
-      ? "zh-CN"
-      : "en-US";
+    return language.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US";
   }, []);
   const resolveSystemLocale = useCallback(async (): Promise<Locale> => {
     const resolvedLocale = await resolveHostSystemLocale?.();
@@ -192,12 +199,14 @@ export function ZCodeIntlProvider({
       // Provider 层不能把持久化 RPC 串成无界等待链。
       // 一次 settingService.update 永久 pending 时，后续语言选择仍要继续尝试落盘；
       // 底层 settingService 负责文件写入顺序，这里只做最新操作校验和错误收口。
-      void settingService?.update({
-        locale: resolvedLocale,
-        localePreference: preference,
-      }).catch(() => {
-        // 持久化失败不阻断 UI 状态和跨窗口广播，下一次语言操作会再次尝试写入。
-      });
+      void settingService
+        ?.update({
+          locale: resolvedLocale,
+          localePreference: preference,
+        })
+        .catch(() => {
+          // 持久化失败不阻断 UI 状态和跨窗口广播，下一次语言操作会再次尝试写入。
+        });
     },
     [settingService],
   );
@@ -229,10 +238,7 @@ export function ZCodeIntlProvider({
         }
         if (nextPreference === "system") {
           const resolvedLocale = await resolveSystemLocale();
-          if (
-            disposed ||
-            localePreferenceOperationSeqRef.current !== initialOperationSeq
-          ) {
+          if (disposed || localePreferenceOperationSeqRef.current !== initialOperationSeq) {
             return;
           }
           setSystemLocale(resolvedLocale);
@@ -284,17 +290,21 @@ export function ZCodeIntlProvider({
           // 跨窗口语言同步不能等待 settingService 持久化 RPC。
           // 持久化可能超时或拒绝，但本地 UI 与其他窗口应先按用户最后一次选择同步。
           ignoredLocalLocaleBroadcastPayloadRef.current = broadcastPayload;
-          void broadcastService.send({
-            channel: STATE_LOCALE_CHANNEL,
-            payload: broadcastPayload,
-          }).finally(() => {
-            if (
-              ignoredLocalLocaleBroadcastPayloadRef.current?.preference === broadcastPayload.preference &&
-              ignoredLocalLocaleBroadcastPayloadRef.current.resolvedLocale === broadcastPayload.resolvedLocale
-            ) {
-              ignoredLocalLocaleBroadcastPayloadRef.current = null;
-            }
-          });
+          void broadcastService
+            .send({
+              channel: STATE_LOCALE_CHANNEL,
+              payload: broadcastPayload,
+            })
+            .finally(() => {
+              if (
+                ignoredLocalLocaleBroadcastPayloadRef.current?.preference ===
+                  broadcastPayload.preference &&
+                ignoredLocalLocaleBroadcastPayloadRef.current.resolvedLocale ===
+                  broadcastPayload.resolvedLocale
+              ) {
+                ignoredLocalLocaleBroadcastPayloadRef.current = null;
+              }
+            });
         }
         enqueueLocalePreferenceUpdate(operationSeq, resolvedLocale, newPreference);
       })();
@@ -355,10 +365,10 @@ export function ZCodeIntlProvider({
 }
 
 /** 获取 intl 上下文 */
-export function useZCodeIntl(): IntlContextValue {
+export function useXCodeIntl(): IntlContextValue {
   const ctx = useContext(IntlContext);
   if (!ctx) {
-    throw new Error("useZCodeIntl 必须在 ZCodeIntlProvider 内使用");
+    throw new Error("useXCodeIntl 必须在 XCodeIntlProvider 内使用");
   }
   return ctx;
 }

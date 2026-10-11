@@ -1,7 +1,7 @@
 import type {
-  ZCodeProvider,
-  ZCodeTaskMeta,
-  ZCodeTaskChangeSummary,
+  XCodeProvider,
+  XCodeTaskMeta,
+  XCodeTaskChangeSummary,
   EditorInfo,
   GitRepositorySummary,
   RemoteTarget,
@@ -43,16 +43,12 @@ export function WorkspaceHeader({
   nativeSessionLogPath,
   nativeSessionLogExists,
   nativeSessionLogLoading,
-  providerWorkspaceConfigPath,
-  providerWorkspaceConfigExists,
-  providerWorkspaceConfigLoading,
   workspaceHeaderState,
   gitSummary,
   gitDirtyFileCount,
   isMacDesktop,
   isMacFullscreen,
   isWindowsDesktop,
-  isWebRemoteControl = false,
 
   isDesktop,
   simplifyForNarrowRemote = false,
@@ -77,22 +73,19 @@ export function WorkspaceHeader({
   localWorkspacePath?: string;
   projectName: string;
   activeTaskTitle: string;
-  activeTaskChangeSummary?: ZCodeTaskChangeSummary | null;
+  activeTaskChangeSummary?: XCodeTaskChangeSummary | null;
   hasUpdateReady: boolean;
   activeTaskId: string | null;
   user?: UserInfo | null;
   activeTraceId: string | null;
   activeSessionId: string | null;
-  activeTaskProvider: ZCodeProvider | null;
-  resolvedActiveTaskMeta?: ZCodeTaskMeta | null;
+  activeTaskProvider: XCodeProvider | null;
+  resolvedActiveTaskMeta?: XCodeTaskMeta | null;
   sessionLogPath: string | null;
-  nativeSessionLogProvider: ZCodeProvider | null;
+  nativeSessionLogProvider: XCodeProvider | null;
   nativeSessionLogPath: string | null;
   nativeSessionLogExists: boolean;
   nativeSessionLogLoading: boolean;
-  providerWorkspaceConfigPath: string | null;
-  providerWorkspaceConfigExists: boolean;
-  providerWorkspaceConfigLoading: boolean;
   workspaceHeaderState: WorkspaceHeaderState;
   gitSummary: GitRepositorySummary;
   gitDirtyFileCount: number;
@@ -100,7 +93,6 @@ export function WorkspaceHeader({
   isMacFullscreen?: boolean;
   isWindowsDesktop?: boolean;
   reserveWindowControls?: boolean;
-  isWebRemoteControl?: boolean;
   windowsWindowControlsRightPaddingPx?: number;
   isDesktop?: boolean;
   simplifyForNarrowRemote?: boolean;
@@ -114,7 +106,7 @@ export function WorkspaceHeader({
   toggleSidePaneShortcutLabel?: string;
   onReloadSession: (options?: {
     resumeTaskId?: string | null;
-    provider?: ZCodeProvider | null;
+    provider?: XCodeProvider | null;
   }) => void | Promise<void>;
   reloadSessionDisabled?: boolean;
   reloadSessionPending?: boolean;
@@ -144,6 +136,7 @@ export function WorkspaceHeader({
     <header
       data-testid={TID_WORKSPACE_HEADER}
       data-workspace-header-variant={variant}
+      data-ds-part="header"
       className={cn(
         "@container/workspace-header relative flex w-full shrink-0 h-12 border-b",
         variant === "draft" ? "border-transparent" : "border-border/50",
@@ -191,14 +184,10 @@ export function WorkspaceHeader({
             nativeSessionLogPath={nativeSessionLogPath}
             nativeSessionLogExists={nativeSessionLogExists}
             nativeSessionLogLoading={nativeSessionLogLoading}
-            providerWorkspaceConfigPath={providerWorkspaceConfigPath}
-            providerWorkspaceConfigExists={providerWorkspaceConfigExists}
-            providerWorkspaceConfigLoading={providerWorkspaceConfigLoading}
             workspaceHeaderState={workspaceHeaderState}
             isMacDesktop={isMacDesktop}
             isMacFullscreen={isMacFullscreen}
             isWindowsDesktop={isWindowsDesktop}
-            isWebRemoteControl={isWebRemoteControl}
             simplifyForNarrowRemote={simplifyForNarrowRemote}
             selectedEditor={selectedEditor}
             onReloadSession={onReloadSession}
@@ -218,7 +207,6 @@ export function WorkspaceHeader({
           workspaceIdentity={workspaceIdentity}
           remoteSessionId={remoteSessionId}
           remoteTarget={remoteTarget}
-          isWebRemoteControl={isWebRemoteControl}
           isDesktop={isDesktop}
           isTerminalOpen={isTerminalOpen}
           isSidePaneOpen={isSidePaneOpen}
@@ -232,7 +220,6 @@ export function WorkspaceHeader({
           onSelectedEditorChange={setSelectedEditor}
         />
       </div>
-
     </header>
   );
 }

@@ -3,7 +3,7 @@ import type {
   CodingPlanQuotaResetAutoPlayReservationAttempt,
 } from "@/store/codingPlanQuotaResetState.js";
 
-export type CodingPlanQuotaResetAutoPlayCoordinationResult =
+type CodingPlanQuotaResetAutoPlayCoordinationResult =
   | { status: "committed" }
   | { status: "released" }
   | { status: "retry"; retryAfterMs: number }

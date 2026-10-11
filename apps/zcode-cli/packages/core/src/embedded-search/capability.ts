@@ -3,22 +3,22 @@
 // tool/prompt surface。
 const ENABLE_EMBEDDED_SEARCH_BRANCH = true;
 
-export interface EmbeddedSearchBranchCapabilityContext {
+interface EmbeddedSearchBranchCapabilityContext {
   bashAvailable: boolean;
   embeddedSearchBranchEnabled?: boolean;
 }
 
-export type EmbeddedSearchBranchCapabilityReason =
+type EmbeddedSearchBranchCapabilityReason =
   | "supported"
   | "disabled_by_global_flag"
   | "bash_unavailable";
 
-export interface EmbeddedSearchBranchCapabilityDecision {
+interface EmbeddedSearchBranchCapabilityDecision {
   reason: EmbeddedSearchBranchCapabilityReason;
   useEmbeddedSearchBranch: boolean;
 }
 
-export function evaluateEmbeddedSearchBranchCapability(
+function evaluateEmbeddedSearchBranchCapability(
   context: EmbeddedSearchBranchCapabilityContext,
 ): EmbeddedSearchBranchCapabilityDecision {
   const branchEnabled = context.embeddedSearchBranchEnabled ?? ENABLE_EMBEDDED_SEARCH_BRANCH;

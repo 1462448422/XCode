@@ -2,7 +2,7 @@ import { lazy, Suspense, useMemo } from "react";
 import type { FileBinaryPreview } from "@zcode/shared";
 import { CodeBlock } from "@/components/ai-elements/code-block.js";
 import { MessageResponse } from "@/components/ai-elements/message.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   buildPresetLabels,
   isArtifactPresetKind,
@@ -88,7 +88,7 @@ interface WorkflowArtifactBodyProps {
 }
 
 export function WorkflowArtifactBody(props: WorkflowArtifactBodyProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { artifact } = props;
 
   // 预置看板不读字节，直接画。
@@ -157,7 +157,7 @@ function WorkflowArtifactContent({
   localSourcePath,
   isLatestVersion,
 }: WorkflowArtifactBodyProps & { bytes: Uint8Array<ArrayBuffer> }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const pdfLabels = usePdfViewerLabels();
   const pptxLabels = usePptxViewerLabels();
   const contentType = artifact.contentType ?? "application/octet-stream";
@@ -298,7 +298,8 @@ function WorkflowArtifactContent({
   }
 
   // 表外类型（`application/octet-stream` 与一切没人认得的东西）：给一张**元数据卡**，
-  // 不假装能渲染。卡上带「在工作区显示」；交给别的 App 打开走 tab 头部的「作为文件打开」。
+  // 不假装能渲染。卡上带「在工作区显示」——那是这种产物唯一能对它做的事（没有「下载」：
+  // renderer 没有任何把字节存成用户文件的宿主能力）。
   return (
     <ArtifactMetadataCard
       artifact={artifact}

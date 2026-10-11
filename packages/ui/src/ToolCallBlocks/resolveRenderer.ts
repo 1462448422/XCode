@@ -38,7 +38,6 @@ import { CuaGroupToolCallBlock } from "@/ToolCallBlocks/renderers/cua-group.js";
 import { GoalToolCallBlock } from "@/ToolCallBlocks/renderers/goal.js";
 import { NodeReplToolCallBlock } from "@/ToolCallBlocks/renderers/node-repl.js";
 import { McpToolCallBlock, readMcpToolPresentation } from "@/ToolCallBlocks/renderers/mcp.js";
-import * as PluginUi from "@/plugin-ui/index.js";
 import { PlanGuidanceToolCallBlock } from "@/ToolCallBlocks/renderers/plan-guidance.js";
 import { ReadToolCallBlock } from "@/ToolCallBlocks/renderers/read.js";
 import { ReadSessionContextToolCallBlock } from "@/ToolCallBlocks/renderers/read-session-context.js";
@@ -122,14 +121,13 @@ export function resolveToolCallRenderer(context: ToolCallBlockRenderContext) {
   if (identity.family === "node-repl") {
     return NodeReplToolCallBlock;
   }
-  if (PluginUi.shouldRenderPluginUi(context)) return PluginUi.PluginUiToolCallBlock;
   if (readMcpToolPresentation(context)) {
     return McpToolCallBlock;
   }
 
   // 当前工具名已经是固定集合。继续用正则扫 kind/title 的话，
   // 会把 TodoWrite 里的 Write 当成文件写入。这里先解析固定 tool identity，再按 family 分流；
-  // ZCode 历史投影的工具形态由 identity resolver 统一处理。
+  // XCode 历史投影的工具形态由 identity resolver 统一处理。
   switch (identity.family) {
     case "plan-guidance":
       return PlanGuidanceToolCallBlock;

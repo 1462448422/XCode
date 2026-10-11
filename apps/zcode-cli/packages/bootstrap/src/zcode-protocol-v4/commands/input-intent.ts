@@ -1,23 +1,16 @@
 import type { TurnInputIntentMetadata } from "@zcode/contracts";
-import type { ModelSelection } from "@zcode/shared";
-import type {
-  AttachmentRef,
-  CommandEnvelope,
-  CommandPayloadMap,
-  QueueItem,
-  SubmissionMode,
-} from "@zcode/shared/zcode-protocol-v4";
+import type { ModelSelection, TurnObfuscationSettings } from "@zcode/shared/zcode-protocol-v4";
+import type { AttachmentRef, CommandEnvelope, QueueItem } from "@zcode/shared/zcode-protocol-v4";
+import type { SubmissionMode } from "@zcode/shared/zcode-protocol-v4";
 import { commandAdmissionOf } from "./executor.js";
 
-export interface CanonicalCommandIntent {
-  inputOrigin?: "desktop" | "mobile";
-  conversationQuotes?: import("@zcode/contracts").TurnInputIntentMetadata["conversationQuotes"];
-  botGroupSource?: TurnInputIntentMetadata["botGroupSource"];
+interface CanonicalCommandIntent {
   kind: "sendText" | "sendGoalCommand";
   text: string;
   modelSelection?: ModelSelection;
   mode?: SubmissionMode;
   planEnabled?: boolean;
+  obfuscation?: TurnObfuscationSettings;
   sourceCommandId?: string;
   clientId?: string;
   queueItemId?: string;
@@ -27,16 +20,12 @@ export interface CanonicalCommandIntent {
   attachmentRefs?: readonly AttachmentRef[];
   sharedContextRefs?: TurnInputIntentMetadata["sharedContextRefs"];
   provenance?: TurnInputIntentMetadata["provenance"];
-  source?: TurnInputIntentMetadata["source"];
 }
 
 export function inputIntentMetadata(
   envelope: CommandEnvelope,
   options: {
     text: string;
-    inputOrigin?: "desktop" | "mobile";
-    conversationQuotes?: import("@zcode/contracts").TurnInputIntentMetadata["conversationQuotes"];
-    botGroupSource?: TurnInputIntentMetadata["botGroupSource"];
     requestedDelivery: TurnInputIntentMetadata["requestedDelivery"];
     admittedDelivery?: TurnInputIntentMetadata["admittedDelivery"];
     fallbackReasonCode?: string;
@@ -44,19 +33,12 @@ export function inputIntentMetadata(
     modelSelection?: ModelSelection;
     mode?: SubmissionMode;
     planEnabled?: boolean;
+    obfuscation?: TurnObfuscationSettings;
     sharedContextRefs?: TurnInputIntentMetadata["sharedContextRefs"];
-    source?: TurnInputIntentMetadata["source"];
   },
 ): TurnInputIntentMetadata {
   const admission = commandAdmissionOf(envelope);
-  const highspeed =
-    envelope.type === "sendText"
-      ? (envelope.payload as CommandPayloadMap["sendText"]).highspeedMeta
-      : undefined;
   return {
-    ...(options.inputOrigin ? { inputOrigin: options.inputOrigin } : {}),
-    ...(options.conversationQuotes ? { conversationQuotes: options.conversationQuotes } : {}),
-    ...(options.botGroupSource ? { botGroupSource: options.botGroupSource } : {}),
     sourceCommandId: envelope.commandId,
     queueItemId: admission.queueItemId,
     clientId: envelope.clientId || "cli",
@@ -72,6 +54,7 @@ export function inputIntentMetadata(
     ...(options.modelSelection ? { modelSelection: options.modelSelection } : {}),
     ...(options.mode ? { mode: options.mode } : {}),
     ...(options.planEnabled !== undefined ? { planEnabled: options.planEnabled } : {}),
+    ...(options.obfuscation ? { obfuscation: options.obfuscation } : {}),
     admissionSeq: admission.admissionSeq,
     admittedAt: admission.admittedAt,
     requestedDelivery: options.requestedDelivery,
@@ -85,8 +68,6 @@ export function inputIntentMetadata(
     ...(options.fallbackReasonCode ? { fallbackReasonCode: options.fallbackReasonCode } : {}),
     ...(options.attachmentRefs ? { attachmentRefs: [...options.attachmentRefs] } : {}),
     ...(options.sharedContextRefs ? { sharedContextRefs: [...options.sharedContextRefs] } : {}),
-    ...(highspeed ? { highspeed } : {}),
-    ...(options.source ? { source: options.source } : {}),
   };
 }
 
@@ -100,9 +81,6 @@ export function inputIntentMetadataFromCanonical(
   const originalSourceCommandId =
     canonical.provenance?.sourceCommandId ?? canonical.sourceCommandId;
   return {
-    ...(canonical.inputOrigin ? { inputOrigin: canonical.inputOrigin } : {}),
-    ...(canonical.conversationQuotes ? { conversationQuotes: canonical.conversationQuotes } : {}),
-    ...(canonical.botGroupSource ? { botGroupSource: canonical.botGroupSource } : {}),
     sourceCommandId: envelope.commandId,
     queueItemId: admission.queueItemId,
     clientId: envelope.clientId || canonical.clientId || "cli",
@@ -111,6 +89,7 @@ export function inputIntentMetadataFromCanonical(
     ...(canonical.modelSelection ? { modelSelection: canonical.modelSelection } : {}),
     ...(canonical.mode ? { mode: canonical.mode } : {}),
     ...(canonical.planEnabled !== undefined ? { planEnabled: canonical.planEnabled } : {}),
+    ...(canonical.obfuscation ? { obfuscation: canonical.obfuscation } : {}),
     admissionSeq: admission.admissionSeq,
     admittedAt: admission.admittedAt,
     requestedDelivery: canonical.requestedDelivery ?? "startNow",
@@ -118,7 +97,6 @@ export function inputIntentMetadataFromCanonical(
     ...(canonical.fallbackReasonCode ? { fallbackReasonCode: canonical.fallbackReasonCode } : {}),
     ...(canonical.attachmentRefs ? { attachmentRefs: [...canonical.attachmentRefs] } : {}),
     ...(canonical.sharedContextRefs ? { sharedContextRefs: [...canonical.sharedContextRefs] } : {}),
-    ...(canonical.source ? { source: canonical.source } : {}),
     ...(originalSourceCommandId
       ? {
           provenance: canonical.provenance ?? {
@@ -137,9 +115,6 @@ export function inputIntentMetadataFromQueueItem(
   canonicalText: string,
 ): TurnInputIntentMetadata {
   return {
-    ...(item.inputOrigin ? { inputOrigin: item.inputOrigin } : {}),
-    ...(item.conversationQuotes ? { conversationQuotes: item.conversationQuotes } : {}),
-    ...(item.botGroupSource ? { botGroupSource: item.botGroupSource } : {}),
     sourceCommandId: item.sourceCommandId,
     queueItemId: item.queueItemId,
     clientId: item.clientId,
@@ -148,6 +123,7 @@ export function inputIntentMetadataFromQueueItem(
     ...(item.modelSelection ? { modelSelection: item.modelSelection } : {}),
     ...(item.mode ? { mode: item.mode } : {}),
     ...(item.planEnabled !== undefined ? { planEnabled: item.planEnabled } : {}),
+    ...(item.obfuscation ? { obfuscation: item.obfuscation } : {}),
     admissionSeq: item.order.admissionSeq,
     admittedAt: item.admittedAt,
     requestedDelivery: item.delivery.requested,
@@ -158,8 +134,6 @@ export function inputIntentMetadataFromQueueItem(
       : {}),
     attachmentRefs: item.attachments,
     ...(item.sharedContextRefs ? { sharedContextRefs: [...item.sharedContextRefs] } : {}),
-    ...(item.highspeed ? { highspeed: item.highspeed } : {}),
-    ...(item.source ? { source: item.source } : {}),
     // 提升只改变调度状态；重试／编辑原始输入的来源关联不能在此丢失。
     ...(item.provenance ? { provenance: { ...item.provenance } } : {}),
   };

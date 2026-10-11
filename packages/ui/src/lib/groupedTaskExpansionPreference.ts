@@ -1,10 +1,9 @@
 import type { BrowserStorageLike } from "@/lib/browserEnvironment.js";
 import { getSafeLocalStorage } from "@/lib/browserEnvironment.js";
 
-export const GROUPED_TASK_COLLAPSED_GROUPS_STORAGE_KEY =
-  "zcode-grouped-task-collapsed-groups";
+const GROUPED_TASK_COLLAPSED_GROUPS_STORAGE_KEY = "zcode-grouped-task-collapsed-groups";
 
-export type GroupedTaskCollapsedGroupState = Record<string, true>;
+type GroupedTaskCollapsedGroupState = Record<string, true>;
 
 function normalizeCollapsedGroupState(value: unknown): GroupedTaskCollapsedGroupState {
   if (!value || typeof value !== "object" || Array.isArray(value)) {

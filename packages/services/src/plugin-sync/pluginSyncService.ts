@@ -92,7 +92,7 @@ export function createPluginSyncService(options?: {
       };
     },
     async listRemoteUserPluginStatuses(params) {
-      const targetRoot = getUserZcodePluginRoot();
+      const targetRoot = getUserXcodePluginRoot();
       const existingPluginPathById = await collectConfiguredInlinePluginPathById();
       return {
         statuses: params.plugins.map((plugin): PluginSyncRemoteStatus => {
@@ -194,8 +194,8 @@ export function createPluginSyncService(options?: {
     },
     async checkRemoteUserPluginWriteAccess() {
       return checkRemoteSyncDirectoriesWriteAccess([
-        getUserZcodePluginRoot(),
-        dirname(getUserZcodeConfigPath()),
+        getUserXcodePluginRoot(),
+        dirname(getUserXcodeConfigPath()),
       ]);
     },
     async importMarketplaceSourceArchive(params) {
@@ -216,12 +216,12 @@ function resolveUserHomeDir(): string {
   return process.env.HOME?.trim() || process.env.USERPROFILE?.trim() || homedir();
 }
 
-function getUserZcodeConfigPath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "cli", "config.json");
+function getUserXcodeConfigPath(): string {
+  return join(resolveUserHomeDir(), ".xcode", "cli", "config.json");
 }
 
-function getUserZcodePluginRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "plugins");
+function getUserXcodePluginRoot(): string {
+  return join(resolveUserHomeDir(), ".xcode", "plugins");
 }
 
 async function collectLocalUserPluginCandidates(): Promise<PluginSyncCandidate[]> {
@@ -374,7 +374,7 @@ async function importMarketplaceSourceArchiveInternal(
         `marketplace source archive id mismatch: ${manifest.name} !== ${metadata.marketplaceId}`,
       );
     }
-    const targetRoot = join(getUserZcodePluginRoot(), MARKETPLACE_SOURCE_ROOT_DIRECTORY);
+    const targetRoot = join(getUserXcodePluginRoot(), MARKETPLACE_SOURCE_ROOT_DIRECTORY);
     const targetPath = resolvePluginSyncPathWithin(targetRoot, directoryName);
     if (existsSync(targetPath)) {
       return {
@@ -400,7 +400,7 @@ async function importMarketplaceSourceArchiveInternal(
 }
 
 async function readUserPluginConfigState(): Promise<UserPluginConfigState> {
-  const parsed = await readJsonFileOrEmpty(getUserZcodeConfigPath());
+  const parsed = await readJsonFileOrEmpty(getUserXcodeConfigPath());
   const plugins = isRecord(parsed.plugins) ? parsed.plugins : {};
   const enabledPlugins = isRecord(plugins.enabledPlugins) ? plugins.enabledPlugins : {};
   const enabledOverrides = new Map<string, boolean>();
@@ -443,7 +443,7 @@ async function importPluginsArchive(
       maxExtractedBytes: maxArchiveBytes,
     });
     const metadata = await readArchiveMetadata(tempRoot);
-    const targetRoot = getUserZcodePluginRoot();
+    const targetRoot = getUserXcodePluginRoot();
     const existingPluginPathById = await collectConfiguredInlinePluginPathById();
     const results: PluginSyncImportResult["results"] = [];
 
@@ -907,7 +907,7 @@ async function addPluginDirToUserConfig(
   pluginId: string,
   enabledOverride: boolean | undefined,
 ): Promise<void> {
-  const filePath = getUserZcodeConfigPath();
+  const filePath = getUserXcodeConfigPath();
   const parsed = await readJsonFileOrEmpty(filePath);
   const plugins = isRecord(parsed.plugins) ? parsed.plugins : {};
   const resolvedPluginPath = resolve(pluginPath);

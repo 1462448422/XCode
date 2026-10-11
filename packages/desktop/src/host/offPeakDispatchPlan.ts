@@ -7,7 +7,7 @@ import { OffPeakPermanentDispatchError } from "@zcode/services/node";
  *   （对齐 dispatchCronRun 的 targetTaskId 路径）；
  * - init：表单创建，新建专属 session。
  */
-export type OffPeakDispatchKind = "resume" | "bound-first-run" | "init";
+type OffPeakDispatchKind = "resume" | "bound-first-run" | "init";
 
 export function resolveOffPeakDispatchKind(request: {
   conversationId?: string;
@@ -19,7 +19,7 @@ export function resolveOffPeakDispatchKind(request: {
 }
 
 /** 绑定会话已被用户删除：重试无意义，permanent（否则会一直退避到票过期再重取号）。 */
-export class OffPeakBoundSessionDeletedError extends OffPeakPermanentDispatchError {
+class OffPeakBoundSessionDeletedError extends OffPeakPermanentDispatchError {
   constructor(readonly sessionId: string) {
     super(`off-peak bound session was deleted: ${sessionId}`);
     this.name = "OffPeakBoundSessionDeletedError";
@@ -31,7 +31,7 @@ export class OffPeakBoundSessionDeletedError extends OffPeakPermanentDispatchErr
  * 必须在写入会话 mode 之前抛出——CLI 的 session/send 会以 -32010 拒绝，
  * 但 setMode 没有活跃 turn 检查，先写配置再撞忙会把用户会话悄悄切成任务的权限模式。
  */
-export class OffPeakBoundSessionBusyError extends Error {
+class OffPeakBoundSessionBusyError extends Error {
   constructor(readonly sessionId: string) {
     super(`off-peak bound session is busy: ${sessionId}`);
     this.name = "OffPeakBoundSessionBusyError";

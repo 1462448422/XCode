@@ -21,12 +21,12 @@ import type {
 } from "@zcode/shared";
 import { createDesktopCuaHelperInstaller } from "./desktopCuaHelperInstaller.js";
 
-export const MACOS_ACCESSIBILITY_SETTINGS_URL =
+const MACOS_ACCESSIBILITY_SETTINGS_URL =
   "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
-export const MACOS_SCREEN_RECORDING_SETTINGS_URL =
+const MACOS_SCREEN_RECORDING_SETTINGS_URL =
   "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
 
-export interface OpenCuaAccessibilitySettingsOptions {
+interface OpenCuaAccessibilitySettingsOptions {
   initialPermission?: CuaPermissionKind;
   requiredPermissions?: CuaPermissionKind[];
   env?: NodeJS.ProcessEnv;
@@ -79,7 +79,7 @@ function messageOf(error: unknown): string {
 // inode change time，用户态无法回拨），任何对 Mach-O / 签名清单 / Info.plist 的替换都会改变指纹。prepare
 // 时抓一次，dragstart 前同步比对，不符即拒拖 + 清缓存重新 prepare。残留仅剩比对与 startDrag 之间的
 // 微秒级窗口（与 launch 路径 verifyInstalled→launch 同源、同量级）。
-export type CuaHelperBundleFingerprint = string;
+type CuaHelperBundleFingerprint = string;
 
 function statSignature(path: string): string {
   try {
@@ -115,7 +115,7 @@ function bundleTreeFingerprint(root: string, maxEntries = 512): string {
   return parts.join(",");
 }
 
-export function captureCuaHelperBundleFingerprint(appPath: string): CuaHelperBundleFingerprint {
+function captureCuaHelperBundleFingerprint(appPath: string): CuaHelperBundleFingerprint {
   const parts = [
     `app=${statSignature(appPath)}`,
     `sig=${statSignature(join(appPath, "Contents", "_CodeSignature", "CodeResources"))}`,
@@ -188,17 +188,17 @@ async function verifyHelperPermissionIdentityUnchanged(
   const fingerprint = captureCuaHelperBundleFingerprint(identity.appPath);
   await options.verifyHelperInstalled?.(identity.appPath);
   if (!cuaHelperBundleFingerprintUnchanged(identity.appPath, fingerprint)) {
-    throw new Error(`ZCode Computer Use changed while its ${phase} signature was being verified`);
+    throw new Error(`XCode Computer Use changed while its ${phase} signature was being verified`);
   }
   const currentIdentity = await (
     options.resolveHelperIdentity ?? resolveHelperPermissionSubjectIdentity
   )(identity.appPath);
   if (!sameHelperPermissionIdentity(identity, currentIdentity)) {
-    throw new Error(`ZCode Computer Use permission identity changed during ${phase} verification`);
+    throw new Error(`XCode Computer Use permission identity changed during ${phase} verification`);
   }
   if (!cuaHelperBundleFingerprintUnchanged(identity.appPath, fingerprint)) {
     throw new Error(
-      `ZCode Computer Use changed while its ${phase} permission identity was being resolved`,
+      `XCode Computer Use changed while its ${phase} permission identity was being resolved`,
     );
   }
   return fingerprint;
@@ -504,7 +504,7 @@ export async function openCuaPermissionOnboarding(
   if (platform !== "darwin") {
     return {
       success: false,
-      error: "ZCode Computer Use permissions are only available on macOS.",
+      error: "XCode Computer Use permissions are only available on macOS.",
     };
   }
   const env = options.env ?? process.env;
@@ -524,11 +524,11 @@ export async function openCuaPermissionOnboarding(
     // 必须 fail-closed，绝不回退到“路径存在即用”的未验证 Helper —— 否则会引导用户把 Accessibility /
     // Screen Recording 授权给旧版本 / 坏签名 / 错误 Team / 被替换的 bundle，破坏“Helper 是独立且受
     // TeamIdentifier pinning 的授权主体”这一核心边界。dev 场景由 installer 内部的
-    // ZCODE_CUA_HELPER_ALLOW_UNSIGNED_LOCAL 承接：通过 dev 校验时 ensureInstalled 会正常返回本地 app，
+    // XCODE_CUA_HELPER_ALLOW_UNSIGNED_LOCAL 承接：通过 dev 校验时 ensureInstalled 会正常返回本地 app，
     // 根本不会进到这个 catch；只有真正校验失败才会到这里。
     return {
       success: false,
-      error: `ZCode Computer Use is unavailable (install/verification failed): ${messageOf(error)}`,
+      error: `XCode Computer Use is unavailable (install/verification failed): ${messageOf(error)}`,
     };
   }
 
@@ -541,7 +541,7 @@ export async function openCuaPermissionOnboarding(
     return {
       success: false,
       returnedFromSettings: false,
-      error: `ZCode Computer Use permission identity verification failed: ${messageOf(error)}`,
+      error: `XCode Computer Use permission identity verification failed: ${messageOf(error)}`,
     };
   }
   const verifiedOptions: OpenCuaAccessibilitySettingsOptions = {
@@ -563,7 +563,7 @@ export async function openCuaPermissionOnboarding(
 // 自动进入 TCC 列表）。弹窗被摘除后，拖拽重新成为 Helper 进入权限列表的**唯一**途径，
 // 故恢复本函数。openCuaAccessibilitySettings（旧确认弹窗频道）不恢复，它已被 onboarding 取代。
 
-export interface PrepareCuaHelperPermissionDragOptions {
+interface PrepareCuaHelperPermissionDragOptions {
   env?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
   logger?: OpenCuaAccessibilitySettingsOptions["logger"];
@@ -598,7 +598,7 @@ export async function prepareCuaHelperPermissionDrag(
   if (platform !== "darwin") {
     return {
       success: false,
-      error: "ZCode Computer Use permissions are only available on macOS.",
+      error: "XCode Computer Use permissions are only available on macOS.",
     };
   }
   const env = options.env ?? process.env;
@@ -620,13 +620,13 @@ export async function prepareCuaHelperPermissionDrag(
     const verifiedFingerprint = captureCuaHelperBundleFingerprint(helperAppPath);
     await (options.verifyHelperInstalled ?? defaultInstaller?.verifyInstalled)?.(helperAppPath);
     if (!cuaHelperBundleFingerprintUnchanged(helperAppPath, verifiedFingerprint)) {
-      throw new Error("ZCode Computer Use changed while its drag signature was being verified");
+      throw new Error("XCode Computer Use changed while its drag signature was being verified");
     }
     const identity = await (
       options.resolveHelperIdentity ?? resolveHelperPermissionSubjectIdentity
     )(helperAppPath);
     if (!cuaHelperBundleFingerprintUnchanged(helperAppPath, verifiedFingerprint)) {
-      throw new Error("ZCode Computer Use changed while its drag identity was being resolved");
+      throw new Error("XCode Computer Use changed while its drag identity was being resolved");
     }
     return {
       success: true,

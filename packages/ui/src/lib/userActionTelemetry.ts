@@ -17,7 +17,7 @@ import {
 const RENDERER_ACTION_TRACE_MAX_QUEUE_SPANS = 256;
 const RENDERER_ACTION_TRACE_FLUSH_DELAY_MS = 2_000;
 
-export interface UserActionTelemetryClock {
+interface UserActionTelemetryClock {
   now(): number;
   setNow?(value: number): void;
 }
@@ -25,7 +25,7 @@ export interface UserActionTelemetryClock {
 export type UserActionTrigger = RendererActionTraceAttributes["trigger"];
 export type UserActionResultSource = NonNullable<RendererActionTraceAttributes["result_source"]>;
 
-export interface StartUserActionInput {
+interface StartUserActionInput {
   featureId: UserActionFeatureId;
   action: string;
   trigger: UserActionTrigger;
@@ -47,11 +47,11 @@ export interface UserActionResult {
   admissionResult?: RendererActionTraceAttributes["admission_result"];
 }
 
-export interface UserActionFailure extends UserActionResult {
+interface UserActionFailure extends UserActionResult {
   failureStage: string;
 }
 
-export interface UserActionHandle {
+interface UserActionHandle {
   complete(result?: UserActionResult): void;
   fail(failure: UserActionFailure): void;
   reject(result?: UserActionResult): void;
@@ -59,7 +59,7 @@ export interface UserActionHandle {
   noop(): void;
 }
 
-export interface UserActionTelemetry {
+interface UserActionTelemetry {
   start(input: StartUserActionInput): UserActionHandle;
 }
 

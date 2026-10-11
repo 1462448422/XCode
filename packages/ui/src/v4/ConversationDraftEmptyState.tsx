@@ -1,27 +1,21 @@
 /**
- * 草稿态空态问候：时间问候语 + ZCode Logo。
+ * 草稿态空态问候：时间问候语 + XCode Logo。
  * 自旧版 ChatView/ChatViewEmptyState.tsx 恢复（该组件随旧 ChatView 删除，
  * i18n key `chat.empty.greeting.*` 一直保留）；边界时刻自动换档逻辑保真。
  * 手机远控复用同一组件，但继续保留 20px 紧凑标题；桌面草稿首页才按标题自身宽度适配。
  */
-import {
-  type CSSProperties,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import darkEmptyStateLogoUrl from "@/assets/Z.svg";
+import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/components/lib/utils.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
+import { useSettings } from "@/hooks/useSettingService.js";
 import { logger } from "@/logger.js";
 
 const GREETING_BOUNDARY_HOURS = [5, 9, 12, 14, 18, 23] as const;
 const GREETING_MIN_FONT_SIZE_PX = 20;
 const GREETING_MAX_FONT_SIZE_PX = 30;
 
-export type ChatEmptyGreetingMessageId =
+type ChatEmptyGreetingMessageId =
   | "chat.empty.greeting.morningEarly"
   | "chat.empty.greeting.morning"
   | "chat.empty.greeting.noon"
@@ -29,9 +23,7 @@ export type ChatEmptyGreetingMessageId =
   | "chat.empty.greeting.evening"
   | "chat.empty.greeting.lateNight";
 
-export function getChatEmptyGreetingMessageId(
-  date: Date = new Date(),
-): ChatEmptyGreetingMessageId {
+function getChatEmptyGreetingMessageId(date: Date = new Date()): ChatEmptyGreetingMessageId {
   const hour = date.getHours();
 
   if (hour >= 5 && hour < 9) return "chat.empty.greeting.morningEarly";
@@ -43,7 +35,7 @@ export function getChatEmptyGreetingMessageId(
   return "chat.empty.greeting.lateNight";
 }
 
-export function getNextChatEmptyGreetingDelayMs(date: Date = new Date()) {
+function getNextChatEmptyGreetingDelayMs(date: Date = new Date()) {
   const candidates = GREETING_BOUNDARY_HOURS.map((hour) => {
     const boundary = new Date(date);
     boundary.setHours(hour, 0, 0, 0);
@@ -54,24 +46,18 @@ export function getNextChatEmptyGreetingDelayMs(date: Date = new Date()) {
   tomorrowFirstBoundary.setHours(GREETING_BOUNDARY_HOURS[0], 0, 0, 0);
 
   const nextBoundary =
-    candidates.find((candidate) => candidate.getTime() > date.getTime()) ??
-    tomorrowFirstBoundary;
+    candidates.find((candidate) => candidate.getTime() > date.getTime()) ?? tomorrowFirstBoundary;
 
   return Math.max(1, nextBoundary.getTime() - date.getTime());
 }
 
-export function resolveGreetingFontSizePx({
+function resolveGreetingFontSizePx({
   availableWidthPx,
   naturalTextWidthPx,
-  compactForRemoteControl = false,
 }: {
   availableWidthPx: number;
   naturalTextWidthPx: number;
-  compactForRemoteControl?: boolean;
 }) {
-  if (compactForRemoteControl) {
-    return GREETING_MIN_FONT_SIZE_PX;
-  }
   if (
     !Number.isFinite(availableWidthPx) ||
     !Number.isFinite(naturalTextWidthPx) ||
@@ -86,32 +72,23 @@ export function resolveGreetingFontSizePx({
     GREETING_MIN_FONT_SIZE_PX,
     Math.min(
       GREETING_MAX_FONT_SIZE_PX,
-      Math.floor(
-        GREETING_MAX_FONT_SIZE_PX * (availableWidthPx / naturalTextWidthPx),
-      ),
+      Math.floor(GREETING_MAX_FONT_SIZE_PX * (availableWidthPx / naturalTextWidthPx)),
     ),
   );
 }
 
-export function ConversationDraftEmptyState({
-  className,
-  compactForRemoteControl = false,
-}: {
-  className?: string;
-  compactForRemoteControl?: boolean;
-}) {
-  const { intl } = useZCodeIntl();
+export function ConversationDraftEmptyState({ className }: { className?: string }) {
+  const { intl } = useXCodeIntl();
   const isOfficeMode = useIsOfficeMode();
+  // 自定义皮肤开启时隐藏品牌 X 水印背景（背景图/皮肤自己铺底，不再叠官方 logo）。
+  const { settings: appSettings } = useSettings();
+  const hasCustomSkin = Boolean(appSettings?.customSkin);
   const [greetingDate, setGreetingDate] = useState(() => new Date());
-  const [greetingFontSizePx, setGreetingFontSizePx] = useState(
-    GREETING_MAX_FONT_SIZE_PX,
-  );
+  const [greetingFontSizePx, setGreetingFontSizePx] = useState(GREETING_MAX_FONT_SIZE_PX);
   const greetingContainerRef = useRef<HTMLParagraphElement | null>(null);
   const greetingMeasurementRef = useRef<HTMLSpanElement | null>(null);
   const greeting = intl.formatMessage({
-    id: isOfficeMode
-      ? "chat.empty.greeting.office"
-      : getChatEmptyGreetingMessageId(greetingDate),
+    id: isOfficeMode ? "chat.empty.greeting.office" : getChatEmptyGreetingMessageId(greetingDate),
   });
 
   useEffect(() => {
@@ -125,10 +102,6 @@ export function ConversationDraftEmptyState({
   }, [greetingDate]);
 
   useLayoutEffect(() => {
-    if (compactForRemoteControl) {
-      setGreetingFontSizePx(GREETING_MIN_FONT_SIZE_PX);
-      return;
-    }
     const container = greetingContainerRef.current;
     const measurement = greetingMeasurementRef.current;
     if (!container || !measurement) {
@@ -195,7 +168,7 @@ export function ConversationDraftEmptyState({
       }
       observer.disconnect();
     };
-  }, [compactForRemoteControl, greeting]);
+  }, [greeting]);
 
   return (
     <div
@@ -211,7 +184,7 @@ export function ConversationDraftEmptyState({
           "-translate-x-1/2 -translate-y-1/2 text-foreground-subtlest",
         )}
       >
-        <ZCodeEmptyStateLogo className="h-full w-full" />
+        {!hasCustomSkin ? <XCodeEmptyStateLogo className="h-full w-full" /> : null}
       </div>
       <p
         ref={greetingContainerRef}
@@ -223,9 +196,7 @@ export function ConversationDraftEmptyState({
         }
         className={cn(
           "relative z-10 w-full px-4 text-center font-medium text-foreground",
-          compactForRemoteControl
-            ? "text-xl/[1.2]"
-            : "text-[length:var(--v4-draft-greeting-font-size)]/[1.2]",
+          "text-[length:var(--v4-draft-greeting-font-size)]/[1.2]",
         )}
       >
         <span
@@ -241,39 +212,32 @@ export function ConversationDraftEmptyState({
   );
 }
 
-function ZCodeEmptyStateLogo({ className }: { className?: string }) {
+function XCodeEmptyStateLogo({ className }: { className?: string }) {
+  // 品牌 X：自 app-logo 里扣出的白色空心 X，轮廓追踪→RDP 简化成 SVG path。
+  // 内联引用（同原 Z）：fill=currentColor 吃到容器 text-foreground-subtlest，
+  // 深浅主题自动适配；bottom 渐隐让水印不抢背景。
   return (
-    <>
-      {/* 修复原因：夜间资源已自带渐变和透明度，公共容器叠加遮罩会让它重复变淡；渐隐效果只属于浅色线框。 */}
-      <svg
-        aria-hidden="true"
-        className={cn(
-          className,
-          "opacity-70 dark:hidden",
-          "[-webkit-mask-image:linear-gradient(to_bottom,black_0%,transparent_70%,transparent_100%)]",
-          "[-webkit-mask-repeat:no-repeat] [-webkit-mask-size:100%_100%]",
-          "[mask-image:linear-gradient(to_bottom,black_0%,transparent_70%,transparent_100%)]",
-          "[mask-repeat:no-repeat] [mask-size:100%_100%]",
-        )}
-        width="400"
-        height="320"
-        viewBox="0 0 400 320"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M398.97 0.5L147.576 319.5H1.03027L37.5996 273.081L120.167 169.603L120.171 169.598L215.342 47.5605L215.343 47.5615L252.424 0.5H398.97ZM264.544 273.271H372.527L336.082 319.498H189.886L202.642 303.307C217.584 284.34 240.398 273.271 264.544 273.271ZM209.164 0.5L202.786 8.58887C183.782 32.6885 154.782 46.752 124.091 46.752H25.9805L62.4268 0.5H209.164Z"
-          stroke="currentColor"
-        />
-      </svg>
-      {/* 深色资源包含专用渐变与模糊效果，不能通过 currentColor 复刻；主题类保证两套 Logo 互斥显示。 */}
-      <img
-        aria-hidden="true"
-        className={cn(className, "hidden dark:block")}
-        data-v4-draft-logo="dark"
-        src={darkEmptyStateLogoUrl}
-        alt=""
+    <svg
+      aria-hidden="true"
+      className={cn(
+        className,
+        "opacity-40",
+        "[-webkit-mask-image:linear-gradient(to_bottom,black_0%,transparent_78%,transparent_100%)]",
+        "[-webkit-mask-repeat:no-repeat] [-webkit-mask-size:100%_100%]",
+        "[mask-image:linear-gradient(to_bottom,black_0%,transparent_78%,transparent_100%)]",
+        "[mask-repeat:no-repeat] [mask-size:100%_100%]",
+      )}
+      width="400"
+      height="400"
+      viewBox="0 0 300 300"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M0 0 L112.8 132.1 L0 299.1 L96.3 299.1 L165.1 197.2 L254.1 298.2 L290.8 299.1 L185.3 168.8 L299.1 0 L205.5 0 L129.4 109.2 L38.5 2.8 Z M251.4 23.9 L87.2 270.6 L48.6 275.2 L215.6 25.7 Z"
+        fill="currentColor"
+        fill-rule="evenodd"
       />
-    </>
+    </svg>
   );
 }

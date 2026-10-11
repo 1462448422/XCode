@@ -1,8 +1,8 @@
-import type { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import type { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type { ToolCallBlockRenderContext } from "@/ToolCallBlocks/shared.js";
 import { isSubagentColor } from "@/lib/subagentColors.js";
 
-type AgentIntl = ReturnType<typeof useZCodeIntl>["intl"];
+type AgentIntl = ReturnType<typeof useXCodeIntl>["intl"];
 type AgentToolCall = ToolCallBlockRenderContext["toolCallNode"]["toolCall"];
 const DEFAULT_AGENT_TYPE_LABEL = "general-purpose";
 
@@ -91,40 +91,12 @@ function readRecordFromUnknown(value: unknown): Record<string, unknown> | null {
   return text ? parseJsonObject(text) : null;
 }
 
-function readCodexSubagentNickname(toolCall: AgentToolCall): string | undefined {
-  const rawNickname =
-    readStringFromNestedRecord(toolCall.raw, ["_meta", "zcode", "nickname"]) ??
-    readStringFromNestedRecord(toolCall.raw, ["nickname"]);
-  if (rawNickname) {
-    return rawNickname;
-  }
-
-  if (isPlainRecord(toolCall.input)) {
-    const inputNickname = readStringField(toolCall.input, ["nickname"]);
-    if (inputNickname) {
-      return inputNickname;
-    }
-  }
-
-  const outputText = readTextFromUnknown(toolCall.output);
-  if (!outputText) {
-    return undefined;
-  }
-
-  const parsedOutput = parseJsonObject(outputText);
-  if (!parsedOutput) {
-    return undefined;
-  }
-
-  return readStringField(parsedOutput, ["nickname"]);
-}
-
 function isImplementationToolTitle(title: string): boolean {
   const normalized = title
     .trim()
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
-  return normalized === "agent" || normalized === "task" || normalized === "spawn_agent";
+  return normalized === "agent" || normalized === "task";
 }
 
 function readAgentNameFromRecord(value: Record<string, unknown> | null): string | undefined {
@@ -163,7 +135,6 @@ export function getAgentKindLabel(
   const explicitName =
     (authoritativeAgentType?.trim() || undefined) ??
     readAgentNameFromRecord(outputRecord) ??
-    readCodexSubagentNickname(toolCall) ??
     readAgentNameFromRecord(inputRecord) ??
     rawName;
   if (explicitName) {
@@ -226,11 +197,6 @@ export function getAgentActivityContent(toolCall: AgentToolCall) {
 }
 
 export function getAgentPrimaryText(toolCall: AgentToolCall, fallbackLabel: string) {
-  const nickname = readCodexSubagentNickname(toolCall);
-  if (nickname) {
-    return nickname;
-  }
-
   if (typeof toolCall.title === "string" && toolCall.title.trim().length > 0) {
     const title = toolCall.title.trim();
     if (!isImplementationToolTitle(title)) {
@@ -247,11 +213,6 @@ export function getAgentPrimaryText(toolCall: AgentToolCall, fallbackLabel: stri
     const subagentType = readStringField(toolCall.input, ["subagent_type"]);
     if (subagentType) {
       return subagentType;
-    }
-
-    const agentType = readStringField(toolCall.input, ["agent_type"]);
-    if (agentType) {
-      return agentType;
     }
   }
 

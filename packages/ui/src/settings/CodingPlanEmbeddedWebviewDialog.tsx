@@ -2,13 +2,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
 import { usePlatform } from "@/hooks/usePlatform.js";
-import { RENDERER_ZCODE_ENDPOINT_URLS } from "@/lib/rendererZCodeEndpoint.js";
+import { RENDERER_XCODE_ENDPOINT_URLS } from "@/lib/rendererXCodeEndpoint.js";
 import { logger } from "@/logger.js";
 import { cn } from "@/components/lib/utils.js";
 import { Button } from "@/components/ui/button.js";
 import { EmbeddedWebsiteHeader } from "@/components/EmbeddedWebsiteHeader.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { useZCodeStoreWithDefault } from "@/store/StoreProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeStoreWithDefault } from "@/store/StoreProvider.js";
 import { normalizeThemePreference, resolveTheme } from "@/useTheme.js";
 import type { CodingPlanProviderId } from "@/settings/model-provider-section/constants.js";
 import type { CodingPlanFunnelContext } from "@/lib/codingPlanFunnelTelemetry.js";
@@ -31,8 +31,7 @@ import {
 import {
   CodingPlanWebviewChannels,
   type CodingPlanPurchaseCompletePayload,
-  ZCODE_ENV,
-  ZCODE_VERSION,
+  XCODE_VERSION,
 } from "@zcode/shared";
 
 interface CodingPlanEmbeddedWebviewDialogProps {
@@ -58,9 +57,8 @@ interface CodingPlanEmbeddedWebviewDialogProps {
 }
 
 interface CodingPlanWebviewImportMetaEnv {
-  DEV?: boolean;
   VITE_CODING_PLAN_WEBVIEW_ORIGIN?: string;
-  VITE_ZCODE_E2E_STORE_BRIDGE?: string;
+  VITE_XCODE_E2E_STORE_BRIDGE?: string;
 }
 
 interface CodingPlanWebviewNavigationState {
@@ -85,10 +83,10 @@ export function CodingPlanEmbeddedWebviewDialog({
   onPurchaseComplete,
   onOpenResult,
 }: CodingPlanEmbeddedWebviewDialogProps) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const platform = usePlatform();
-  const theme = useZCodeStoreWithDefault((state) => state.theme, "zai-dark");
-  const userId = useZCodeStoreWithDefault((state) => state.user?.id ?? null, null);
+  const theme = useXCodeStoreWithDefault((state) => state.theme, "zai-dark");
+  const userId = useXCodeStoreWithDefault((state) => state.user?.id ?? null, null);
   const webviewRef = useRef<ElectronWebviewTag | null>(null);
   const onOpenResultRef = useRef(onOpenResult);
   onOpenResultRef.current = onOpenResult;
@@ -125,11 +123,9 @@ export function CodingPlanEmbeddedWebviewDialog({
   const computedWebviewUrl = useMemo(() => {
     const env = readCodingPlanWebviewImportMetaEnv();
     const origin = resolveCodingPlanEmbeddedOrigin({
-      dev: env.DEV === true,
-      endpointOrigin: RENDERER_ZCODE_ENDPOINT_URLS.origin,
-      e2eStoreBridgeEnabled: env.VITE_ZCODE_E2E_STORE_BRIDGE === "1",
+      endpointOrigin: RENDERER_XCODE_ENDPOINT_URLS.origin,
+      e2eStoreBridgeEnabled: env.VITE_XCODE_E2E_STORE_BRIDGE === "1",
       overrideOrigin: env.VITE_CODING_PLAN_WEBVIEW_ORIGIN,
-      zcodeEnv: ZCODE_ENV,
     });
     // URL 带 ?lang= hint 让官网首屏就有正确语言，避免注入前的英文闪烁。
     // 同步带 ?theme= hint，避免官网 SSR 默认 dark 在 App 浅色主题下首帧闪烁。
@@ -162,7 +158,7 @@ export function CodingPlanEmbeddedWebviewDialog({
         const currentUrl = typeof webview.getURL === "function" ? webview.getURL() : "";
         if (
           !isTrustedCodingPlanEmbeddedWebviewUrl(currentUrl, {
-            e2eStoreBridgeEnabled: env.VITE_ZCODE_E2E_STORE_BRIDGE === "1",
+            e2eStoreBridgeEnabled: env.VITE_XCODE_E2E_STORE_BRIDGE === "1",
           })
         ) {
           // dom-ready 会在后续主 frame 导航时再次触发，初始 src 可信不代表
@@ -193,7 +189,7 @@ export function CodingPlanEmbeddedWebviewDialog({
           funnelContext,
           deviceMid,
           userId,
-          appVersion: ZCODE_VERSION,
+          appVersion: XCODE_VERSION,
         });
         const script = createCodingPlanAuthInjectionScript({
           provider,

@@ -1,30 +1,30 @@
 import type { Logger } from "@zcode/contracts";
-import type { listZCodePlugins } from "@zcode/bootstrap";
+import type { listXCodePlugins } from "@zcode/bootstrap";
 import { createInterface } from "node:readline";
 import type { GlobalOptions, RunContext } from "@zcode/shared-types";
 import type { CliEnv } from "./env.js";
 
 export type BootstrapModule = typeof import("@zcode/bootstrap");
-export type PluginListOutcome = ReturnType<typeof listZCodePlugins>;
+export type PluginListOutcome = ReturnType<typeof listXCodePlugins>;
 export type PluginListItem = PluginListOutcome["plugins"][number];
 export type PluginDiagnostic = PluginListOutcome["diagnostics"][number];
 export type PluginScope = "user" | "workspace";
 
 /**
  * CLI 依赖名 → bootstrap 导出名。测试按依赖名注入假实现；生产路径按导出名懒加载 bootstrap，
- * 避免 `zcode plugins list` 这类轻命令把整个 bootstrap 图提前拉起来。
+ * 避免 `xcode plugins list` 这类轻命令把整个 bootstrap 图提前拉起来。
  */
 export const BOOTSTRAP_EXPORTS = {
-  addMarketplace: "addZCodePluginMarketplace",
-  getPluginsOverview: "getZCodePluginsOverview",
-  installPlugin: "installZCodeMarketplacePlugin",
-  listPlugins: "listZCodePlugins",
-  removeMarketplace: "removeZCodePluginMarketplace",
-  setPluginEnabled: "setZCodePluginEnabled",
-  uninstallPlugin: "uninstallZCodeMarketplacePlugin",
-  updateMarketplace: "updateZCodePluginMarketplace",
-  updatePlugin: "updateZCodeMarketplacePlugin",
-  validatePluginPath: "validateZCodePluginPath",
+  addMarketplace: "addXCodePluginMarketplace",
+  getPluginsOverview: "getXCodePluginsOverview",
+  installPlugin: "installXCodeMarketplacePlugin",
+  listPlugins: "listXCodePlugins",
+  removeMarketplace: "removeXCodePluginMarketplace",
+  setPluginEnabled: "setXCodePluginEnabled",
+  uninstallPlugin: "uninstallXCodeMarketplacePlugin",
+  updateMarketplace: "updateXCodePluginMarketplace",
+  updatePlugin: "updateXCodeMarketplacePlugin",
+  validatePluginPath: "validateXCodePluginPath",
 } as const satisfies Record<string, keyof BootstrapModule>;
 
 export type PluginDepName = keyof typeof BOOTSTRAP_EXPORTS;
@@ -43,7 +43,7 @@ export interface PluginsCommandDependencies extends PluginsCommandOverrides {
   userConfigPath?: string;
 }
 
-/** `zcode plugins` 子命令专属旗标；由 run.ts 的全局解析器收集后原样透传。 */
+/** `xcode plugins` 子命令专属旗标；由 run.ts 的全局解析器收集后原样透传。 */
 export interface PluginsCommandFlags {
   all?: boolean;
   available?: boolean;

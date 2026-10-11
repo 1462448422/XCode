@@ -1,15 +1,15 @@
 import { useCallback, useRef, useState } from "react";
 import type { IServiceAccessor } from "@zcode/services";
-import type { ZCodeProvider } from "@zcode/shared";
+import type { XCodeProvider } from "@zcode/shared";
 import { toast } from "@/components/ui/toast.js";
 import {
   buildWorkspaceSessionReloadDraftError,
   shouldDebounceWorkspaceSessionReload,
 } from "@/lib/workspaceSessionReloadPlan.js";
 import { resolveWorkspaceModelConfigSyncScope } from "@/lib/modelConfigSync.js";
-import { prepareWorkspaceWithZCodeSessionService } from "@/hooks/useWorkspacePrepare.js";
+import { prepareWorkspaceWithXCodeSessionService } from "@/hooks/useWorkspacePrepare.js";
 import { logger } from "@/logger.js";
-import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";
 import { isWorkspaceTab } from "@/store/tabStore.js";
 
@@ -40,7 +40,7 @@ export function useWorkspaceSessionReload({
   const lastReloadSessionTriggeredAtRef = useRef<number | null>(null);
 
   const handleReloadSession = useCallback(
-    async (options?: { resumeTaskId?: string | null; provider?: ZCodeProvider | null }) => {
+    async (options?: { resumeTaskId?: string | null; provider?: XCodeProvider | null }) => {
       if (reloadSessionDisabled || reloadSessionPending) {
         return;
       }
@@ -55,13 +55,13 @@ export function useWorkspaceSessionReload({
       lastReloadSessionTriggeredAtRef.current = now;
       setReloadSessionPending(true);
 
-      const zcodeSessionStore = useZCodeSessionStore.getState();
+      const zcodeSessionStore = useXCodeSessionStore.getState();
       const latestWorkspaceState = zcodeSessionStore.getWorkspaceState(
         workspaceAbsPath,
         workspaceIdentity,
       );
       const actionScope = resolveWorkspaceModelConfigSyncScope(latestWorkspaceState);
-      const provider: ZCodeProvider = options?.provider ?? actionScope.provider;
+      const provider: XCodeProvider = options?.provider ?? actionScope.provider;
       const resumeTaskId =
         options?.resumeTaskId?.trim() || latestWorkspaceState.activeTaskId || undefined;
       const shouldPrepareWorkspace = !resumeTaskId;
@@ -92,7 +92,7 @@ export function useWorkspaceSessionReload({
         });
 
         if (shouldPrepareWorkspace) {
-          const prepareResult = await prepareWorkspaceWithZCodeSessionService({
+          const prepareResult = await prepareWorkspaceWithXCodeSessionService({
             workspacePath: workspaceAbsPath,
             workspaceIdentity,
             provider,

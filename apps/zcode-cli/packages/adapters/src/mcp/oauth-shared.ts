@@ -1,12 +1,12 @@
 import type { OAuthDiscoveryState } from "@modelcontextprotocol/client";
-import type { SharedZCodeCredentialStore } from "../auth/shared-credentials.js";
+import type { SharedXCodeCredentialStore } from "../auth/shared-credentials.js";
 import { isRecord, mcpOAuthCredentialKey } from "./oauth-credentials.js";
 
-export const MCP_OAUTH_DISCOVERY_STATE_KEY = "discovery_state";
-export const MCP_OAUTH_DISCOVERY_FETCHED_AT_KEY = "discovery_state_fetched_at";
+const MCP_OAUTH_DISCOVERY_STATE_KEY = "discovery_state";
+const MCP_OAUTH_DISCOVERY_FETCHED_AT_KEY = "discovery_state_fetched_at";
 
 /** discovery metadata 缓存寿命。过期后重新发现，避免长期使用换过端点的旧 AS metadata。 */
-export const MCP_OAUTH_DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;
+const MCP_OAUTH_DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface McpOAuthAuthorizationContext {
   authorizationUrl: string;
@@ -23,7 +23,7 @@ export interface McpOAuthAuthorizationContext {
  * 向后兼容的做法。
  */
 export async function saveDiscoveryRecord(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
   state: OAuthDiscoveryState,
   now = Date.now(),
@@ -41,7 +41,7 @@ export async function saveDiscoveryRecord(
  * 时间戳，自愈。
  */
 export async function loadDiscoveryRecord(
-  credentialStore: SharedZCodeCredentialStore,
+  credentialStore: SharedXCodeCredentialStore,
   keyPrefix: string,
   options: { expectedIssuer?: string; now?: number; ttlMs?: number } = {},
 ): Promise<OAuthDiscoveryState | undefined> {

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ZCodeModelTrajectory } from "@zcode/services";
+import type { XCodeModelTrajectory } from "@zcode/services";
 import { logger } from "@/logger.js";
-import { useZCodeTaskService } from "@/hooks/useZCodeTaskService.js";
+import { useXCodeTaskService } from "@/hooks/useXCodeTaskService.js";
 
-export interface ModelTrajectoryState {
+interface ModelTrajectoryState {
   loading: boolean;
-  data: ZCodeModelTrajectory | null;
+  data: XCodeModelTrajectory | null;
   error: string | null;
 }
 
@@ -33,7 +33,7 @@ export function useModelTrajectory(
   taskId: string | null,
   workspaceIdentity?: string,
 ): ModelTrajectoryState & { refresh: () => void } {
-  const zcodeTaskService = useZCodeTaskService(workspacePath, undefined, workspaceIdentity);
+  const zcodeTaskService = useXCodeTaskService(workspacePath, undefined, workspaceIdentity);
   const [state, setState] = useState<ModelTrajectoryState>(INITIAL_STATE);
   const [reloadToken, setReloadToken] = useState(0);
   const requestVersionRef = useRef(0);

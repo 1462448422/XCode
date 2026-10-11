@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import type { StartPlanPreviewConfig, StartPlanPreviewEntitlement } from "@zcode/shared";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { formatCompactTokenNumber } from "@/lib/tokenNumberFormat.js";
 
-export interface StartPlanEntitlementSummary {
+interface StartPlanEntitlementSummary {
   grantUnitsLabel: string;
   detailsDescription: string;
   unitLabel: string;
@@ -16,7 +16,7 @@ export function StartPlanCard({
   preview: StartPlanPreviewConfig;
   actions?: ReactNode;
 }) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const entitlementSummary = resolveStartPlanEntitlementSummary(preview, intl, locale);
   if (!entitlementSummary) {
     // 体验套餐卡片必须由远端 startPlanPreview.entitlements 驱动；
@@ -61,9 +61,7 @@ export function StartPlanCard({
             </div>
             {actions ? <div className="max-sm:[&>button]:w-full">{actions}</div> : null}
           </div>
-          <p className="max-w-2xl text-ui-base leading-5 text-foreground-subtle">
-            {description}
-          </p>
+          <p className="max-w-2xl text-ui-base leading-5 text-foreground-subtle">{description}</p>
         </div>
       </div>
     </div>
@@ -72,7 +70,7 @@ export function StartPlanCard({
 
 export function resolveStartPlanEntitlementSummary(
   preview: StartPlanPreviewConfig,
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useXCodeIntl>["intl"],
   locale: string,
 ): StartPlanEntitlementSummary | null {
   const entitlements = (preview?.entitlements ?? []).filter(isDisplayableModelUsageEntitlement);
@@ -128,8 +126,9 @@ function formatHeroGrantUnits(value: number, locale: string): string {
       minimumFractionDigits: 0,
     })
       .format(value)
-      .replace(/\b(thousand|million|billion|trillion)\b/g, (unit) =>
-        unit.slice(0, 1).toUpperCase() + unit.slice(1),
+      .replace(
+        /\b(thousand|million|billion|trillion)\b/g,
+        (unit) => unit.slice(0, 1).toUpperCase() + unit.slice(1),
       );
   }
   return formatCompactTokenNumber(locale, value);
@@ -138,7 +137,7 @@ function formatHeroGrantUnits(value: number, locale: string): string {
 function formatEntitlementDetailsDescription(
   entitlements: StartPlanPreviewEntitlement[],
   primary: StartPlanPreviewEntitlement,
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useXCodeIntl>["intl"],
   locale: string,
 ): string {
   const unit = formatStartPlanUnitTypeLabel(primary, intl);
@@ -208,7 +207,7 @@ function formatModelList(modelNames: string[], locale: string): string {
 
 function formatStartPlanUnitLabel(
   entitlement: StartPlanPreviewEntitlement,
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useXCodeIntl>["intl"],
 ): string {
   const unit = formatStartPlanUnitTypeLabel(entitlement, intl);
   if (entitlement.period === "daily") {
@@ -224,7 +223,7 @@ function formatStartPlanUnitLabel(
 
 function formatStartPlanUnitTypeLabel(
   entitlement: StartPlanPreviewEntitlement,
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useXCodeIntl>["intl"],
 ): string {
   return entitlement.unitType === "token"
     ? intl.formatMessage({

@@ -9,7 +9,7 @@ import {
 import { useEffectiveShortcutBindings } from "@/shortcuts/useShortcutBindings.js";
 
 /** window 通道快捷键的处理器表：命令 ID → 回调；null/缺失表示该命令当前不可用。 */
-export type AppKeyboardHandlers = Partial<Record<ShortcutCommandId, (() => void) | null>>;
+type AppKeyboardHandlers = Partial<Record<ShortcutCommandId, (() => void) | null>>;
 
 /**
  * 全局键盘分发薄壳：window keydown capture → 内核通用匹配 → 命令 handler。

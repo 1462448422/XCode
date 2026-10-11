@@ -7,22 +7,22 @@ import {
 } from "@zcode/provider";
 import {
   isBuiltinModelProviderId,
-  resolveRuntimeZCodeEndpointOrigin,
-  ZCODE_VERSION,
+  resolveRuntimeXCodeEndpointOrigin,
+  XCODE_VERSION,
 } from "@zcode/shared";
 import { dirname, join } from "node:path";
 import {
   NodeModelSelectionConfigRepository,
   NodeProviderRegistryRuntime,
   resolveNodeProviderRuntimePaths,
-  downloadZCodeBuiltinRelease,
-  resolveZCodeBuiltinClientPlatform,
-  ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV,
-  type ZCodeBuiltinRefreshEvent,
+  downloadXCodeBuiltinRelease,
+  resolveXCodeBuiltinClientPlatform,
+  XCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV,
+  type XCodeBuiltinRefreshEvent,
 } from "@zcode/provider-node";
 import {
-  createSharedZCodeCredentialStore,
-  type SharedZCodeCredentialStore,
+  createSharedXCodeCredentialStore,
+  type SharedXCodeCredentialStore,
 } from "@zcode/adapters/auth";
 import { readLegacyCliPersonalProviderConfig } from "./legacy-cli-personal-provider-config-importer.js";
 import {
@@ -33,12 +33,12 @@ import {
 export interface ProcessProviderRegistryRuntimeOptions {
   /** Standalone Prompt CLI / TUI 自己拥有账号凭据与旧配置的一次性导入。 */
   readonly standalone?: {
-    readonly credentialStore?: SharedZCodeCredentialStore;
+    readonly credentialStore?: SharedXCodeCredentialStore;
     readonly legacyCliUserConfigFilePath?: string;
     readonly onAccountInitializationError?: (error: unknown) => void;
     readonly request?: typeof fetch;
     readonly onBuiltinRefreshError?: (error: unknown) => void;
-    readonly onBuiltinRefreshResult?: (event: ZCodeBuiltinRefreshEvent) => void;
+    readonly onBuiltinRefreshResult?: (event: XCodeBuiltinRefreshEvent) => void;
   };
 }
 
@@ -48,16 +48,16 @@ export async function startProcessProviderRegistryRuntime(
 ) {
   const paths = resolveNodeProviderRuntimePaths(env);
   if (!paths) {
-    throw new Error("缺少进程 Provider Registry 的 ZCode Built-in / Personal Config 路径");
+    throw new Error("缺少进程 Provider Registry 的 XCode Built-in / Personal Config 路径");
   }
 
   const accountSource = new MutableAccountProviderConfigSource();
   const credentialStore = options.standalone
-    ? (options.standalone.credentialStore ?? createSharedZCodeCredentialStore({ env: { ...env } }))
+    ? (options.standalone.credentialStore ?? createSharedXCodeCredentialStore({ env: { ...env } }))
     : undefined;
   let standaloneAccount: AccountProviderService | undefined;
   const bundledFile = options.standalone
-    ? env[ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV]?.trim()
+    ? env[XCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV]?.trim()
     : undefined;
   const runtime = new NodeProviderRegistryRuntime({
     ...paths,
@@ -70,20 +70,20 @@ export async function startProcessProviderRegistryRuntime(
               dirname(paths.zcodeBuiltinFilePath),
               "zcode-builtin-refresh.json",
             ),
-            resolveEndpointKey: () => resolveRuntimeZCodeEndpointOrigin(env),
+            resolveEndpointKey: () => resolveRuntimeXCodeEndpointOrigin(env),
             fetchRelease: (endpointOrigin, signal) =>
-              downloadZCodeBuiltinRelease({
+              downloadXCodeBuiltinRelease({
                 endpointOrigin,
                 signal,
-                appVersion: ZCODE_VERSION,
-                platform: resolveZCodeBuiltinClientPlatform(),
+                appVersion: XCODE_VERSION,
+                platform: resolveXCodeBuiltinClientPlatform(),
                 request: options.standalone?.request ?? globalThis.fetch,
               }),
             onRefreshResult: options.standalone?.onBuiltinRefreshResult,
           },
         }
       : {}),
-    onZCodeBuiltinRefreshError: options.standalone?.onBuiltinRefreshError,
+    onXCodeBuiltinRefreshError: options.standalone?.onBuiltinRefreshError,
     accountSource,
     ...(credentialStore
       ? {
@@ -95,15 +95,9 @@ export async function startProcessProviderRegistryRuntime(
                 const snapshot = await readStandaloneAccountProviderConfigSnapshot(
                   credentialStore,
                   env,
-                  {
-                    revision: configRevision,
-                    providers: configuredProviders,
-                  },
+                  { revision: configRevision, providers: configuredProviders },
                 );
-                return {
-                  providers: snapshot.providers,
-                  states: snapshot.states ?? {},
-                };
+                return { providers: snapshot.providers, states: snapshot.states ?? {} };
               },
             });
             standaloneAccount.onDidRefreshError(({ error }) => {
@@ -129,21 +123,17 @@ export async function startProcessProviderRegistryRuntime(
       : {}),
   });
   const disposeRecovery = standaloneAccount
-    ? runtime.onDidCheckZCodeBuiltin(async () => {
+    ? runtime.onDidCheckXCodeBuiltin(async () => {
         const [config, account] = await Promise.all([
           runtime.configService.read(),
           standaloneAccount!.read(),
         ]);
-        if (config.zcodeBuiltinRevision !== account.basedOnZCodeBuiltinRevision)
+        if (config.zcodeBuiltinRevision !== account.basedOnXCodeBuiltinRevision)
           await standaloneAccount!.refresh("builtin-account-recovery");
       })
     : undefined;
   // 复用 AccountService 的串行、过期结果丢弃机制，凭据变化与 Built-in 变化不能各自发布。
-  const standaloneHeaders = credentialStore
-    ? createStandaloneProviderRuntimeHeadersPort(credentialStore, env)
-    : undefined;
   const disposeCredentialSubscription = credentialStore?.onDidChange?.(async () => {
-    await standaloneHeaders?.invalidateChangedCredentials();
     await standaloneAccount!.refresh("standalone-credentials-changed");
     await runtime.registryService.refresh("standalone-credentials-barrier");
   });
@@ -168,7 +158,6 @@ export async function startProcessProviderRegistryRuntime(
         },
         dispose() {
           disposeCredentialSubscription?.();
-          standaloneHeaders?.clearProjectTokens();
           disposeRecovery?.();
           standaloneAccount?.dispose();
           modelSelectionConfigRepository.dispose();
@@ -176,7 +165,10 @@ export async function startProcessProviderRegistryRuntime(
         },
         ...(credentialStore
           ? {
-              providerRuntimeHeadersPort: standaloneHeaders!,
+              providerRuntimeHeadersPort: createStandaloneProviderRuntimeHeadersPort(
+                credentialStore,
+                env,
+              ),
             }
           : {}),
         runtime,
@@ -201,14 +193,14 @@ export async function startProcessProviderRegistryRuntime(
 /** 把协议信封解析为进程 Registry 使用的第三层 Account Config Overlay。 */
 export function parseProcessAccountProviderConfigSnapshot(input: {
   readonly revision: string;
-  readonly basedOnZCodeBuiltinRevision: string;
+  readonly basedOnXCodeBuiltinRevision: string;
   readonly providers: unknown;
   readonly states?: AccountProviderStates;
 }): AccountProviderConfigSnapshot {
   const revision = input.revision.trim();
   if (!revision) throw new Error("Account Config revision 不能为空");
-  const basedOnZCodeBuiltinRevision = input.basedOnZCodeBuiltinRevision.trim();
-  if (!basedOnZCodeBuiltinRevision) {
+  const basedOnXCodeBuiltinRevision = input.basedOnXCodeBuiltinRevision.trim();
+  if (!basedOnXCodeBuiltinRevision) {
     throw new Error("Account Config Built-in revision 不能为空");
   }
   const providers = parseAccountProviderConfigMap(input.providers);
@@ -225,7 +217,7 @@ export function parseProcessAccountProviderConfigSnapshot(input: {
   }
   return Object.freeze({
     revision,
-    basedOnZCodeBuiltinRevision,
+    basedOnXCodeBuiltinRevision,
     providers,
     // 与 Overlay 属于同一快照；不能只更新 revision 却丢掉当前连接事实。
     ...(input.states ? { states: input.states } : {}),

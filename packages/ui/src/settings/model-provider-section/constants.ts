@@ -5,7 +5,7 @@ import {
   BUILTIN_MODEL_PROVIDER_IDS,
   createUuid,
   type OAuthProviderId,
-  ZCODE_ENV,
+  XCODE_ENV,
   ZAI_PROVIDER_ID,
   type BuiltinModelProviderId,
   type UsageQuotaLimit,
@@ -14,15 +14,23 @@ import {
 } from "@zcode/shared";
 import type { ProviderSettingsFormProvider } from "@/lib/providerSettingsFormTypes.js";
 import { getProviderFormLabel } from "@/lib/providerSettingsFormTypes.js";
+import type { ProviderApiType } from "@zcode/provider";
+
+/**
+ * 自定义供应商未显式配置 api.type 时的默认请求格式。
+ * 上游默认 anthropic-messages；fork 改为 openai-chat-completions（chat），
+ * 因为自定义供应商绝大多数是 OpenAI 兼容网关。5 处 UI fallback 统一引用本常量，防止漂移。
+ */
+export const DEFAULT_PERSONAL_PROVIDER_API_FORMAT: ProviderApiType = "openai-chat-completions";
 
 export function generateId(): string {
   return createUuid();
 }
 
 export const PRESET_SUBSCRIPTION_TIMEOUT_MS = 2 * 60 * 1000;
-export const BIGMODEL_REGISTRATION_URL = buildBigModelApiUrl({ ZCODE_ENV }, "/login");
-export const BIGMODEL_CODING_PLAN_PERSONAL_MANAGE_URL = buildBigModelCodingPlanPersonalManageUrl({
-  ZCODE_ENV,
+export const BIGMODEL_REGISTRATION_URL = buildBigModelApiUrl({ XCODE_ENV }, "/login");
+const BIGMODEL_CODING_PLAN_PERSONAL_MANAGE_URL = buildBigModelCodingPlanPersonalManageUrl({
+  XCODE_ENV,
 });
 
 export interface PresetProviderSpec {
@@ -218,9 +226,25 @@ export type ModelProviderNavItem =
       label: string;
       provider: ProviderSettingsFormProvider;
       statusActive: boolean;
+    }
+  | {
+      // 免费供应商（内置凭据，连接信息不对用户显示）。
+      key: string;
+      type: "free";
+      label: string;
+      provider: ProviderSettingsFormProvider;
+      statusActive: boolean;
+    }
+  | {
+      // 其他登录型供应商（CodeBuddy 等，OAuth/API Key 双模式）。
+      key: string;
+      type: "other";
+      label: string;
+      provider: ProviderSettingsFormProvider;
+      statusActive: boolean;
     };
 
-export type ModelProviderNavGroupId = "preset" | "custom";
+export type ModelProviderNavGroupId = "preset" | "free" | "other" | "custom";
 
 export interface ModelProviderNavGroup {
   id: ModelProviderNavGroupId;

@@ -1,20 +1,7 @@
 import { findCustomCommandHelpEntry, formatAvailableCommandNames, formatCustomCommandHelpEntry, listCustomCommandSuggestions, } from "../command-center-custom.js";
 import { SLASH_COMMAND_HELP_ENTRIES } from "./slash-command-help.js";
 import { splitArgs } from "./utils.js";
-import { isWorkflowModeEnabled } from "../workflow-mode.js";
-const WORKFLOW_COMMAND_NAME = "workflow";
-/**
- * 命令面（建议、`/help`、未知命令提示）共用的可见集合：`disabled` 下去掉 `/workflow`，
- * 与 builtin resolver 不展开它是同一个结论（launch.md「The standalone CLI: `--workflow-mode`」）。
- */
-function visibleHelpEntries(options) {
-    return isWorkflowModeEnabled(options?.workflowMode)
-        ? SLASH_COMMAND_HELP_ENTRIES
-        : SLASH_COMMAND_HELP_ENTRIES.filter((entry) => entry.name !== WORKFLOW_COMMAND_NAME);
-}
-export function listAvailableCommandNames(options) {
-    return visibleHelpEntries(options).map((entry) => `/${entry.name}`);
-}
+export const AVAILABLE_COMMANDS = SLASH_COMMAND_HELP_ENTRIES.map((entry) => `/${entry.name}`);
 const SKILL_COMMAND_USAGE = "Usage: /skill [<skill-name> [task]]";
 export function parseSlashCommand(input) {
     if (!input.startsWith("/"))
@@ -220,9 +207,9 @@ export function buildManualSkillPrompt(skillName, task) {
 export function manualSkillCommandUsage() {
     return SKILL_COMMAND_USAGE;
 }
-export function listSlashCommandSuggestions(customCommands, options) {
+export function listSlashCommandSuggestions(customCommands) {
     return [
-        ...visibleHelpEntries(options).map((entry) => ({
+        ...SLASH_COMMAND_HELP_ENTRIES.map((entry) => ({
             ...(entry.aliases ? { aliases: entry.aliases } : {}),
             name: entry.name,
             summary: entry.summary,
@@ -231,21 +218,20 @@ export function listSlashCommandSuggestions(customCommands, options) {
         ...listCustomCommandSuggestions(customCommands),
     ];
 }
-export function formatSlashCommandHelp(args = "", customCommands, options) {
-    const entries = visibleHelpEntries(options);
+export function formatSlashCommandHelp(args = "", customCommands) {
     const target = normalizeHelpTarget(args);
     if (target) {
-        const entry = findSlashCommandHelpEntry(entries, target);
+        const entry = findSlashCommandHelpEntry(target);
         if (entry)
             return formatSlashCommandHelpEntry(entry);
         const custom = findCustomCommandHelpEntry(target, customCommands);
         if (custom)
             return formatCustomCommandHelpEntry(custom);
-        return `Unknown slash command: /${target}. Available commands: ${formatAvailableCommandNames(listAvailableCommandNames(options), customCommands)}.`;
+        return `Unknown slash command: /${target}. Available commands: ${formatAvailableCommandNames(AVAILABLE_COMMANDS, customCommands)}.`;
     }
     const lines = [
         "Slash commands:",
-        ...entries.map((entry) => `- ${entry.usage}: ${entry.summary}`),
+        ...SLASH_COMMAND_HELP_ENTRIES.map((entry) => `- ${entry.usage}: ${entry.summary}`),
     ];
     if (customCommands && customCommands.commands.length > 0) {
         lines.push("", "Custom commands:", ...customCommands.commands.map((command) => `- /${command.name}${command.argumentHint ? ` ${command.argumentHint}` : ""}: ${command.description}`));
@@ -258,8 +244,8 @@ function normalizeHelpTarget(args) {
     const normalized = target?.replace(/^\/+/, "").toLowerCase();
     return normalized && normalized.length > 0 ? normalized : undefined;
 }
-function findSlashCommandHelpEntry(entries, name) {
-    return entries.find((entry) => entry.name === name || entry.aliases?.includes(name));
+function findSlashCommandHelpEntry(name) {
+    return SLASH_COMMAND_HELP_ENTRIES.find((entry) => entry.name === name || entry.aliases?.includes(name));
 }
 function formatSlashCommandHelpEntry(entry) {
     const aliasLine = entry.aliases && entry.aliases.length > 0

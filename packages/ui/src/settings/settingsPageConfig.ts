@@ -13,11 +13,14 @@ import {
   Anchor,
   Brain,
   Blocks,
+  DatabaseBackup,
   Globe2,
   Cable,
   WandSparkles,
   Keyboard,
   FileSearch,
+  UserRound,
+  ShieldOff,
 } from "lucide-react";
 import { isSettingsSectionEnabled, type SettingsSectionId } from "@/lib/settingsNavigation.js";
 import type { Theme } from "@/useTheme.js";
@@ -31,7 +34,7 @@ export const THEME_MODES: Array<{
   { mode: "zai-light", icon: Sun },
 ];
 
-export type SettingsSectionGroupId = "basics" | "agentCapabilities" | "dataAndStats";
+type SettingsSectionGroupId = "basics" | "agentCapabilities" | "dataAndStats";
 
 interface SettingsSectionDefinition {
   id: SettingsSectionId;
@@ -74,6 +77,12 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     groupId: "basics",
   },
   {
+    id: "accounts",
+    icon: UserRound,
+    titleId: "settings.accounts.title",
+    groupId: "basics",
+  },
+  {
     id: "memory",
     icon: Brain,
     titleId: "settings.memory",
@@ -83,6 +92,12 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     id: "subagents",
     icon: Bot,
     titleId: "settings.subagents.title",
+    groupId: "agentCapabilities",
+  },
+  {
+    id: "modelJailbreak",
+    icon: ShieldOff,
+    titleId: "settings.modelJailbreak.title",
     groupId: "agentCapabilities",
   },
   {
@@ -151,6 +166,12 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     groupId: "basics",
   },
   {
+    id: "migration",
+    icon: DatabaseBackup,
+    titleId: "settings.migration.title",
+    groupId: "dataAndStats",
+  },
+  {
     id: "usage",
     icon: BarChart3,
     titleId: "settings.usageTitle",
@@ -164,7 +185,7 @@ export const SETTINGS_SECTIONS = BASE_SETTINGS_SECTIONS.filter(
   (section) => section.id !== "computerUse" && isSettingsSectionEnabled(section.id),
 );
 
-export interface SettingsPageConfigOptions {
+interface SettingsPageConfigOptions {
   isDesktop?: boolean;
   isMacDesktop?: boolean;
   isWindowsDesktop?: boolean;

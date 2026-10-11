@@ -4,7 +4,7 @@ import type { Hook, PluginHookDetail, PluginScope } from "@zcode/shared";
 import { Badge } from "@/components/ui/badge.js";
 import { Button } from "@/components/ui/button.js";
 import { Switch } from "@/components/ui/switch.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { PluginInstallEmptyState } from "@/settings/PluginInstallEmptyState.js";
 import { PluginStoreAvatar } from "@/settings/PluginStoreAvatar.js";
 import type { StorePluginItem } from "@/settings/pluginStoreListing.js";
@@ -27,7 +27,7 @@ type HookSection =
   | { kind: "legacy"; title: "Legacy"; count: number; hooks: Hook[] }
   | { kind: "plugin"; title: string; pluginId: string; count: number; hooks: PluginHookRow[] };
 
-export function groupHookSections(
+function groupHookSections(
   editableHooks: Hook[],
   compatibilityHooks: Hook[],
   pluginHooks: PluginHookRow[],
@@ -46,7 +46,9 @@ export function groupHookSections(
     const key = hook.pluginId || hook.pluginName.trim().toLocaleLowerCase();
     pluginGroups.set(key, [...(pluginGroups.get(key) ?? []), hook]);
   }
-  for (const [, hooks] of [...pluginGroups.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+  for (const [, hooks] of [...pluginGroups.entries()].sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
     sections.push({
       kind: "plugin",
       pluginId: hooks[0]?.pluginId ?? "",
@@ -101,7 +103,7 @@ export function HooksList({
   installedEmptyTitle?: string;
   showInstalledSection?: boolean;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const groupedSections = groupHookSections(editableHooks, compatibilityHooks, pluginHooks);
   const sections: HookSection[] =
     showInstalledSection && editableHooks.length === 0
@@ -160,7 +162,11 @@ export function HooksList({
                           onTrust={onTrust}
                         />
                       ) : (
-                        <CompatibilityHookRow hook={hook} busy={operatingHookId === hook.id} onImport={onImport} />
+                        <CompatibilityHookRow
+                          hook={hook}
+                          busy={operatingHookId === hook.id}
+                          onImport={onImport}
+                        />
                       )}
                     </div>
                   ))}
@@ -208,7 +214,9 @@ function HookItemFrame({
       )}
       <div className="min-w-0">{children}</div>
       {actions ? (
-        <div className="col-start-2 flex shrink-0 items-center justify-end gap-2 sm:col-start-auto">{actions}</div>
+        <div className="col-start-2 flex shrink-0 items-center justify-end gap-2 sm:col-start-auto">
+          {actions}
+        </div>
       ) : null}
     </div>
   );
@@ -256,7 +264,7 @@ function ConfiguredHookRow({
   trustActionAvailable: boolean;
   trusting: boolean;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   return (
     <HookItemFrame
       testId="configured-hook-row"
@@ -269,7 +277,11 @@ function ConfiguredHookRow({
               variant="outline"
               size="sm"
               disabled={busy || trusting || !trustActionAvailable}
-              title={trustActionAvailable ? undefined : intl.formatMessage({ id: "settings.hooks.review.unavailable" })}
+              title={
+                trustActionAvailable
+                  ? undefined
+                  : intl.formatMessage({ id: "settings.hooks.review.unavailable" })
+              }
               onClick={(event) => {
                 event.stopPropagation();
                 void onTrust(hook);
@@ -306,7 +318,7 @@ function CompatibilityHookRow({
   hook: Hook;
   onImport: (hook: Hook) => Promise<void>;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   return (
     <HookItemFrame
       actions={
@@ -322,7 +334,7 @@ function CompatibilityHookRow({
 }
 
 function PluginHookItem({ hook }: { hook: PluginHookRow }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   return (
     <HookItemFrame testId="plugin-hook-row" pluginIconItem={hook.pluginIconItem}>
       <HookContent

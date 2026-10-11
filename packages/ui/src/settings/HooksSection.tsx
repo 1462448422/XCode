@@ -1,13 +1,13 @@
 /* eslint-disable max-lines -- Hooks 页面聚合 Scope、插件投影、搜索与配置写入流程。 */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
-import type { Hook, HookConfig, ZCodeInstalledPluginSummary, ZCodePluginInfo } from "@zcode/shared";
+import type { Hook, HookConfig, XCodeInstalledPluginSummary, XCodePluginInfo } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
 import { toast } from "@/components/ui/toast.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js";
-import { useZCodeSessionService } from "@/hooks/useZCodeSessionService.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeSessionService } from "@/hooks/useXCodeSessionService.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { invalidateDeferredDraftSessionForRuntimeChange } from "@/lib/zcodeDraftSkillInvalidation.js";
 import { useHooksStore } from "@/store/hooksStore.js";
 import { usePluginManagementStore } from "@/store/pluginManagementStore.js";
@@ -51,12 +51,12 @@ function isEditableHook(hook: Hook): boolean {
 // 里的只读工作区 Hook」。它们不是外部格式兼容导入源，塞进 Legacy 会让 Import 按钮
 // 必然失败（importHook 拒绝 source=zcode），也违反「只读但可逐条 Trust」的约定。
 // 这类行应留在 Installed 分组，由信任状态门控 Switch，走行内 Trust 流程。
-export function isReadOnlyZCodeHook(hook: Hook): boolean {
+function isReadOnlyXCodeHook(hook: Hook): boolean {
   return hook.editable === false && (hook.location?.source ?? "zcode") === "zcode";
 }
 
 function isInCompatibilitySection(hook: Hook): boolean {
-  return !isEditableHook(hook) && !isReadOnlyZCodeHook(hook);
+  return !isEditableHook(hook) && !isReadOnlyXCodeHook(hook);
 }
 
 /**
@@ -68,8 +68,14 @@ function isInCompatibilitySection(hook: Hook): boolean {
  *   workspacePath 回退（与 matchesWorkspaceBinding 的降级规则一致）；
  * - 找不到对应 tab（workspace 已关闭/未知）返回 null——调用方不得切过去。
  */
-export function resolveLatestReviewScopeTarget(
-  bindings: Record<string, { request: { interactionId: string; createdAt: number; workspaceIdentity?: string }; workspacePath: string }>,
+function resolveLatestReviewScopeTarget(
+  bindings: Record<
+    string,
+    {
+      request: { interactionId: string; createdAt: number; workspaceIdentity?: string };
+      workspacePath: string;
+    }
+  >,
   workspaceTabs: readonly { workspacePath: string; workspaceIdentity?: string }[],
 ): { interactionId: string; scopeKey: string } | null {
   let latest: {
@@ -100,12 +106,14 @@ export function resolveLatestReviewScopeTarget(
   return tab ? { interactionId: latest.interactionId, scopeKey: scopeKeyOf(tab) } : null;
 }
 
-export function buildPluginHookRows(
-  plugins: readonly Pick<ZCodePluginInfo, "enabled" | "hookDetails" | "id" | "name">[],
-  installedPlugins: readonly Pick<ZCodeInstalledPluginSummary, "id" | "scope">[],
+function buildPluginHookRows(
+  plugins: readonly Pick<XCodePluginInfo, "enabled" | "hookDetails" | "id" | "name">[],
+  installedPlugins: readonly Pick<XCodeInstalledPluginSummary, "id" | "scope">[],
   scopeMetadataKnown: boolean,
 ): PluginHookRow[] {
-  const scopeByPluginId = new Map(installedPlugins.map((plugin) => [plugin.id, plugin.scope] as const));
+  const scopeByPluginId = new Map(
+    installedPlugins.map((plugin) => [plugin.id, plugin.scope] as const),
+  );
   return plugins.flatMap((plugin) =>
     (plugin.hookDetails ?? []).map((detail) => ({
       detail,
@@ -118,20 +126,27 @@ export function buildPluginHookRows(
   );
 }
 
-export function filterPluginHooksByScope(pluginHooks: readonly PluginHookRow[], scope: HookScope): PluginHookRow[] {
+function filterPluginHooksByScope(
+  pluginHooks: readonly PluginHookRow[],
+  scope: HookScope,
+): PluginHookRow[] {
   const expectedScope = scope === "project" ? "workspace" : "user";
   // 未知 scope 在两个 Tab 都保留并由列表标记，避免降级时隐藏真实存在的插件 Hook。
-  return pluginHooks.filter((hook) => hook.pluginScope === undefined || hook.pluginScope === expectedScope);
+  return pluginHooks.filter(
+    (hook) => hook.pluginScope === undefined || hook.pluginScope === expectedScope,
+  );
 }
 
 export function HooksSection({ workspacePath, workspaceIdentity }: HooksSectionProps) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const confirmDialog = useConfirmDialog();
   const hooksState = useHooksStore();
   const plugins = usePluginManagementStore((state) => state.plugins);
   const availablePlugins = usePluginManagementStore((state) => state.availablePlugins);
   const installedPlugins = usePluginManagementStore((state) => state.installedPlugins);
-  const marketplaceAvailabilityKnown = usePluginManagementStore((state) => state.marketplaceAvailabilityKnown);
+  const marketplaceAvailabilityKnown = usePluginManagementStore(
+    (state) => state.marketplaceAvailabilityKnown,
+  );
   const pluginsLoading = usePluginManagementStore((state) => state.loading);
   const pluginsError = usePluginManagementStore((state) => state.error);
   const initializePlugins = usePluginManagementStore((state) => state.initialize);
@@ -153,7 +168,9 @@ export function HooksSection({ workspacePath, workspaceIdentity }: HooksSectionP
   }, [tabs]);
   const [selectedScopeKey, setSelectedScopeKey] = useState("user");
   const deferredQuery = useDeferredValue(query);
-  const selectedWorkspace = workspaceTabs.find((tab) => getPluginWorkspaceKey(tab) === selectedScopeKey);
+  const selectedWorkspace = workspaceTabs.find(
+    (tab) => getPluginWorkspaceKey(tab) === selectedScopeKey,
+  );
   const activeScope: HookScope = selectedWorkspace ? "project" : "user";
   const targetWorkspacePath = selectedWorkspace?.workspacePath ?? workspacePath;
   const targetWorkspaceIdentity = selectedWorkspace?.workspaceIdentity ?? workspaceIdentity;
@@ -169,7 +186,7 @@ export function HooksSection({ workspacePath, workspaceIdentity }: HooksSectionP
   // Scope 切到另一个远程 workspace 后，路径已切换但 hooks/plugin 服务仍来自
   // 当前激活 workspace。这里让服务 host 与 target 身份同源，等待连接时不发送越界 RPC。
   const { hooksService, pluginManagementService } = targetServiceResolution.services;
-  const zcodeSessionService = useZCodeSessionService(
+  const zcodeSessionService = useXCodeSessionService(
     targetWorkspacePath ?? undefined,
     undefined,
     targetWorkspaceIdentity,
@@ -189,12 +206,18 @@ export function HooksSection({ workspacePath, workspaceIdentity }: HooksSectionP
   const editableHooks = useMemo(
     () =>
       hooksState.hooks.filter(
-        (hook) => (isEditableHook(hook) || isReadOnlyZCodeHook(hook)) && (hook.location?.scope ?? "user") === activeScope,
+        (hook) =>
+          (isEditableHook(hook) || isReadOnlyXCodeHook(hook)) &&
+          (hook.location?.scope ?? "user") === activeScope,
       ),
     [activeScope, hooksState.hooks],
   );
   const compatibilityHooks = useMemo(
-    () => hooksState.hooks.filter((hook) => isInCompatibilitySection(hook) && (hook.location?.scope ?? "user") === activeScope),
+    () =>
+      hooksState.hooks.filter(
+        (hook) =>
+          isInCompatibilitySection(hook) && (hook.location?.scope ?? "user") === activeScope,
+      ),
     [activeScope, hooksState.hooks],
   );
   const pluginHooks = useMemo(
@@ -242,7 +265,11 @@ export function HooksSection({ workspacePath, workspaceIdentity }: HooksSectionP
 
   useEffect(() => {
     if (!targetServiceResolution.rpcReady) return;
-    void hooksState.initialize(targetWorkspacePath ?? undefined, targetWorkspaceIdentity, hooksService);
+    void hooksState.initialize(
+      targetWorkspacePath ?? undefined,
+      targetWorkspaceIdentity,
+      hooksService,
+    );
   }, [
     hooksService,
     hooksState.initialize,
@@ -362,7 +389,10 @@ export function HooksSection({ workspacePath, workspaceIdentity }: HooksSectionP
     async (hook: Hook) => {
       const confirmed = await confirmDialog({
         title: intl.formatMessage({ id: "settings.hooks.delete" }),
-        description: intl.formatMessage({ id: "settings.hooks.deleteDescription" }, { event: hook.event }),
+        description: intl.formatMessage(
+          { id: "settings.hooks.deleteDescription" },
+          { event: hook.event },
+        ),
         confirmLabel: intl.formatMessage({ id: "common.delete" }),
       });
       if (!confirmed) return;
@@ -438,7 +468,8 @@ export function HooksSection({ workspacePath, workspaceIdentity }: HooksSectionP
 
   const loading = hooksState.loading || pluginsLoading;
   const error = hooksState.error || pluginsError;
-  const visibleCount = filteredEditableHooks.length + filteredCompatibilityHooks.length + filteredPluginHooks.length;
+  const visibleCount =
+    filteredEditableHooks.length + filteredCompatibilityHooks.length + filteredPluginHooks.length;
   const totalCount = editableHooks.length + compatibilityHooks.length + scopedPluginHooks.length;
   const hasSearchResultEmpty = Boolean(normalizedQuery) && visibleCount === 0;
   const showWorkspaceHookTrustNotice = shouldShowWorkspaceHookTrustNotice({
@@ -548,7 +579,12 @@ function hookMatchesQuery(hook: Hook, normalizedQuery: string): boolean {
   if (!normalizedQuery) {
     return true;
   }
-  return [hook.event, hook.type, hook.matcher, hook.command, ...(hook.args ?? []), hook.location?.directoryPath].some(
-    (value) => value?.toLowerCase().includes(normalizedQuery),
-  );
+  return [
+    hook.event,
+    hook.type,
+    hook.matcher,
+    hook.command,
+    ...(hook.args ?? []),
+    hook.location?.directoryPath,
+  ].some((value) => value?.toLowerCase().includes(normalizedQuery));
 }

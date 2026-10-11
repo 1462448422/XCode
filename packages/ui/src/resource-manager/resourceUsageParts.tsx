@@ -9,7 +9,7 @@ import { formatBytes, formatPercent, type ResourceUsageGroupView } from "./resou
 
 export const UNSAMPLED_PLACEHOLDER = "—";
 
-export type UsageMetric = "cpu" | "memory";
+type UsageMetric = "cpu" | "memory";
 
 interface UsageMeterProps {
   testId: string;
@@ -22,7 +22,7 @@ interface UsageMeterProps {
   systemLabel: string;
 }
 
-/** 双层进度条：灰色 = 整机总占用，brand = ZCode 自身占用；图例文字做颜色之外的第二编码 */
+/** 双层进度条：灰色 = 整机总占用，brand = XCode 自身占用；图例文字做颜色之外的第二编码 */
 export function UsageMeter({
   testId,
   label,

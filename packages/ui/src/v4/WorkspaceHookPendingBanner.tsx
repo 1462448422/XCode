@@ -4,7 +4,7 @@ import {
   TID_V4_WORKSPACE_HOOK_PENDING_DISMISS,
   TID_V4_WORKSPACE_HOOK_PENDING_REVIEW,
 } from "@zcode/shared";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { setPendingSettingsSectionIntent } from "@/lib/settingsNavigation.js";
 import { logger } from "@/logger.js";
 import { runUserAction } from "@/lib/userActionTelemetry.js";
@@ -44,15 +44,15 @@ class WorkspaceHookPendingDismissStore {
   }
 }
 
-export const workspaceHookPendingDismissStore = new WorkspaceHookPendingDismissStore();
+const workspaceHookPendingDismissStore = new WorkspaceHookPendingDismissStore();
 
-export interface WorkspaceHookAdmissionInfo {
+interface WorkspaceHookAdmissionInfo {
   pendingCount: number;
   bundleDigest: string;
   workspaceIdentity?: string;
 }
 
-export interface WorkspaceHookPendingBannerProps {
+interface WorkspaceHookPendingBannerProps {
   sessionId: string;
   workspacePath: string;
   workspaceIdentity?: string;
@@ -73,7 +73,7 @@ export const WorkspaceHookPendingBanner = memo(function WorkspaceHookPendingBann
   workspaceIdentity,
   admission,
 }: WorkspaceHookPendingBannerProps) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const openSettingsTab = useOptionalTabStore((state) => state.openSettingsTab);
   const commandBindings = useWorkspaceHookReviewStore((state) => state.commandBindings);
   const [, setDismissRevision] = useState(0);
@@ -110,14 +110,7 @@ export const WorkspaceHookPendingBanner = memo(function WorkspaceHookPendingBann
         });
       });
     }
-  }, [
-    admission,
-    commandBindings,
-    openSettingsTab,
-    sessionId,
-    workspaceIdentity,
-    workspacePath,
-  ]);
+  }, [admission, commandBindings, openSettingsTab, sessionId, workspaceIdentity, workspacePath]);
 
   const handleDismiss = useCallback(() => {
     if (admission) {

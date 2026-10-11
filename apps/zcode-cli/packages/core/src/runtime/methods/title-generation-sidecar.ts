@@ -130,6 +130,7 @@ async function generateTitleCandidateImpl(
   const modelStartedAt = Date.now();
   const invocationContext = {
     metadata: traceContextToLogContext(modelTraceContext),
+    modelRequestSessionType: "other" as const,
     modelCall: {
       operation:
         options.querySource === GOAL_SUMMARY_TITLE_QUERY_SOURCE

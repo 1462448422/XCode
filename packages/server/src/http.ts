@@ -12,16 +12,13 @@ import {
   VSBuffer,
   SocketProtocol,
   ChannelServer,
-  ChannelClient,
   LoggingChannelServer,
   type ISocket,
 } from "@zcode/rpc";
-import type { TopicResourcePeers } from "@zcode/services/node";
-import { TOPIC_RESOURCE_RELAY_CHANNEL } from "@zcode/shared";
 import {
   ServiceCollection,
-  IZCodeAgentService,
-  createZCodeAgentConnectionScope,
+  IXCodeAgentService,
+  createXCodeAgentConnectionScope,
   IFileService,
   IGitService,
   ISystemService,
@@ -35,8 +32,8 @@ import {
   formatZodError,
   remoteTargetSchema,
   SERVER_REMOTE_PROTOCOL_VERSION,
-  ZCODE_RPC_HOST_CAPABILITY_HEADER,
-  ZCODE_VERSION,
+  XCODE_RPC_HOST_CAPABILITY_HEADER,
+  XCODE_VERSION,
   type BotProvider,
   type ServerRemoteInfo,
   type ServerRemoteWorkspaceInfo,
@@ -90,21 +87,15 @@ function setupChannelServer(
   ws: WebSocket,
   services: ServiceCollection,
   clientMode: "desktop-continuous" | "web-remote-replayable",
-  resourcePeers?: TopicResourcePeers,
 ) {
   const socket = wrapWebSocket(ws);
   const protocol = new SocketProtocol(socket);
   const rawServer = new ChannelServer(protocol, "server");
   // 用日志中间件包装，统一记录所有 RPC 调用
   const server = new LoggingChannelServer(rawServer, log);
-  const agentService = services.getOptional(IZCodeAgentService);
-  const reverseClient =
-    clientMode === "desktop-continuous" && resourcePeers ? new ChannelClient(protocol) : undefined;
-  const peer = reverseClient
-    ? resourcePeers?.attach(reverseClient.getChannel(TOPIC_RESOURCE_RELAY_CHANNEL))
-    : undefined;
+  const agentService = services.getOptional(IXCodeAgentService);
   const connectionScope = agentService
-    ? createZCodeAgentConnectionScope(peer ? peer.wrapAgent(agentService) : agentService, {
+    ? createXCodeAgentConnectionScope(agentService, {
         connectionId: `server-ws-${randomUUID()}`,
         clientMode,
         role: clientMode === "desktop-continuous" ? "trusted-host-relay" : "terminal-client",
@@ -112,7 +103,7 @@ function setupChannelServer(
     : undefined;
   const overrides = new Map<string, unknown>();
   if (connectionScope) {
-    overrides.set(IZCodeAgentService.channelName, connectionScope.service);
+    overrides.set(IXCodeAgentService.channelName, connectionScope.service);
   }
   // Provisioning 携带跨 Environment 凭据，只允许 Desktop trusted host 使用；普通 Web
   // remote/replayable 客户端即使知道频道名，也不能获得 target 写入接口。
@@ -128,8 +119,6 @@ function setupChannelServer(
   }
   services.exposeOnChannelServer(server, overrides);
   socket.onClose(() => {
-    peer?.dispose();
-    reverseClient?.dispose();
     void connectionScope?.dispose();
     rawServer.dispose();
   });
@@ -142,8 +131,7 @@ function generateId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export interface HttpServerOptions {
-  topicResourcePeers?: TopicResourcePeers;
+interface HttpServerOptions {
   serverId?: string;
   name?: string;
   host?: string;
@@ -161,7 +149,7 @@ function readTrimmedEnv(name: string): string | undefined {
 
 function resolveServerId(options: HttpServerOptions): string {
   return (
-    options.serverId?.trim() || readTrimmedEnv("ZCODE_SERVER_ID") || hostname() || "zcode-server"
+    options.serverId?.trim() || readTrimmedEnv("XCODE_SERVER_ID") || hostname() || "zcode-server"
   );
 }
 
@@ -169,7 +157,7 @@ function resolveServerWorkspaces(options: HttpServerOptions): ServerRemoteWorksp
   if (options.workspaces) {
     return options.workspaces;
   }
-  const workspacePath = readTrimmedEnv("ZCODE_SERVER_WORKSPACE") || process.cwd();
+  const workspacePath = readTrimmedEnv("XCODE_SERVER_WORKSPACE") || process.cwd();
   return [
     {
       path: workspacePath,
@@ -181,12 +169,12 @@ function resolveServerWorkspaces(options: HttpServerOptions): ServerRemoteWorksp
 function createServerInfo(options: HttpServerOptions): ServerRemoteInfo {
   return {
     serverId: resolveServerId(options),
-    ...(options.name?.trim() || readTrimmedEnv("ZCODE_SERVER_NAME")
-      ? { name: options.name?.trim() || readTrimmedEnv("ZCODE_SERVER_NAME") }
+    ...(options.name?.trim() || readTrimmedEnv("XCODE_SERVER_NAME")
+      ? { name: options.name?.trim() || readTrimmedEnv("XCODE_SERVER_NAME") }
       : {}),
-    version: ZCODE_VERSION,
+    version: XCODE_VERSION,
     protocolVersion: SERVER_REMOTE_PROTOCOL_VERSION,
-    authRequired: options.authRequired ?? Boolean(readTrimmedEnv("ZCODE_SERVER_TOKEN")),
+    authRequired: options.authRequired ?? Boolean(readTrimmedEnv("XCODE_SERVER_TOKEN")),
     workspaces: resolveServerWorkspaces(options),
     capabilities: {
       desktopContinuous: true,
@@ -345,16 +333,11 @@ export function createHttpServer(
 
   const upgradeTrustedHostWebSocket = upgradeWebSocket(() => ({
     onOpen(_event, ws) {
-      setupChannelServer(
-        ws.raw as WebSocket,
-        services,
-        "desktop-continuous",
-        options.topicResourcePeers,
-      );
+      setupChannelServer(ws.raw as WebSocket, services, "desktop-continuous");
     },
   }));
   app.use("/ws/host", async (c, next) => {
-    const capability = c.req.header(ZCODE_RPC_HOST_CAPABILITY_HEADER);
+    const capability = c.req.header(XCODE_RPC_HOST_CAPABILITY_HEADER);
     if (!hostCapabilities.consume(capability)) {
       return c.json({ error: "Invalid or expired host capability" }, 401);
     }

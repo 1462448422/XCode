@@ -1,13 +1,13 @@
 import {
-  ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
-  type ZCodePluginsResolveSuggestedReferenceResult,
+  XCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
+  type XCodePluginsResolveSuggestedReferenceResult,
 } from "@zcode/shared";
 
 export interface DraftSuggestedPluginFlow {
   anchorItemId: string;
   operationId: string;
   plugin: { stableId: string; label: string };
-  result?: ZCodePluginsResolveSuggestedReferenceResult;
+  result?: XCodePluginsResolveSuggestedReferenceResult;
   stage: "checking" | "missing" | "disabled" | "unavailable";
 }
 
@@ -24,7 +24,6 @@ export interface ConversationDraftSuggestedPromptsContainerProps {
   workspaceIdentity?: string;
   remoteSessionId?: string;
   isDesktop?: boolean;
-  isWebRemoteControl?: boolean;
 }
 
 export async function trackDraftSuggestedPluginOperation<T>(
@@ -40,12 +39,12 @@ export async function trackDraftSuggestedPluginOperation<T>(
 }
 
 export function resolveDraftSuggestedPluginFlowStage(
-  result: ZCodePluginsResolveSuggestedReferenceResult,
+  result: XCodePluginsResolveSuggestedReferenceResult,
 ): DraftSuggestedPluginFlow["stage"] {
   const { status } = result;
   if (
     (status === "ready" || status === "disabled" || status === "missing") &&
-    (result.marketplace !== ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID ||
+    (result.marketplace !== XCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID ||
       result.sourceTrust !== "official" ||
       !result.pluginName)
   ) {
@@ -53,11 +52,4 @@ export function resolveDraftSuggestedPluginFlowStage(
   }
   if (status === "missing" || status === "disabled") return status;
   return status === "ready" ? "checking" : "unavailable";
-}
-
-export function resolveSuggestedPluginClientBoundary(isWebRemoteControl: boolean) {
-  const profile = isWebRemoteControl
-    ? ("web-remote-replayable" as const)
-    : ("desktop-continuous" as const);
-  return { clientMode: profile, deliveryKind: profile };
 }

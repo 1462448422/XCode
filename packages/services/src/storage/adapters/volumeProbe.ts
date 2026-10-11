@@ -7,7 +7,7 @@ import { dirname } from "node:path";
 import type { StorageVolume } from "@zcode/shared";
 import type { VolumeProbePort } from "../app/ports.js";
 
-export async function probeStorageVolume(path: string): Promise<StorageVolume | null> {
+async function probeStorageVolume(path: string): Promise<StorageVolume | null> {
   try {
     const deviceId = (await stat(path)).dev;
     let mountPoint = path;

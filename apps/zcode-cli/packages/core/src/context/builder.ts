@@ -12,16 +12,15 @@ import type {
 } from "./types.js";
 import type { ToolRegistry } from "../tool/registry.js";
 import { estimateTokens } from "./utils.js";
-import { buildCliPrefixSection } from "./sections/cli-prefix.js";
-import { buildIdentitySection } from "./sections/identity.js";
+import { buildCliPrefixSection, buildOfficialCliPrefixSection } from "./sections/cli-prefix.js";
+import { buildIdentitySection, buildOfficialIdentitySection } from "./sections/identity.js";
 import { buildWorkflowActorIdentitySection } from "./sections/workflow-actor.js";
 import { buildEnvInfoSection, buildGitSystemContextSection } from "./sections/env-info.js";
 import { buildSkillsSection } from "./sections/skills.js";
 import { buildRequestUserContextSection } from "./sections/request-user-context.js";
 import { buildCurrentDateSection } from "./sections/current-date.js";
 import { buildMemorySection } from "./sections/memory.js";
-import { ACTIVE_PROJECT_MEMORY_RETRIEVAL_BRANCH } from "../memory/project-memory-retrieval-branch.js";
-import { buildDesktopContextSection } from "./sections/desktop.js";
+import { buildDesktopContextSection, buildOfficialDesktopContextSection } from "./sections/desktop.js";
 import {
   buildContextManagementSection,
   buildDynamicBehaviorSection,
@@ -97,12 +96,37 @@ export class ContextBuilder {
       );
     }
     const isWorkflowActor = workflowActor !== undefined;
+    // XCode fork：设置页自定义 system 消息（仅第 1 条产品身份消息的追加段）。
+    // 子代理（workflowActor）与 customSystemPrompt 场景不消费——自定义文本是
+    // 用户对主会话的全局指令。
+    const systemPromptOverrides =
+      isWorkflowActor || hasCustomSystemPrompt ? undefined : this.config.systemPromptOverrides;
 
     // 1. CLI / product prefix. Keep this as the short leading identity block.
-    // 「You are ZCode, an interactive coding agent」对一个
+    // 「You are XCode, an interactive coding agent」对一个
     // 只对脚本说话、可能连读文件工具都没有的子代理是错的身份，且走在正确身份段前面。
     if (!isWorkflowActor) {
-      sections.push(buildCliPrefixSection());
+      // start-plan 通路：zai 对 system 逐字校验，必须官方 ZCode 提示词，忽略自定义。
+      if (this.config.officialSystemPrompt) {
+        sections.push(buildOfficialCliPrefixSection());
+      } else {
+        // XCode fork：自定义 system 消息 1——整段替换产品身份行（第 1 条 system 消息）；
+        // 缺席时回落到内置身份行。设置页"恢复默认"即清空该配置。
+        const cliPrefixOverride = systemPromptOverrides?.cliPrefix?.trim();
+        if (cliPrefixOverride) {
+          sections.push(
+            createSection({
+              name: "Custom CLI Prefix",
+              source: "cli_prefix",
+              injectionTarget: "system",
+              cacheHint: "stable",
+              content: cliPrefixOverride,
+            }),
+          );
+        } else {
+          sections.push(buildCliPrefixSection());
+        }
+      }
     }
 
     // 2. Stable agent behavior or custom prompt body
@@ -118,6 +142,8 @@ export class ContextBuilder {
       );
     } else if (workflowActor !== undefined) {
       sections.push(buildWorkflowActorIdentitySection(workflowActor));
+    } else if (this.config.officialSystemPrompt) {
+      sections.push(buildOfficialIdentitySection());
     } else {
       sections.push(buildIdentitySection(activeOutputStyle));
     }
@@ -130,7 +156,11 @@ export class ContextBuilder {
     // guidance——契约里已把 Report outcomes faithfully 搬过去），保留 memory 与其后各段。
     if (!hasCustomSystemPrompt) {
       if (!isWorkflowActor && this.config.presentationSurface === "zcode_desktop") {
-        sections.push(buildDesktopContextSection(this.config.genUiOutputDirectory));
+        sections.push(
+          this.config.officialSystemPrompt
+            ? buildOfficialDesktopContextSection()
+            : buildDesktopContextSection(),
+        );
       }
 
       // behaviour part right after stable sp...
@@ -151,10 +181,7 @@ export class ContextBuilder {
 
       // Memory
       if (this.config.memoryRoot) {
-        const memorySection = buildMemorySection(
-          this.config.memoryRoot,
-          ACTIVE_PROJECT_MEMORY_RETRIEVAL_BRANCH,
-        );
+        const memorySection = buildMemorySection(this.config.memoryRoot);
         if (memorySection) {
           sections.push(memorySection);
         }
@@ -243,6 +270,7 @@ export class ContextBuilder {
       messages.push({
         role: "system",
         content: cliPrefixContent,
+        cacheControl: EPHEMERAL_CACHE_CONTROL,
       });
     }
 
@@ -270,7 +298,7 @@ export class ContextBuilder {
     if (dynamicSystemContent) {
       messages.push({
         role: "system",
-        // ZCode by design：Main Agent 的 dynamic system block 自带左边界，所有 provider 保持一致。
+        // XCode by design：Main Agent 的 dynamic system block 自带左边界，所有 provider 保持一致。
         content: `\n\n${dynamicSystemContent}`,
         cacheControl: EPHEMERAL_CACHE_CONTROL,
       });

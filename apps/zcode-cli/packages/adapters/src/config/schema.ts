@@ -11,7 +11,7 @@ const modelStreamSchema = z.object({
 });
 
 const permissionSchema = z.object({
-  mode: z.enum(["plan", "build", "edit", "yolo", "guarded", "auto"]).optional(),
+  mode: z.enum(["plan", "build", "edit", "yolo", "auto"]).optional(),
   allowedTools: z.array(z.string()).optional(),
   disallowedTools: z.array(z.string()).optional(),
   autoApproveHighRisk: z.boolean().optional(),
@@ -165,10 +165,7 @@ const pluginsSchema = z.object({
   dirs: z.array(z.string().min(1)).optional(),
   enabledPlugins: z.record(z.string(), z.boolean()).optional(),
   extraKnownMarketplaces: z
-    .record(
-      z.string().min(1),
-      z.object({ source: pluginMarketplaceSourceSchema }).strict(),
-    )
+    .record(z.string().min(1), z.object({ source: pluginMarketplaceSourceSchema }).strict())
     .optional(),
   options: z.record(z.string(), z.record(z.string(), pluginOptionValueSchema)).optional(),
   suppressedBuiltins: z.array(z.string().min(1)).optional(),
@@ -234,7 +231,7 @@ const modelAnomalyGuardSchema = z.object({
 // 因此本副本按原样保留（本包 zod 构造），并保持与 shared 的校验语义等价；
 // 运行时校验语义仍以 shared 为准（discovery/trust 装配入口都走 shared schema——
 // 本 schema 只负责配置文件装载诊断）。若未来统一 zod 实例，应删除本副本改 re-export。
-export const hookProcessSchema = z
+const hookProcessSchema = z
   .object({
     type: z.literal("process"),
     command: z.string().min(1),
@@ -246,7 +243,7 @@ export const hookProcessSchema = z
 
   .passthrough();
 
-export const hookCommandSchema = z
+const hookCommandSchema = z
   .object({
     type: z.literal("command"),
     command: z.string().min(1),
@@ -259,14 +256,14 @@ export const hookCommandSchema = z
   })
   .passthrough();
 
-export const hookMatcherSchema = z
+const hookMatcherSchema = z
   .object({
     matcher: z.string().min(1).optional(),
     hooks: z.array(z.discriminatedUnion("type", [hookProcessSchema, hookCommandSchema])).min(1),
   })
   .strict();
 
-export const hooksSchema = z
+const hooksSchema = z
   .object({
     enabled: z.boolean().optional(),
     timeoutMs: positiveNumberSchema.optional(),
@@ -286,7 +283,7 @@ export const hooksSchema = z
   })
   .strict();
 
-export const ZCodeConfigFileSchema = z
+export const XCodeConfigFileSchema = z
   .object({
     $schema: z.string().optional(),
     modelStream: modelStreamSchema.optional(),
@@ -308,7 +305,7 @@ export const ZCodeConfigFileSchema = z
   })
   .passthrough();
 
-export type ZCodeConfigFile = z.infer<typeof ZCodeConfigFileSchema>;
+export type XCodeConfigFile = z.infer<typeof XCodeConfigFileSchema>;
 
 type SkillCommandOverrideMap = Record<string, { enable?: boolean }>;
 
@@ -326,7 +323,7 @@ export interface ConfigDiagnostic {
   severity: ConfigDiagnosticSeverity;
 }
 
-export interface ParseConfigFileResult {
+interface ParseConfigFileResult {
   config: RuntimeConfigPatch;
   diagnostics: ConfigDiagnostic[];
 }
@@ -355,13 +352,13 @@ function normalizeMcpServerConfigInput(value: unknown): unknown {
   }
   delete server.enable;
 
-  // External MCP configs may carry provider-specific timeout fields. ZCode does not migrate
+  // External MCP configs may carry provider-specific timeout fields. XCode does not migrate
   // those values, but the strict runtime schema should still accept old imported entries.
   delete server.timeout;
   delete server.startup_timeout_sec;
 
   if (server.type === "remote") {
-    // 外部 Agent 配置常把 HTTP MCP 标记为 remote；ZCode 运行态协议类型是 http。
+    // 外部 Agent 配置常把 HTTP MCP 标记为 remote；XCode 运行态协议类型是 http。
     server.type = "http";
   } else if (typeof server.type !== "string") {
     // app 管理层把 command 形态视为默认 stdio；CLI 也需要同样推断，
@@ -391,14 +388,14 @@ export function parseConfigFileToRuntimePatchWithDiagnostics(
 ): ParseConfigFileResult {
   const diagnostics: ConfigDiagnostic[] = [];
   const normalized = normalizeConfigFileInput(value, diagnostics);
-  const parsed = ZCodeConfigFileSchema.parse(normalized);
+  const parsed = XCodeConfigFileSchema.parse(normalized);
   return {
     config: parsedConfigFileToRuntimePatch(parsed),
     diagnostics,
   };
 }
 
-function parsedConfigFileToRuntimePatch(parsed: ZCodeConfigFile): RuntimeConfigPatch {
+function parsedConfigFileToRuntimePatch(parsed: XCodeConfigFile): RuntimeConfigPatch {
   const config: RuntimeConfigPatch = {};
   if (parsed.modelStream) config.modelStream = parsed.modelStream;
 
@@ -427,7 +424,7 @@ function parsedConfigFileToRuntimePatch(parsed: ZCodeConfigFile): RuntimeConfigP
 }
 
 function normalizePluginConfig(
-  plugins: ZCodeConfigFile["plugins"],
+  plugins: XCodeConfigFile["plugins"],
 ): NonNullable<RuntimeConfigPatch["plugins"]> {
   if (!plugins) return {};
   const enabledPlugins = plugins.enabledPlugins ? { ...plugins.enabledPlugins } : undefined;
@@ -439,12 +436,8 @@ function normalizePluginConfig(
   }
   const suppressedBuiltins = plugins.suppressedBuiltins
     ? plugins.suppressedBuiltins.reduce<string[]>((ids, id) => {
-        const canonicalId =
-          id === LEGACY_CUA_PLUGIN_ID ? CANONICAL_CUA_PLUGIN_ID : id;
-        if (
-          canonicalId === CANONICAL_CUA_PLUGIN_ID &&
-          ids.includes(CANONICAL_CUA_PLUGIN_ID)
-        ) {
+        const canonicalId = id === LEGACY_CUA_PLUGIN_ID ? CANONICAL_CUA_PLUGIN_ID : id;
+        if (canonicalId === CANONICAL_CUA_PLUGIN_ID && ids.includes(CANONICAL_CUA_PLUGIN_ID)) {
           return ids;
         }
         ids.push(canonicalId);
@@ -527,12 +520,8 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readPositiveNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
-}
-
 function parseSkillsRuntimeConfig(
-  skills: ZCodeConfigFile["skills"],
+  skills: XCodeConfigFile["skills"],
 ): RuntimeConfigPatch["skills"] | undefined {
   if (!skills) return undefined;
   const next: NonNullable<RuntimeConfigPatch["skills"]> = {};
@@ -546,7 +535,7 @@ function parseSkillsRuntimeConfig(
 }
 
 function parseSkillOverridesFromPluralSkills(
-  skills: ZCodeConfigFile["skills"],
+  skills: XCodeConfigFile["skills"],
 ): SkillCommandOverrideMap | undefined {
   if (!skills) return undefined;
   const overrides: SkillCommandOverrideMap = {};

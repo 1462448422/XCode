@@ -2,7 +2,7 @@ import type { UsageEntitlementSubscriptionDetail } from "@zcode/shared";
 import { Loader2Icon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
 export function CodingPlanStatusMeta({
   renewTime,
@@ -25,7 +25,7 @@ export function CodingPlanStatusMeta({
   onManage?: () => void;
   onUnlink?: () => void;
 }) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const subscriptionTime = resolveCodingPlanSubscriptionTime({
     renewTime,
     expireTime,
@@ -96,7 +96,7 @@ export function StartPlanStatusMeta({
   refreshing?: boolean;
   onRefresh?: () => void;
 }) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   useEffect(() => {
     setCurrentTime(Date.now());
@@ -148,7 +148,7 @@ export function StartPlanStatusMeta({
       <CodingPlanMetaSeparator visible={Boolean(pendingEffectiveTimeLabel && expireTimeLabel)} />
       {statusState === "refreshable" && onRefresh ? (
         <>
-          {/* Bug 原因：排期权益到点后服务端才创建额度桶，本地仍可能展示旧模型。
+          {/* 排期权益到点后服务端才创建额度桶，本地仍可能展示旧模型。
               就地刷新只在尚未拿到额度桶时出现；立即生效和已同步成功的套餐不显示。 */}
           <Button
             type="button"
@@ -172,7 +172,7 @@ export function StartPlanStatusMeta({
       ) : null}
       {expireTimeLabel ? (
         <>
-          {/* Bugfix: Start Plan 不展示 renew 时间，状态卡片只保留过期日期，避免把免费额度刷新时间误读成套餐续费。 */}
+          {/* Start Plan 不展示 renew 时间，状态卡片只保留过期日期，避免把免费额度刷新时间误读成套餐续费。*/}
           <span className="whitespace-nowrap">{expireTimeLabel}</span>
         </>
       ) : null}
@@ -180,7 +180,7 @@ export function StartPlanStatusMeta({
   );
 }
 
-export function resolveStartPlanStatusMetaState({
+function resolveStartPlanStatusMetaState({
   entitlements,
   hasQuota,
   now = Date.now(),
@@ -208,7 +208,7 @@ export function resolveStartPlanStatusMetaState({
   return "settled";
 }
 
-export function resolvePendingStartPlanEffectiveTime(
+function resolvePendingStartPlanEffectiveTime(
   entitlements: UsageEntitlementSubscriptionDetail["entitlements"],
   now = Date.now(),
 ): string | null {
@@ -224,11 +224,7 @@ export function resolvePendingStartPlanEffectiveTime(
   return futureTimes[0]?.effectiveTime ?? null;
 }
 
-export function formatStartPlanEffectiveDate(
-  value: string,
-  locale: string,
-  now = Date.now(),
-): string {
+function formatStartPlanEffectiveDate(value: string, locale: string, now = Date.now()): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   const currentDate = new Date(now);

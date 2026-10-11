@@ -49,7 +49,7 @@ export async function handleModelCommand(args, deps, selectedRef) {
     }
 }
 /** A deliberate new selection uses the catalog default; restored selections never pass here. */
-export function resolveTuiModelSelection(args, options, selectedRef) {
+function resolveTuiModelSelection(args, options, selectedRef) {
     // Exact catalog matching preserves literal slashes and dollar signs in model IDs.
     const requested = selectedRef ??
         options.find((option) => `${option.ref.providerId}/${option.ref.modelId}` === args)?.ref ??

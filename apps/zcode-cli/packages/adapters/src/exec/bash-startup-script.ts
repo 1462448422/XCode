@@ -7,29 +7,29 @@ import { buildEmbeddedSearchPreludeContent } from "./embedded-search-prelude.js"
 
 export type StartupShellDialect = ExecutionShellDialect | "legacy-shell";
 
-export interface BashInternalScriptMaterializeOptions {
+interface BashInternalScriptMaterializeOptions {
   rootDir: string;
   sessionId: string;
   shellDialect?: StartupShellDialect;
 }
 
-export interface BashInternalScriptContent {
+interface BashInternalScriptContent {
   id: string;
   content: string;
 }
 
-export interface MaterializedBashSourceScript {
+interface MaterializedBashSourceScript {
   path: string;
   shellPath: string;
 }
 
-export interface BashSourceScript {
+interface BashSourceScript {
   path: string;
   shellPath: string;
   optional?: boolean;
 }
 
-export interface ApplyBashSourcesOptions {
+interface ApplyBashSourcesOptions {
   leadingSources?: BashSourceScript[];
   rootDir: string;
   sessionId: string;
@@ -40,10 +40,7 @@ export function applyBashSourcesToExecutionRequest(
   request: ExecutionRequest,
   options: ApplyBashSourcesOptions,
 ): ExecutionRequest {
-  if (
-    request.command.mode !== "shell" ||
-    request.command.shellProfile !== "posix-bash"
-  ) {
+  if (request.command.mode !== "shell" || request.command.shellProfile !== "posix-bash") {
     return request;
   }
 
@@ -61,10 +58,7 @@ export function applyBashSourcesToExecutionRequest(
     sessionId: options.sessionId,
     shellDialect: options.shellDialect,
   });
-  const sources = [
-    ...(options.leadingSources ?? []),
-    ...(materialized ? [materialized] : []),
-  ];
+  const sources = [...(options.leadingSources ?? []), ...(materialized ? [materialized] : [])];
   const command = applyBashSourceScripts(request.command.command, sources);
   if (command === request.command.command) return request;
 
@@ -77,7 +71,7 @@ export function applyBashSourcesToExecutionRequest(
   };
 }
 
-export function materializeBashInternalSourceScript(
+function materializeBashInternalSourceScript(
   script: BashInternalScriptContent | undefined,
   options: BashInternalScriptMaterializeOptions,
 ): MaterializedBashSourceScript | undefined {
@@ -97,7 +91,7 @@ export function materializeBashInternalSourceScript(
     try {
       chmodSync(path, 0o600);
     } catch {
-      // Windows 可能不保留 POSIX mode bit；文件仍位于 ZCode 自有 storage 下。
+      // Windows 可能不保留 POSIX mode bit；文件仍位于 XCode 自有 storage 下。
     }
   }
 
@@ -107,14 +101,7 @@ export function materializeBashInternalSourceScript(
   };
 }
 
-export function applyBashSourceScript(
-  command: string,
-  materialized: MaterializedBashSourceScript | undefined,
-): string {
-  return applyBashSourceScripts(command, materialized ? [materialized] : []);
-}
-
-export function applyBashSourceScripts(command: string, sources: BashSourceScript[]): string {
+function applyBashSourceScripts(command: string, sources: BashSourceScript[]): string {
   const sourceLines = sources.map((source) => {
     const sourceCommand = `. ${quoteSourcePath(source)}`;
     return source.optional ? `${sourceCommand} 2>/dev/null || true` : sourceCommand;

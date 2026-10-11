@@ -1,7 +1,7 @@
 // ============================================================
 // AgentRuntime-backed WorkflowDriver（Boundary B）
 // ============================================================
-// 把 dynamic-workflow 引擎核心的向下副作用端口 WorkflowDriver 落到真实 ZCode AgentRuntime 上：
+// 把 dynamic-workflow 引擎核心的向下副作用端口 WorkflowDriver 落到真实 XCode AgentRuntime 上：
 // 每个 actor 一个**持久** child runtime（重复 executeTurn 累积 messageHistory），每次 ask 一次
 // executeTurn，typed ask 的结果经会话级 WorkflowSubmitPort 桥接回引擎裁决。
 //
@@ -98,10 +98,7 @@ import {
   schemaEpilogue,
   toWorkflowError,
 } from "./workflow-driver-helpers.js";
-import {
-  makeSessionSubmitPort,
-  type SubmitBridgeHost,
-} from "./workflow-driver-submit-bridge.js";
+import { makeSessionSubmitPort, type SubmitBridgeHost } from "./workflow-driver-submit-bridge.js";
 import {
   countSessionTranscript,
   journalAskMessageBoundary,
@@ -138,7 +135,7 @@ class AgentRuntimeWorkflowDriver implements WorkflowDriver {
   private readonly modelFailureHost: ModelFailureHost;
   /** 交给 submit 桥接（workflow-driver-submit-bridge.ts）的宿主面：同上，两样都按引用共享。 */
   private readonly submitHost: SubmitBridgeHost;
-  /** run 级 stall 时钟（决策 4）：所有 actor 的成功 / 重试节拍汇到这一只表。 */
+  /** run 级 stall 时钟：所有 actor 的成功 / 重试节拍汇到这一只表。 */
   private readonly stallClock: RunStallClock;
   /**
    * 会话静默账（workflow-driver-quiescence.ts）：dispose 那一刻每个会话还有没有在写的 turn。
@@ -251,7 +248,7 @@ class AgentRuntimeWorkflowDriver implements WorkflowDriver {
       live,
       // 座位闸门按 **actor** 键入（不是 ask 实例）：per-actor FIFO 保证一个 actor 至多一个在飞
       // ask，所以「工作中的子代理」与「在飞的 ask」是同一个计数，而准入端口本就是按 actor 会话
-      // 造的。见 docs/dynamic-workflow/concurrency.md「Park and unpark」。
+      // 造的。
       ...(this.deps.seatGate === undefined
         ? {}
         : { seat: { gate: this.deps.seatGate, key: refToString(actor) } }),
@@ -290,7 +287,12 @@ class AgentRuntimeWorkflowDriver implements WorkflowDriver {
         : { modelRequestAdmission: modelActivity.admission }),
     });
     if (seed !== undefined) {
-      await seedActorSession(this.deps, { journaledSessionId: journaled, runtime, seed, sessionId });
+      await seedActorSession(this.deps, {
+        journaledSessionId: journaled,
+        runtime,
+        seed,
+        sessionId,
+      });
     }
     state = {
       ref,

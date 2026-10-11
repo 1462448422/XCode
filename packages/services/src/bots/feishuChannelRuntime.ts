@@ -6,7 +6,10 @@ import {
   type BotsConfigFile,
 } from "@zcode/shared";
 import type { ICredentialService } from "../credential/credential.js";
-import { startFeishuBotWebSocket, type FeishuWebSocketClient } from "./providers/feishuProvider.js";
+import {
+  startFeishuBotWebSocket,
+  type FeishuWebSocketClient,
+} from "./providers/feishuProvider.js";
 import {
   acquireFeishuWebSocketLock,
   assertBotCallbackSucceeded,
@@ -21,7 +24,6 @@ import {
 
 interface FeishuChannelRuntimeDeps {
   runBackgroundTasks?: boolean;
-  onConnectionInvalidated?(botId: string): void;
   credentialService: ICredentialService;
   logger: BotRuntimeLogger;
   statusSink: BotRuntimeStatusSink;
@@ -32,8 +34,6 @@ interface FeishuChannelRuntimeDeps {
     provider: BotProvider,
     payload: unknown,
   ): Promise<BotProviderCallbackResult>;
-  acquireWebSocketLock?: typeof acquireFeishuWebSocketLock;
-  startWebSocket?: typeof startFeishuBotWebSocket;
 }
 
 export function createFeishuChannelRuntime(deps: FeishuChannelRuntimeDeps) {
@@ -63,7 +63,7 @@ export function createFeishuChannelRuntime(deps: FeishuChannelRuntimeDeps) {
     while (!signal.aborted) {
       let lock: Awaited<ReturnType<typeof acquireFeishuWebSocketLock>>;
       try {
-        lock = await (deps.acquireWebSocketLock ?? acquireFeishuWebSocketLock)(bot);
+        lock = await acquireFeishuWebSocketLock(bot);
       } catch (error) {
         if (signal.aborted) {
           return;
@@ -88,7 +88,7 @@ export function createFeishuChannelRuntime(deps: FeishuChannelRuntimeDeps) {
           botId: bot.id,
           provider: bot.provider,
           status: "idle",
-          message: "Feishu WebSocket is handled by another ZCode window.",
+          message: "Feishu WebSocket is handled by another XCode window.",
         });
         await waitFor(BOT_RUNTIME_LOCK_RETRY_MS, signal);
         continue;
@@ -102,12 +102,10 @@ export function createFeishuChannelRuntime(deps: FeishuChannelRuntimeDeps) {
           messageId: "bots.runtime.feishuWebSocketConnecting",
           message: "Feishu WebSocket is connecting.",
         });
-        deps.onConnectionInvalidated?.(bot.id);
-        client = await (deps.startWebSocket ?? startFeishuBotWebSocket)({
+        client = await startFeishuBotWebSocket({
           bot,
           signal,
           onConnectionStateChange: (state) => {
-            if (state === "reconnecting") deps.onConnectionInvalidated?.(bot.id);
             deps.statusSink.setRuntimeStatus({
               botId: bot.id,
               provider: bot.provider,
@@ -133,8 +131,14 @@ export function createFeishuChannelRuntime(deps: FeishuChannelRuntimeDeps) {
               undefined,
               `feishu websocket payload bot=${bot.id} ${deps.summarizeCallbackPayload(payload)}`,
             );
-            const callbackResult = await deps.processProviderCallback(bot.provider, payload);
-            assertBotCallbackSucceeded(bot.provider === "lark" ? "Lark" : "Feishu", callbackResult);
+            const callbackResult = await deps.processProviderCallback(
+              bot.provider,
+              payload,
+            );
+            assertBotCallbackSucceeded(
+              bot.provider === "lark" ? "Lark" : "Feishu",
+              callbackResult,
+            );
             return callbackResult.replies[0];
           },
         });
@@ -150,7 +154,7 @@ export function createFeishuChannelRuntime(deps: FeishuChannelRuntimeDeps) {
         // 才能更新错误状态、关闭 client、释放跨窗口锁并进入外层恢复循环。
         await Promise.race([
           waitForAbort(signal),
-          client.terminated ?? new Promise<void>(() => undefined),
+          client.terminated,
         ]);
       } catch (error) {
         if (signal.aborted) {

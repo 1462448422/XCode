@@ -160,12 +160,11 @@ export function buildRuntimeUserEntriesFromTurn(
   ];
 }
 
-export function formatBrowserAmbientUserInput(
+function formatBrowserAmbientUserInput(
   input: string,
   context?: { tabCount: number; currentUrl?: string },
 ): string {
-  if (!context || !Number.isInteger(context.tabCount) || context.tabCount <= 0)
-    return input;
+  if (!context || !Number.isInteger(context.tabCount) || context.tabCount <= 0) return input;
   const tabLabel = context.tabCount === 1 ? "tab" : "tabs";
   const lines = [
     '<in-app-browser-context source="ambient-ui-state">',
@@ -175,7 +174,7 @@ export function formatBrowserAmbientUserInput(
     ...(context.currentUrl ? [`- Current URL: ${context.currentUrl}`] : []),
     "</in-app-browser-context>",
     "",
-    "## My request for ZCode:",
+    "## My request for XCode:",
     input,
   ];
   return lines.join("\n");

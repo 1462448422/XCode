@@ -1,7 +1,7 @@
 import {
-  buildRuntimeZCodeEndpointUrls,
-  ZCODE_ENV,
-  type RuntimeZCodeEndpointEnv,
+  buildRuntimeXCodeEndpointUrls,
+  XCODE_ENV,
+  type RuntimeXCodeEndpointEnv,
 } from "@zcode/shared";
 
 interface RendererImportMetaEnv {

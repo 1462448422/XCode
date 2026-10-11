@@ -1,4 +1,4 @@
-export interface EnableOverride {
+interface EnableOverride {
   enable?: boolean;
 }
 

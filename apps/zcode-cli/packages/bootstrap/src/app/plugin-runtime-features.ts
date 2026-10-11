@@ -6,7 +6,7 @@ import {
   OFFICIAL_CUA_PLUGIN_ID,
 } from "./official-plugin-definitions.js";
 
-export type RuntimeFeaturesConfig = NonNullable<AgentRuntimeConfig["runtimeFeatures"]>;
+type RuntimeFeaturesConfig = NonNullable<AgentRuntimeConfig["runtimeFeatures"]>;
 
 export function resolvePluginRuntimeFeatures(
   pluginOutcome: Pick<PluginLoadOutcome, "plugins">,

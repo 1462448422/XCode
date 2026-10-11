@@ -1,5 +1,5 @@
 import type { SpawnOptions } from "node:child_process";
-import type { ZCodeToolExecResource } from "@zcode/shared";
+import type { XCodeToolExecResource } from "@zcode/shared";
 import type { NetworkEgressEnvPolicy } from "../network/subprocess-env.js";
 import type { ResolvedSpawnCommand } from "./execution-command.js";
 import type {
@@ -72,7 +72,7 @@ export interface ActiveExecutionRecord {
 }
 
 export interface NodeExecutionAdapterOptions {
-  onToolExecResource?: (sample: ZCodeToolExecResource) => void;
+  onToolExecResource?: (sample: XCodeToolExecResource) => void;
   outputRootDir?: string;
   maxPersistedOutputBytes?: number;
   network?: NetworkEgressEnvPolicy;

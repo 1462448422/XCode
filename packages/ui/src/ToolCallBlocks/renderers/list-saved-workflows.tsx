@@ -1,6 +1,6 @@
 import { Library } from "lucide-react";
 import { useCallback, useMemo } from "react";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { ToolSnapshotFieldNotice } from "@/ToolCallBlocks/ToolSnapshotFieldNotice.js";
 import { FallbackToolCallBlock } from "@/ToolCallBlocks/renderers/fallback.js";
 import { readToolResultDisplay } from "@/ToolCallBlocks/toolResultDisplay.js";
@@ -105,7 +105,7 @@ function readResultRecord(value: unknown): ListSavedWorkflowsResult | null {
  * raw 兜底卡）；legacy JSON 探针保留，兜老会话与非 v4 宿主。一个都读不出来就交回
  * fallback——空列表与「读不懂」必须可分辨，不能把解析失败画成「这个项目里没有工作流」。
  */
-export function readListSavedWorkflowsResult(
+function readListSavedWorkflowsResult(
   toolCall: ToolCallBlockRenderContext["toolCallNode"]["toolCall"],
 ): ListSavedWorkflowsResult | null {
   const display = readToolResultDisplay(toolCall.raw);
@@ -148,7 +148,7 @@ export function readListSavedWorkflowsResult(
  * 灌进上下文）。坏文件单独一行——它们是**刻意可见**的，不静默跳过。
  */
 export function ListSavedWorkflowsToolCallBlock(context: ToolCallBlockRenderContext) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { toolCall } = context.toolCallNode;
 
   const result = useMemo(() => readListSavedWorkflowsResult(toolCall), [toolCall]);

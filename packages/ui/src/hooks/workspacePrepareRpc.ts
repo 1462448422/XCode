@@ -4,18 +4,18 @@
  * 拆出原因：useWorkspacePrepare.ts 只保留可单测的轻量判定入口；
  * 这里只读取 workspace presentation（mode/slash commands）；模型选择事实由目标 Host View 提供。
  */
-import type { IZCodeSessionService } from "@zcode/services";
-import { type ZCodeProvider, type ZCodeWorkspacePrepareResult } from "@zcode/shared";
+import type { IXCodeSessionService } from "@zcode/services";
+import { type XCodeProvider, type XCodeWorkspacePrepareResult } from "@zcode/shared";
 import { getChatErrorMessage } from "@/lib/chatPrepareError.js";
 import { logger } from "@/logger.js";
 import { zcodeWorkspacePresentationToConfigOptions } from "@/lib/zcodeSessionProjection.js";
 
-export async function prepareWorkspaceWithZCodeSessionService(params: {
+export async function prepareWorkspaceWithXCodeSessionService(params: {
   workspacePath: string;
   workspaceIdentity?: string;
-  provider: ZCodeProvider;
-  zcodeSessionService: Pick<IZCodeSessionService, "readWorkspacePresentation">;
-}): Promise<ZCodeWorkspacePrepareResult> {
+  provider: XCodeProvider;
+  zcodeSessionService: Pick<IXCodeSessionService, "readWorkspacePresentation">;
+}): Promise<XCodeWorkspacePrepareResult> {
   const startedAt = Date.now();
   logger.info("[zcode-workspace-presentation] workspace prepare start", {
     workspacePath: params.workspacePath,
@@ -23,7 +23,7 @@ export async function prepareWorkspaceWithZCodeSessionService(params: {
     provider: params.provider,
   });
 
-  let presentation: Awaited<ReturnType<IZCodeSessionService["readWorkspacePresentation"]>>;
+  let presentation: Awaited<ReturnType<IXCodeSessionService["readWorkspacePresentation"]>>;
   try {
     presentation = await params.zcodeSessionService.readWorkspacePresentation({
       workspacePath: params.workspacePath,
@@ -56,7 +56,7 @@ export async function prepareWorkspaceWithZCodeSessionService(params: {
   return {
     workspacePath: params.workspacePath,
     preparedSessionId: "",
-    version: "ZCode Protocol/1",
+    version: "XCode Protocol/1",
     provider: params.provider,
     configOptions,
     slashCommands: presentation.slashCommands,

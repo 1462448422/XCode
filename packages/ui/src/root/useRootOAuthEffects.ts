@@ -9,11 +9,11 @@ import type {
 import {
   DesktopCommandIds,
   resolveProviderFamilyDomainFromOAuthProvider,
-  ZCODE_JWT_INVALID_BROADCAST_CHANNEL,
+  XCODE_JWT_INVALID_BROADCAST_CHANNEL,
 } from "@zcode/shared";
 import type { IServiceAccessor } from "@zcode/services";
 import { useAlertDialog } from "@/hooks/useAlertDialog.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { reportAppTelemetryEvent, resolveProviderTelemetryLabel } from "@/lib/appTelemetry.js";
 import { logger } from "@/logger.js";
 import { setProviderFamilyDomain } from "@/lib/providerFamilyDomainSettings.js";
@@ -23,13 +23,13 @@ import {
   refreshRestoredOAuthProviderFamilyAfterStartup,
 } from "@/root/oauthProviderFamilySelectionRefresh.js";
 import { applyCachedOAuthSessionRestoreResult } from "@/root/oauthCachedSessionRestore.js";
-import { markZcodeJwtInvalidRestart } from "@/root/zcodeJwtInvalidRestartMarker.js";
+import { markXcodeJwtInvalidRestart } from "@/root/zcodeJwtInvalidRestartMarker.js";
 import { shouldApplyOAuthPollingFailure } from "@/root/oauthLoginAttemptGuard.js";
 import { useAccountConnectionLossNotification } from "@/root/useAccountConnectionLossNotification.js";
 
 export { refreshRestoredOAuthProviderFamilyAfterStartup } from "@/root/oauthProviderFamilySelectionRefresh.js";
 
-export async function handleOAuthCallbackSuccess(params: {
+async function handleOAuthCallbackSuccess(params: {
   result: OAuthSessionCallbackResult;
   platform: Pick<IPlatformService, "reportTelemetryEvent">;
   refreshLatestModelProviderFamilySelection?: (
@@ -120,7 +120,7 @@ export function useRootOAuthEffects({
 }) {
   useAccountConnectionLossNotification(services, accountIntentKey, refreshAppSettings);
   const requestAlert = useAlertDialog();
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const oauthLoginSucceededRef = useRef(false);
   const oauthLoginSuccessInFlightRef = useRef(false);
   const oauthLoginSuccessOwnerRef = useRef<"polling" | "deep-link" | null>(null);
@@ -203,7 +203,7 @@ export function useRootOAuthEffects({
   useEffect(() => {
     let disposed = false;
     const disposable = services.broadcastService.onMessage((message) => {
-      if (message.channel !== ZCODE_JWT_INVALID_BROADCAST_CHANNEL || disposed) {
+      if (message.channel !== XCODE_JWT_INVALID_BROADCAST_CHANNEL || disposed) {
         return;
       }
       void (async () => {
@@ -219,7 +219,7 @@ export function useRootOAuthEffects({
           onReauthenticationRequired();
           return;
         }
-        markZcodeJwtInvalidRestart();
+        markXcodeJwtInvalidRestart();
         if (typeof window !== "undefined" && !("zcode" in window)) {
           // Web 没有 Electron RelaunchApp；marker 写入后立即刷新，避免停留在僵尸登录态。
           window.location.reload();

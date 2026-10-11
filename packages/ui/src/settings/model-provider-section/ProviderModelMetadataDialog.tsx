@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog.js";
 import { Input } from "@/components/ui/input.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import type { ModelConfigObject } from "@zcode/provider";
 import type {
   ProviderModelDraftValues,
@@ -39,7 +39,7 @@ import {
 
 import { ModelEditorAdvanced } from "@/settings/model-provider-section/ModelEditorAdvanced.js";
 
-export function selectFocusedInputText(event: Pick<FocusEvent<HTMLInputElement>, "currentTarget">) {
+function selectFocusedInputText(event: Pick<FocusEvent<HTMLInputElement>, "currentTarget">) {
   event.currentTarget.select();
 }
 
@@ -80,7 +80,7 @@ export function ProviderModelMetadataDialog({
   modelDefaultsLoaded?: boolean;
   onModelIdBlur?: () => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const [validationAttempt, setValidationAttempt] = useState(0);
   const commit = async () => {
     const result = await onCommit();

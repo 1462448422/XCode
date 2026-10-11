@@ -1,16 +1,16 @@
-import type { ZCodePersistedMessage, ZCodePersistedMessagePart } from "./zcode-task-types-core.js";
+import type { XCodePersistedMessage, XCodePersistedMessagePart } from "./zcode-task-types-core.js";
 
-// ZCode runtime 把同一个 user turn 里**每一轮 LLM 调用**落成独立的 assistant 消息（各带 time.created/completed）。
+// XCode runtime 把同一个 user turn 里**每一轮 LLM 调用**落成独立的 assistant 消息（各带 time.created/completed）。
 // 老 task projection 模型每个 turn 只有一条 assistant，UI 也按这个模型设计（一条 assistant → 一个"已工作 X 秒"块）。
 // 这里把映射后相邻的 assistant 合并回一条，恢复"一个 turn 一条 assistant"的不变式；
 // 旧投影数据本身就是严格交替的，对它来说是 no-op。
 //
 // 顺便把 turnIndex 显式按 user 计数赋值，修掉 `toTaskChatMessages` 的兜底
 // `Math.floor(index / 2)` 在多 assistant 时算错的次要 bug。
-export function coalesceConsecutiveZCodeAssistants(
-  messages: readonly ZCodePersistedMessage[],
-): ZCodePersistedMessage[] {
-  const merged: ZCodePersistedMessage[] = [];
+export function coalesceConsecutiveXCodeAssistants(
+  messages: readonly XCodePersistedMessage[],
+): XCodePersistedMessage[] {
+  const merged: XCodePersistedMessage[] = [];
   for (const message of messages) {
     const last = merged[merged.length - 1];
     // compact/fork/goal verifier 这类 synthetic timeline 虽然 role 是 assistant，
@@ -39,9 +39,9 @@ export function coalesceConsecutiveZCodeAssistants(
 }
 
 function mergeAssistantPair(
-  first: ZCodePersistedMessage,
-  next: ZCodePersistedMessage,
-): ZCodePersistedMessage {
+  first: XCodePersistedMessage,
+  next: XCodePersistedMessage,
+): XCodePersistedMessage {
   const firstTools = first.tools ?? [];
   const nextTools = next.tools ?? [];
   const mergedTools =
@@ -49,7 +49,7 @@ function mergeAssistantPair(
 
   const toolIndexOffset = firstTools.length;
   const firstParts = first.parts ?? [];
-  const shiftedNextParts: ZCodePersistedMessagePart[] = (next.parts ?? []).map((part) =>
+  const shiftedNextParts: XCodePersistedMessagePart[] = (next.parts ?? []).map((part) =>
     part.type === "tool-call"
       ? { type: "tool-call", toolIndex: part.toolIndex + toolIndexOffset }
       : part,
@@ -101,8 +101,8 @@ function mergeAssistantPair(
 }
 
 function collectMergedMessageIds(
-  first: ZCodePersistedMessage,
-  next: ZCodePersistedMessage,
+  first: XCodePersistedMessage,
+  next: XCodePersistedMessage,
 ): string[] {
   const ids = [
     first.id,

@@ -1,7 +1,7 @@
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { XCodeTaskMeta } from "@zcode/shared";
 import { isTaskListRowActive } from "@/v4/taskListRowActivity.js";
 
-export type TaskListTimeSortBy = "created" | "updated";
+type TaskListTimeSortBy = "created" | "updated";
 
 interface TaskListSortableItem {
   taskId: string;
@@ -41,7 +41,7 @@ function compareTaskListItemsByTime(
  * 运行层的成员既包括回合在跑的 task，也包括挂着后台工作（如动态工作流 run）的 task：
  * 后者回合已收口但活动时间仍被后台事件推进，不进运行层就会重演同一类换位。
  */
-export function compareTaskListItemsWithRunningFirst<T extends TaskListSortableItem>(
+function compareTaskListItemsWithRunningFirst<T extends TaskListSortableItem>(
   left: T,
   right: T,
   sortBy: TaskListTimeSortBy,
@@ -62,9 +62,9 @@ export function compareTaskListItemsWithRunningFirst<T extends TaskListSortableI
   return compareTaskListItemsByTime(left, right, sortBy);
 }
 
-export function compareZCodeTaskListItems(
-  left: ZCodeTaskMeta,
-  right: ZCodeTaskMeta,
+export function compareXCodeTaskListItems(
+  left: XCodeTaskMeta,
+  right: XCodeTaskMeta,
   sortBy: TaskListTimeSortBy,
 ): number {
   return compareTaskListItemsWithRunningFirst(left, right, sortBy, isTaskListRowActive);

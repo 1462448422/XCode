@@ -1,4 +1,4 @@
-import { getZCodeCopy } from "@zcode/i18n";
+import { getXCodeCopy } from "@zcode/i18n";
 export function formatCliHelp(version, locale, detectedLocale) {
-    return getZCodeCopy(locale, detectedLocale).cli.help(version);
+    return getXCodeCopy(locale, detectedLocale).cli.help(version);
 }

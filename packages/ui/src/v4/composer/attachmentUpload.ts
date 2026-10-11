@@ -1,4 +1,4 @@
-// 附件命令面（UI 侧）：ZCodePromptAttachment（composer 序列化产物）→ AttachmentRef
+// 附件命令面（UI 侧）：XCodePromptAttachment（composer 序列化产物）→ AttachmentRef
 // （v4 sendText/createSession attachments 引用模型）。
 //
 // 分派规则（与 CLI attachment-refs.ts 的映射对偶）：
@@ -7,7 +7,7 @@
 // - dataBase64（粘贴截图等内联图）→ 高层 put（内部 begin/chunk/commit）→ artifact ref；
 // - textContent（无路径文本，web 回退面）→ 编码后同走 put；
 // - 三者皆无（元信息-only）→ 丢弃并告警（无内容可发，不伪造引用）。
-import type { ZCodePromptAttachment } from "@zcode/shared";
+import type { XCodePromptAttachment } from "@zcode/shared";
 import type {
   AttachmentRef,
   V4AttachmentPutParams,
@@ -40,15 +40,11 @@ function base64ByteLength(dataBase64: string): number {
 export async function uploadComposerAttachment(
   put: AttachmentPutFn,
   sessionId: string,
-  attachment: ZCodePromptAttachment,
+  attachment: XCodePromptAttachment,
   options?: AttachmentUploadOptions,
 ): Promise<AttachmentRef | null> {
   const fileName = attachment.filename;
   const mime = attachment.mimeType;
-  const source =
-    attachment.kind === "file" && attachment.sourceKind
-      ? { sourceKind: attachment.sourceKind, messageCount: attachment.messageCount }
-      : {};
   // audio 变体无 sizeBytes 字段；统一经窄化读取。
   const sizeBytes =
     "sizeBytes" in attachment && typeof attachment.sizeBytes === "number"
@@ -56,7 +52,6 @@ export async function uploadComposerAttachment(
       : undefined;
   if (attachment.localPath) {
     return {
-      ...source,
       ref: attachment.localPath,
       fileName,
       mime,
@@ -77,28 +72,9 @@ export async function uploadComposerAttachment(
   }
   const { ref } = await put({ sessionId, fileName, mime, dataBase64 }, options);
   return {
-    ...source,
     ref,
     fileName,
     mime,
     bytes: sizeBytes ?? base64ByteLength(dataBase64),
   };
-}
-
-/**
- * 附件数组 → AttachmentRef[]（顺序保持）。put 失败原样抛出（调用方中止发送，草稿保留）。
- */
-export async function uploadComposerAttachments(
-  put: AttachmentPutFn,
-  sessionId: string,
-  attachments: readonly ZCodePromptAttachment[],
-): Promise<AttachmentRef[]> {
-  const refs: AttachmentRef[] = [];
-  for (const attachment of attachments) {
-    const ref = await uploadComposerAttachment(put, sessionId, attachment);
-    if (ref) {
-      refs.push(ref);
-    }
-  }
-  return refs;
 }

@@ -29,7 +29,7 @@ export function ThoughtTranscriptPartView({
   });
 }
 
-export function ThoughtTranscriptPartFrame({
+function ThoughtTranscriptPartFrame({
   copy = DEFAULT_TUI_COPY,
   expanded,
   onToggle,
@@ -78,7 +78,7 @@ export function ThoughtTranscriptPartFrame({
   );
 }
 
-export function thoughtPlaceholderLabel(part: ThoughtTranscriptPart, copy: TuiCopy): string {
+function thoughtPlaceholderLabel(part: ThoughtTranscriptPart, copy: TuiCopy): string {
   return part.status === "thinking"
     ? copy.transcript.thought.thinking
     : copy.transcript.thought.complete;

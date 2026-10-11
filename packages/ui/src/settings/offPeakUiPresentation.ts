@@ -1,4 +1,4 @@
-import type { ZCodeOffPeakTask } from "@zcode/shared";
+import type { XCodeOffPeakTask } from "@zcode/shared";
 import type { IntlInstance } from "@/i18n/IntlProvider.js";
 import type { OffPeakTakeNumberAvailabilityStatus } from "@/store/offPeakTaskStore.js";
 
@@ -48,21 +48,12 @@ export function formatOffPeakRemainingWait(
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   if (hours > 0 && minutes > 0) {
-    return intl.formatMessage(
-      { id: "offPeak.create.remaining.hoursMinutes" },
-      { hours, minutes },
-    );
+    return intl.formatMessage({ id: "offPeak.create.remaining.hoursMinutes" }, { hours, minutes });
   }
   if (hours > 0) {
-    return intl.formatMessage(
-      { id: "offPeak.create.remaining.hours" },
-      { hours },
-    );
+    return intl.formatMessage({ id: "offPeak.create.remaining.hours" }, { hours });
   }
-  return intl.formatMessage(
-    { id: "offPeak.create.remaining.minutes" },
-    { minutes },
-  );
+  return intl.formatMessage({ id: "offPeak.create.remaining.minutes" }, { minutes });
 }
 
 export type OffPeakStatusIconKind =
@@ -73,7 +64,7 @@ export type OffPeakStatusIconKind =
   | "warning"
   | "stopped";
 
-export interface OffPeakStatusFooterPresentation {
+interface OffPeakStatusFooterPresentation {
   icon: OffPeakStatusIconKind;
   className: string;
   labelId: string;
@@ -99,12 +90,7 @@ export function resolveLocalizedOffPeakCreateTitle({
   previousDefaultTitle: string;
   titleTouched: boolean;
 }): string {
-  if (
-    isEditing ||
-    hasInitialTitle ||
-    titleTouched ||
-    currentTitle !== previousDefaultTitle
-  ) {
+  if (isEditing || hasInitialTitle || titleTouched || currentTitle !== previousDefaultTitle) {
     return currentTitle;
   }
   return nextDefaultTitle;
@@ -112,7 +98,7 @@ export function resolveLocalizedOffPeakCreateTitle({
 
 /** 闲时卡片状态图标与文案的唯一映射，避免带位次的 paused 被误画成 queued 月亮。 */
 export function resolveOffPeakStatusFooter(
-  task: Pick<ZCodeOffPeakTask, "queuePosition" | "status">,
+  task: Pick<XCodeOffPeakTask, "queuePosition" | "status">,
 ): OffPeakStatusFooterPresentation {
   switch (task.status) {
     case "queued":
@@ -172,7 +158,7 @@ export function resolveOffPeakStatusFooter(
 
 /** 终态任务不会再被调度，不能把历史选择失效显示成当前待修复错误。 */
 export function shouldShowOffPeakModelSelectionIssue(
-  status: Pick<ZCodeOffPeakTask, "status">["status"],
+  status: Pick<XCodeOffPeakTask, "status">["status"],
 ): boolean {
   return status === "queued" || status === "paused" || status === "running";
 }
@@ -182,7 +168,7 @@ export function shouldShowOffPeakModelSelectionIssue(
  * 主状态映射只能返回一个 footer；失败状态需额外保留队列上下文，避免被 Failure 覆盖。
  */
 export function resolveFailedOffPeakQueueFooter(
-  task: Pick<ZCodeOffPeakTask, "queuePosition" | "status">,
+  task: Pick<XCodeOffPeakTask, "queuePosition" | "status">,
 ): OffPeakStatusFooterPresentation | null {
   if (task.status !== "failed" || task.queuePosition === undefined) return null;
   return {

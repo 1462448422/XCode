@@ -6,8 +6,8 @@ import {
   type ModelProviderFamilySpec,
   type ProviderFamilyConnectionSelection,
   type ProviderFamilyConnectionSelectionSettings,
-  type ZCodeAccountAccess,
-  type ZCodeProviderAccountAccess,
+  type XCodeAccountAccess,
+  type XCodeProviderAccountAccess,
 } from "@zcode/shared";
 import {
   useUsageEntitlement,
@@ -17,7 +17,7 @@ import type { CodingPlanEntitlementState } from "@/settings/model-provider-secti
 import { buildUsageEntitlementCacheKey } from "@/lib/usageEntitlementCache.js";
 import { resolveAccountProviderInspectionAccess } from "@/lib/accountProviderAccess.js";
 
-export function resolveCodingPlanProviderFingerprintAutoRefresh({
+function resolveCodingPlanProviderFingerprintAutoRefresh({
   loading,
   providerFingerprint,
   skippedProviderFingerprint,
@@ -131,9 +131,9 @@ function useProviderFamilyEntitlements(params: {
 }
 
 function resolveEntitlementAccountAccess(
-  access: ZCodeProviderAccountAccess | undefined,
+  access: XCodeProviderAccountAccess | undefined,
   selection: ProviderFamilyConnectionSelection | undefined,
-): ZCodeProviderAccountAccess | ZCodeAccountAccess | undefined {
+): XCodeProviderAccountAccess | XCodeAccountAccess | undefined {
   if (access?.mode !== "team-coding-plan" || selection?.kind !== "team-coding-plan") {
     // 展示查询针对这个套餐自身，不让执行期的 current 解析器改成当前另一套餐。
     return access && (access.mode === "start-plan" || access.mode === "individual-coding-plan")

@@ -22,7 +22,7 @@ type ExecFileFn = (
   options: ExecFileOptionsWithStringEncoding,
 ) => Promise<CommandResult>;
 
-export interface McpStdioProcessTreeTerminatorOptions {
+interface McpStdioProcessTreeTerminatorOptions {
   execFile?: ExecFileFn;
   kill?: KillFn;
   now?: () => number;

@@ -49,9 +49,9 @@ import {
 } from "@/feedback/feedbackSubmitSubmission.js";
 import type { IFeedbackService } from "@zcode/services";
 import type { IPlatformService } from "@zcode/shared";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";
-import { selectWorkspaceZCodeState, useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { selectWorkspaceXCodeState, useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 
 export { SubmitProgressView } from "@/feedback/FeedbackSubmitProgressView.js";
 export { readCurrentAgentModelContext } from "@/feedback/feedbackSubmitModelContext.js";
@@ -62,7 +62,7 @@ const MAX_SCREENSHOT_ATTACHMENTS = 5;
 
 type SubmitProgressState = FeedbackSubmissionProgressState;
 
-export function shouldAutoCloseFeedbackOnTicketCreated({
+function shouldAutoCloseFeedbackOnTicketCreated({
   includeLogs,
   screenshotCount,
 }: {
@@ -89,7 +89,7 @@ export function FeedbackSubmitForm({
   onViewTickets: () => void;
   onCancel: () => void;
 }) {
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const formatMessage = useCallback(
     (id: string, values?: Record<string, string>) => intl.formatMessage({ id }, values),
     [intl],
@@ -101,8 +101,7 @@ export function FeedbackSubmitForm({
   const [description, setDescription] = useState("");
   const [contact, setContact] = useState(() => readFeedbackContactPreference());
   const [screenshots, setScreenshots] = useState<ScreenshotAttachmentDraft[]>([]);
-  // 新反馈默认附带诊断日志；显式草稿值保留用户取消勾选及后台恢复时的选择。
-  const [includeLogs, setIncludeLogs] = useState(initialDraft?.includeLogs ?? true);
+  const [includeLogs, setIncludeLogs] = useState(false);
   const [ticketType, setTicketType] = useState<FeedbackTicketType>(DEFAULT_FEEDBACK_TYPE);
   const [ticketSeverity, setTicketSeverity] =
     useState<FeedbackTicketSeverity>(DEFAULT_FEEDBACK_SEVERITY);
@@ -122,7 +121,7 @@ export function FeedbackSubmitForm({
     setTicketType(draft.type ?? DEFAULT_FEEDBACK_TYPE);
     setTicketSeverity(draft.severity ?? DEFAULT_FEEDBACK_SEVERITY);
     setTicketModule(draft.module ?? DEFAULT_FEEDBACK_MODULE);
-    setIncludeLogs(draft.includeLogs ?? true);
+    setIncludeLogs(draft.includeLogs ?? false);
     setScreenshots(
       (draft.screenshots ?? []).map((item, index) => ({
         id: `draft-${Date.now()}-${index}`,
@@ -397,13 +396,13 @@ function useActiveFeedbackModelContext(): FeedbackAgentModelContext {
   const activeWorkspaceIdentity = useTabStore(
     (state) => state.activeWorkspaceIdentity ?? undefined,
   );
-  const workspaceZCodeState = useZCodeSessionStore((state) =>
+  const workspaceXCodeState = useXCodeSessionStore((state) =>
     activeWorkspacePath
-      ? selectWorkspaceZCodeState(state, activeWorkspacePath, activeWorkspaceIdentity)
+      ? selectWorkspaceXCodeState(state, activeWorkspacePath, activeWorkspaceIdentity)
       : null,
   );
   return useMemo(
-    () => readCurrentAgentModelContext(workspaceZCodeState?.configOptions),
-    [workspaceZCodeState?.configOptions],
+    () => readCurrentAgentModelContext(workspaceXCodeState?.configOptions),
+    [workspaceXCodeState?.configOptions],
   );
 }

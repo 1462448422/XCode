@@ -1,12 +1,12 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { Emitter } from "@zcode/rpc";
-import type { ZCodeProtocolMessage } from "@zcode/shared";
+import type { XCodeProtocolMessage } from "@zcode/shared";
 import { zcodeProtocolMessageSchema } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import type {
-  ZCodeProtocolTransport,
-  ZCodeProtocolTransportClosedEvent,
+  XCodeProtocolTransport,
+  XCodeProtocolTransportClosedEvent,
 } from "./zcodeProtocolTransport.js";
 import {
   captureProcessGroupSnapshot,
@@ -18,7 +18,7 @@ import {
 import type { ProcessTreeSnapshot } from "#src/process/processTreeTerminator.js";
 import { AgentStderrCollector, EXIT_STDERR_DRAIN_MS } from "./agentStderrCollector.js";
 
-interface ZCodeStdioTransportOptions {
+interface XCodeStdioTransportOptions {
   onStderrLine?: (line: string) => void;
   ownedProcessGroupId?: number;
   ownedProcessStartedAtMs?: number;
@@ -32,15 +32,14 @@ const PROCESS_TREE_WINDOWS_TASKKILL_TIMEOUT_MS = 1_000;
 const PROCESS_TREE_WINDOWS_EXIT_OBSERVATION_GRACE_MS = 250;
 const processTreeLogger = createServiceLogger("zcode-agent-process-tree");
 
-export class ZCodeStdioTransport implements ZCodeProtocolTransport {
+export class XCodeStdioTransport implements XCodeProtocolTransport {
   readonly kind = "stdio" as const;
 
-  private readonly messageEmitter = new Emitter<ZCodeProtocolMessage>();
-  private readonly closeEmitter = new Emitter<ZCodeProtocolTransportClosedEvent>();
+  private readonly messageEmitter = new Emitter<XCodeProtocolMessage>();
+  private readonly closeEmitter = new Emitter<XCodeProtocolTransportClosedEvent>();
   private readonly stderrCollector: AgentStderrCollector;
   private readonly stdoutDecoder = new StringDecoder("utf8");
-  // 当前未完成行的分片；只在遇到 LF 时 join 一次，见 handleStdoutData 注释。
-  private stdoutPendingChunks: string[] = [];
+  private stdoutBuffer = "";
   private stdoutFlushed = false;
   private readersDisposed = false;
   private disposed = false;
@@ -55,11 +54,11 @@ export class ZCodeStdioTransport implements ZCodeProtocolTransport {
 
   constructor(
     private readonly child: ChildProcessWithoutNullStreams,
-    private readonly options?: ZCodeStdioTransportOptions,
+    private readonly options?: XCodeStdioTransportOptions,
   ) {
     this.stderrCollector = new AgentStderrCollector(child.stderr, options?.onStderrLine);
 
-    // ZCode Protocol stdio 帧边界只认 LF。Node readline 会把 U+2028/U+2029
+    // XCode Protocol stdio 帧边界只认 LF。Node readline 会把 U+2028/U+2029
     // 当作换行，模型文本包含这类字符时会把合法 JSON 字符串切成半帧。
     child.stdout.on("data", this.handleStdoutData);
     child.stdout.once("end", this.handleStdoutEnd);
@@ -79,9 +78,9 @@ export class ZCodeStdioTransport implements ZCodeProtocolTransport {
     });
   }
 
-  async send(message: ZCodeProtocolMessage): Promise<void> {
+  async send(message: XCodeProtocolMessage): Promise<void> {
     if (this.disposed || this.closed || this.child.killed || !this.child.stdin.writable) {
-      throw new Error("ZCode agent stdio transport is closed");
+      throw new Error("XCode agent stdio transport is closed");
     }
     const frame = `${JSON.stringify(message)}\n`;
     await new Promise<void>((resolve, reject) => {
@@ -158,7 +157,7 @@ export class ZCodeStdioTransport implements ZCodeProtocolTransport {
       // coverage CLI bundle 未压缩且带完整 source map，启动/收尾明显慢于发布包。
       // coverage 下继续保留额外写盘宽限；普通窗口覆盖 CLI 的 1500ms 退出 deadline。
       const configuredEofWaitMs =
-        process.env.ZCODE_E2E_COVERAGE === "1"
+        process.env.XCODE_E2E_COVERAGE === "1"
           ? E2E_COVERAGE_STDIO_EOF_EXIT_WAIT_MS
           : STDIO_EOF_EXIT_WAIT_MS;
       const remainingCleanupMs =
@@ -211,13 +210,8 @@ export class ZCodeStdioTransport implements ZCodeProtocolTransport {
     if (this.closed) {
       return;
     }
-    // Bug 原因：旧实现 `stdoutBuffer += chunk` 后对整个缓冲 indexOf("\n")，每个 64KB
-    // chunk 都会让 V8 把 cons string 拍平并从头扫描，单行帧长度 n 时总开销 O(n²)。
-    // task index resync 的 session/read 会回一行约 15MB 的完整快照，实测 30s 内
-    // 真实 stdout 95MB 却拍平分配 9.4GB，Host CPU 100%、RSS 冲到 1.5–1.9GB。
-    // 修复：只在新 chunk 内找 LF，未完成的部分存分片数组，成帧时 join 一次，线性开销。
-    const text = typeof chunk === "string" ? chunk : this.stdoutDecoder.write(chunk);
-    this.consumeStdoutText(text);
+    this.stdoutBuffer += typeof chunk === "string" ? chunk : this.stdoutDecoder.write(chunk);
+    this.drainStdoutFrames();
   };
 
   private readonly handleStdoutEnd = (): void => {
@@ -225,31 +219,25 @@ export class ZCodeStdioTransport implements ZCodeProtocolTransport {
       return;
     }
     this.stdoutFlushed = true;
-    this.stdoutPendingChunks.push(this.stdoutDecoder.end());
-    const trailing = this.stdoutPendingChunks.join("");
-    this.stdoutPendingChunks = [];
+    this.stdoutBuffer += this.stdoutDecoder.end();
+    const trailing = this.stdoutBuffer;
+    this.stdoutBuffer = "";
     if (trailing.length > 0 && !this.closed) {
       this.handleStdoutFrame(trailing);
     }
     this.fireClose({ reason: "stdout_closed" });
   };
 
-  private consumeStdoutText(text: string): void {
-    let start = 0;
-    let newlineIndex = text.indexOf("\n", start);
+  private drainStdoutFrames(): void {
+    let newlineIndex = this.stdoutBuffer.indexOf("\n");
     while (newlineIndex >= 0) {
-      this.stdoutPendingChunks.push(text.slice(start, newlineIndex));
-      const frame = this.stdoutPendingChunks.join("");
-      this.stdoutPendingChunks = [];
-      start = newlineIndex + 1;
+      const frame = this.stdoutBuffer.slice(0, newlineIndex);
+      this.stdoutBuffer = this.stdoutBuffer.slice(newlineIndex + 1);
       this.handleStdoutFrame(frame);
       if (this.closed) {
         return;
       }
-      newlineIndex = text.indexOf("\n", start);
-    }
-    if (start < text.length) {
-      this.stdoutPendingChunks.push(text.slice(start));
+      newlineIndex = this.stdoutBuffer.indexOf("\n");
     }
   }
 
@@ -278,7 +266,7 @@ export class ZCodeStdioTransport implements ZCodeProtocolTransport {
     this.fireClose({ reason: `${stream}_error: ${error.message}` });
   }
 
-  private fireClose(event: ZCodeProtocolTransportClosedEvent): void {
+  private fireClose(event: XCodeProtocolTransportClosedEvent): void {
     if (this.closed) {
       return;
     }

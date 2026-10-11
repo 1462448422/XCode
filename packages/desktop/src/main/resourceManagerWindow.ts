@@ -3,19 +3,18 @@ import type { UtilityProcess as ElectronUtilityProcess } from "electron";
 import os from "node:os";
 import { join } from "node:path";
 import {
-  formatZCodeAgentProcessName,
-  formatZCodeGpuProcessName,
-  formatZCodeHostProcessName,
-  formatZCodeMainProcessName,
-  formatZCodeRendererProcessName,
-  formatZCodeUtilityProcessName,
+  formatXCodeAgentProcessName,
+  formatXCodeGpuProcessName,
+  formatXCodeHostProcessName,
+  formatXCodeMainProcessName,
+  formatXCodeRendererProcessName,
+  formatXCodeUtilityProcessName,
   type HostResourceUsageProcess,
   type ResourceUsageProcess,
   type ResourceUsageSnapshot,
-  type ZCodeProvider,
+  type XCodeProvider,
 } from "@zcode/shared";
 import { logger } from "./logger.js";
-import { configureNetworkCaptureHost, observeNetworkWindow } from "./resourceManagerNetwork.js";
 import { normalizeElectronCpuToMachinePercent } from "./electronCpuNormalization.js";
 import type { ChromiumProcessRolePids } from "./processResourceRoleClassifier.js";
 import { buildAuxiliaryRendererName } from "./resourceManagerProcessNames.js";
@@ -37,11 +36,11 @@ const RESOURCE_MANAGER_WINDOW_TITLE = "Resource Manager";
 const BROWSER_USE_PLUGIN_NAME = "browser-use";
 
 /** 系统整机 CPU：两次 os.cpus() 之间 busy / total 的差分 */
-export interface SystemCpuMeter {
+interface SystemCpuMeter {
   read(): number;
 }
 
-export function createSystemCpuMeter(
+function createSystemCpuMeter(
   readCpus: () => Array<{ times: Record<string, number> }> = () => os.cpus(),
 ): SystemCpuMeter {
   let previous: { busy: number; total: number } | null = null;
@@ -113,7 +112,7 @@ const hostProcesses = new Map<string, ElectronUtilityProcess>();
 
 interface RegisteredAgentProcess {
   pid: number;
-  provider: ZCodeProvider;
+  provider: XCodeProvider;
   workspacePath: string;
   command: string;
   args: string[];
@@ -208,7 +207,6 @@ export function collectChromiumProcessRolePids(): ChromiumProcessRolePids {
 
 export function registerHostProcess(label: string, child: ElectronUtilityProcess): void {
   hostProcesses.set(label, child);
-  configureNetworkCaptureHost(child);
 }
 
 export function unregisterHostProcess(label: string): void {
@@ -275,7 +273,6 @@ export function openResourceManager(): void {
     },
   });
 
-  observeNetworkWindow(instance, () => hostProcesses.values());
   // 与主窗口保持一致：生产包始终加载签名包内的渲染资源。
   if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) {
     const base = process.env["ELECTRON_RENDERER_URL"];
@@ -345,7 +342,7 @@ function collectElectronProcesses(): ResourceUsageProcess[] {
   push(
     baseProcess(
       process.pid,
-      formatZCodeMainProcessName(),
+      formatXCodeMainProcessName(),
       "main",
       mainMetrics.cpuPercent,
       mainMetrics.memoryBytes,
@@ -355,7 +352,7 @@ function collectElectronProcesses(): ResourceUsageProcess[] {
   for (const m of metrics) {
     if (m.type === "GPU") {
       const { cpuPercent, memoryBytes } = metricsOf(m.pid);
-      push(baseProcess(m.pid, formatZCodeGpuProcessName(), "gpu", cpuPercent, memoryBytes));
+      push(baseProcess(m.pid, formatXCodeGpuProcessName(), "gpu", cpuPercent, memoryBytes));
     }
   }
 
@@ -368,7 +365,7 @@ function collectElectronProcesses(): ResourceUsageProcess[] {
     push(
       baseProcess(
         rendererPid,
-        formatZCodeRendererProcessName(win.getTitle() || `Window ${win.id}`),
+        formatXCodeRendererProcessName(win.getTitle() || `Window ${win.id}`),
         "renderer",
         cpuPercent,
         memoryBytes,
@@ -405,7 +402,7 @@ function collectElectronProcesses(): ResourceUsageProcess[] {
     if (child.pid == null) continue;
     const { cpuPercent, memoryBytes } = metricsOf(child.pid);
     push(
-      baseProcess(child.pid, formatZCodeHostProcessName(label), "host", cpuPercent, memoryBytes),
+      baseProcess(child.pid, formatXCodeHostProcessName(label), "host", cpuPercent, memoryBytes),
     );
   }
 
@@ -416,8 +413,8 @@ function collectElectronProcesses(): ResourceUsageProcess[] {
       baseProcess(
         m.pid,
         m.type === "Utility"
-          ? formatZCodeUtilityProcessName(m.name || String(m.pid))
-          : formatZCodeUtilityProcessName(m.type, "process"),
+          ? formatXCodeUtilityProcessName(m.name || String(m.pid))
+          : formatXCodeUtilityProcessName(m.type, "process"),
         "utility",
         cpuPercent,
         memoryBytes,
@@ -447,7 +444,7 @@ function collectUnsampledAgentProcesses(sampledPids: Set<number>): ResourceUsage
       if (sampledPids.has(agent.pid)) continue;
       rows.push({
         pid: agent.pid,
-        name: formatZCodeAgentProcessName(agent.provider, agent.workspacePath),
+        name: formatXCodeAgentProcessName(agent.provider, agent.workspacePath),
         category: "base",
         groupKey: "cli",
         groupLabel: "cli",
@@ -463,7 +460,7 @@ function collectUnsampledAgentProcesses(sampledPids: Set<number>): ResourceUsage
 const systemCpuMeter = createSystemCpuMeter();
 
 /** 一次完整快照：Electron 进程 + Host 采样的外部进程 + 系统总量 */
-export async function buildResourceUsageSnapshot(
+async function buildResourceUsageSnapshot(
   options: { includeHosts?: boolean; signal?: AbortSignal } = {},
 ): Promise<ResourceUsageSnapshot> {
   const electronProcesses = collectElectronProcesses();

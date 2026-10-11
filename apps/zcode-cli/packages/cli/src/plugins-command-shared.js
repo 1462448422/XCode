@@ -1,19 +1,19 @@
 import { createInterface } from "node:readline";
 /**
  * CLI 依赖名 → bootstrap 导出名。测试按依赖名注入假实现；生产路径按导出名懒加载 bootstrap，
- * 避免 `zcode plugins list` 这类轻命令把整个 bootstrap 图提前拉起来。
+ * 避免 `xcode plugins list` 这类轻命令把整个 bootstrap 图提前拉起来。
  */
 export const BOOTSTRAP_EXPORTS = {
-    addMarketplace: "addZCodePluginMarketplace",
-    getPluginsOverview: "getZCodePluginsOverview",
-    installPlugin: "installZCodeMarketplacePlugin",
-    listPlugins: "listZCodePlugins",
-    removeMarketplace: "removeZCodePluginMarketplace",
-    setPluginEnabled: "setZCodePluginEnabled",
-    uninstallPlugin: "uninstallZCodeMarketplacePlugin",
-    updateMarketplace: "updateZCodePluginMarketplace",
-    updatePlugin: "updateZCodeMarketplacePlugin",
-    validatePluginPath: "validateZCodePluginPath",
+    addMarketplace: "addXCodePluginMarketplace",
+    getPluginsOverview: "getXCodePluginsOverview",
+    installPlugin: "installXCodeMarketplacePlugin",
+    listPlugins: "listXCodePlugins",
+    removeMarketplace: "removeXCodePluginMarketplace",
+    setPluginEnabled: "setXCodePluginEnabled",
+    uninstallPlugin: "uninstallXCodeMarketplacePlugin",
+    updateMarketplace: "updateXCodePluginMarketplace",
+    updatePlugin: "updateXCodeMarketplacePlugin",
+    validatePluginPath: "validateXCodePluginPath",
 };
 /** 参数用法错误：调用方打印 message + usage 并以 1 退出。 */
 export class PluginsUsageError extends Error {

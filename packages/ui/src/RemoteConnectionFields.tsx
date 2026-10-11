@@ -20,10 +20,6 @@ import {
   TID_SSH_PORT_INPUT,
   TID_SSH_PRIVATE_KEY_INPUT,
   TID_SSH_USERNAME_INPUT,
-  TID_SERVER_NAME_INPUT,
-  TID_SERVER_TOKEN_INPUT,
-  TID_SERVER_URL_INPUT,
-  TID_SERVER_WORKSPACE_PATH_INPUT,
   TID_WSL_DISTRO_SELECT,
   TID_WSL_USER_INPUT,
   isValidWslUser,
@@ -51,7 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
 const DEFAULT_WSL_DISTRO_VALUE = "__default_wsl_distro__";
 const NO_SSH_CONFIG_ALIAS_VALUE = "__ssh_config_alias_none__";
@@ -78,10 +74,6 @@ export function RemoteConnectionFields({
   wslDistros,
   dockerContainer,
   manualDockerContainer,
-  serverUrl,
-  serverName,
-  serverToken,
-  serverWorkspacePath,
   dockerContainers,
   dockerAvailable,
   sshConfigAliases,
@@ -105,10 +97,6 @@ export function RemoteConnectionFields({
   setWslUser,
   setDockerContainer,
   setManualDockerContainer,
-  setServerUrl,
-  setServerName,
-  setServerToken,
-  setServerWorkspacePath,
 }: {
   kind: RemoteTarget["kind"];
   host: string;
@@ -124,10 +112,6 @@ export function RemoteConnectionFields({
   wslDistros: WSLDistro[];
   dockerContainer: string;
   manualDockerContainer: string;
-  serverUrl: string;
-  serverName: string;
-  serverToken: string;
-  serverWorkspacePath: string;
   dockerContainers: DockerContainerInfo[];
   dockerAvailable: boolean | null;
   sshConfigAliases: SSHConfigAliasOption[];
@@ -151,12 +135,8 @@ export function RemoteConnectionFields({
   setWslUser?: (value: string) => void;
   setDockerContainer: (value: string) => void;
   setManualDockerContainer: (value: string) => void;
-  setServerUrl: (value: string) => void;
-  setServerName: (value: string) => void;
-  setServerToken: (value: string) => void;
-  setServerWorkspacePath: (value: string) => void;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const platform = usePlatform();
   const [sshAliasPopoverOpen, setSshAliasPopoverOpen] = useState(false);
   const [dockerContainerPopoverOpen, setDockerContainerPopoverOpen] = useState(false);
@@ -340,12 +320,12 @@ export function RemoteConnectionFields({
             </p>
           </div>
 
-          {/* Bugfix: Electron / Chromium 的原生 autocomplete 在 SSH 向导里不稳定，
+          {/* Electron / Chromium 的原生 autocomplete 在 SSH 向导里不稳定，
               而且默认值（如 localhost / 22）会把历史候选提前过滤掉。
               这里改成用应用自身持久化的远程连接历史做显式候选，focus 时先展示完整历史；密码仍然不参与历史回填。 */}
-          {/* Bugfix: 建议列表之前直接跟着全宽输入框展开，在大对话框里会变成长条。
+          {/* 建议列表之前直接跟着全宽输入框展开，在大对话框里会变成长条。
               这里把宽度限制在字段语义范围内，只收窄建议列表，不改变原输入框布局。 */}
-          {/* Bugfix: 示例值直接作为 placeholder 会被误认为已有默认值。
+          {/* 示例值直接作为 placeholder 会被误认为已有默认值。
               这里改成“输入提示 + 示例”，让用户知道仍需手动填写必填字段。 */}
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_6.5rem]">
             <RemoteConnectionHistoryInput
@@ -375,7 +355,7 @@ export function RemoteConnectionFields({
             />
           </div>
 
-          {/* Bugfix: 认证方式之前复用了端口的 6.5rem 窄列，两个选项扣除 padding 后会把中英文文案挤到换行或溢出。
+          {/* 认证方式之前复用了端口的 6.5rem 窄列，两个选项扣除 padding 后会把中英文文案挤到换行或溢出。
               这里单独给认证方式保留 12rem，并禁止选项文字换行。 */}
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-end">
             <RemoteConnectionHistoryInput
@@ -534,77 +514,6 @@ export function RemoteConnectionFields({
           </div>
         </div>
       );
-    case "server":
-      return (
-        <div className="space-y-3">
-          <p className="text-ui-base text-foreground-subtle">
-            {intl.formatMessage({ id: "server.description" })}
-          </p>
-          <div>
-            <label className="mb-1 block text-ui-base text-foreground-subtle">
-              {intl.formatMessage({ id: "server.url" })}
-            </label>
-            <Input
-              size="lg"
-              className="h-9 text-ui-base"
-              value={serverUrl}
-              onChange={(event) => setServerUrl(event.target.value)}
-              placeholder={intl.formatMessage({ id: "server.urlPlaceholder" })}
-              autoCapitalize="none"
-              spellCheck={false}
-              data-testid={TID_SERVER_URL_INPUT}
-            />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-ui-base text-foreground-subtle">
-                {intl.formatMessage({ id: "server.name" })}
-              </label>
-              <Input
-                size="lg"
-                className="h-9 text-ui-base"
-                value={serverName}
-                onChange={(event) => setServerName(event.target.value)}
-                placeholder={intl.formatMessage({ id: "server.namePlaceholder" })}
-                data-testid={TID_SERVER_NAME_INPUT}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-ui-base text-foreground-subtle">
-                {intl.formatMessage({ id: "server.token" })}
-              </label>
-              <Input
-                size="lg"
-                className="h-9 text-ui-base"
-                type="password"
-                value={serverToken}
-                onChange={(event) => setServerToken(event.target.value)}
-                placeholder={intl.formatMessage({ id: "server.tokenPlaceholder" })}
-                autoComplete="off"
-                data-testid={TID_SERVER_TOKEN_INPUT}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-ui-base text-foreground-subtle">
-              {intl.formatMessage({ id: "server.workspacePath" })}
-            </label>
-            <Input
-              size="lg"
-              className="h-9 text-ui-base"
-              value={serverWorkspacePath}
-              onChange={(event) => setServerWorkspacePath(event.target.value)}
-              placeholder={intl.formatMessage({ id: "server.workspacePathPlaceholder" })}
-              autoCapitalize="none"
-              spellCheck={false}
-              data-testid={TID_SERVER_WORKSPACE_PATH_INPUT}
-            />
-            <p className="mt-1 text-ui-base text-foreground-subtle">
-              {intl.formatMessage({ id: "server.workspacePathDescription" })}
-            </p>
-          </div>
-        </div>
-      );
     case "wsl":
       return (
         <div className="space-y-3">
@@ -680,9 +589,7 @@ export function RemoteConnectionFields({
               )}
             >
               {intl.formatMessage({
-                id: wslUserIsInvalid
-                  ? "wsl.validation.invalidUser"
-                  : "wsl.userDescription",
+                id: wslUserIsInvalid ? "wsl.validation.invalidUser" : "wsl.userDescription",
               })}
             </p>
           </div>

@@ -1,9 +1,6 @@
-import type { ZCodeConfigOption, ZCodeTaskMeta } from "@zcode/shared";
-import { getZCodeAgentModeSelectOptions } from "@zcode/shared";
-import {
-  decodeCustomModelValue,
-  encodeCustomModelValue,
-} from "@/lib/zcodeCustomModelValue.js";
+import type { XCodeConfigOption, XCodeTaskMeta } from "@zcode/shared";
+import { getXCodeAgentModeSelectOptions } from "@zcode/shared";
+import { decodeCustomModelValue, encodeCustomModelValue } from "@/lib/zcodeCustomModelValue.js";
 
 function parseProviderQualifiedModel(
   model: string,
@@ -27,9 +24,7 @@ function isSyntheticModelPlaceholder(model: string): boolean {
   return model.trim().toLocaleLowerCase() === "<synthetic>";
 }
 
-export function resolveGlmRecoveredTaskModelValue(
-  taskModel: string | undefined,
-): string | null {
+function resolveGlmRecoveredTaskModelValue(taskModel: string | undefined): string | null {
   const normalizedTaskModel = taskModel?.trim();
   if (!normalizedTaskModel || isSyntheticModelPlaceholder(normalizedTaskModel)) {
     return null;
@@ -51,8 +46,8 @@ export function resolveGlmRecoveredTaskModelValue(
   return normalizedTaskModel;
 }
 
-export function resolveRecoveredTaskModelValue(
-  taskMeta: Pick<ZCodeTaskMeta, "provider" | "model">,
+function resolveRecoveredTaskModelValue(
+  taskMeta: Pick<XCodeTaskMeta, "provider" | "model">,
 ): string | null {
   const normalizedTaskModel = taskMeta.model?.trim();
   if (!normalizedTaskModel || isSyntheticModelPlaceholder(normalizedTaskModel)) {
@@ -72,10 +67,7 @@ function resolveModelOptionName(modelValue: string): string {
   return customModel?.modelName?.trim() || providerQualifiedModel?.modelName || modelValue;
 }
 
-function ensureModelOptionValue(
-  option: ZCodeConfigOption,
-  modelValue: string,
-): ZCodeConfigOption {
+function ensureModelOptionValue(option: XCodeConfigOption, modelValue: string): XCodeConfigOption {
   const options = option.options ?? [];
   const hasOption = options.some((candidate) => candidate.value === modelValue);
   if (hasOption && option.currentValue === modelValue) {
@@ -97,7 +89,7 @@ function ensureModelOptionValue(
   };
 }
 
-function createRecoveredModelOption(modelValue: string): ZCodeConfigOption {
+function createRecoveredModelOption(modelValue: string): XCodeConfigOption {
   return {
     category: "model",
     currentValue: modelValue,
@@ -113,18 +105,18 @@ function createRecoveredModelOption(modelValue: string): ZCodeConfigOption {
   };
 }
 
-function createRecoveredModeOption(modeValue: string): ZCodeConfigOption {
+function createRecoveredModeOption(modeValue: string): XCodeConfigOption {
   return {
     category: "mode",
     currentValue: modeValue,
     id: "mode",
     name: "Mode",
-    options: getZCodeAgentModeSelectOptions(),
+    options: getXCodeAgentModeSelectOptions(),
     type: "select",
   };
 }
 
-function createRecoveredThoughtLevelOption(thoughtLevel: string): ZCodeConfigOption {
+function createRecoveredThoughtLevelOption(thoughtLevel: string): XCodeConfigOption {
   return {
     category: "thought_level",
     currentValue: thoughtLevel,
@@ -141,9 +133,9 @@ function createRecoveredThoughtLevelOption(thoughtLevel: string): ZCodeConfigOpt
 }
 
 function ensureSelectOptionCurrentValue(
-  option: ZCodeConfigOption,
+  option: XCodeConfigOption,
   value: string,
-): ZCodeConfigOption {
+): XCodeConfigOption {
   const options = option.options ?? [];
   const hasOption = options.some((candidate) => candidate.value === value);
   if (hasOption && option.currentValue === value) {
@@ -165,13 +157,13 @@ function ensureSelectOptionCurrentValue(
   };
 }
 
-export function mergeRecoveredTaskModelConfigOptions({
+function mergeRecoveredTaskModelConfigOptions({
   taskMeta,
   configOptions,
 }: {
-  taskMeta: Pick<ZCodeTaskMeta, "provider" | "model">;
-  configOptions: readonly ZCodeConfigOption[];
-}): ZCodeConfigOption[] | null {
+  taskMeta: Pick<XCodeTaskMeta, "provider" | "model">;
+  configOptions: readonly XCodeConfigOption[];
+}): XCodeConfigOption[] | null {
   const recoveredModelValue = resolveRecoveredTaskModelValue(taskMeta);
   if (!recoveredModelValue) {
     return null;
@@ -206,10 +198,10 @@ export function resolveTaskRestorePreloadConfigOptions({
   taskMeta,
   cachedTaskConfigOptions,
 }: {
-  taskMeta: Pick<ZCodeTaskMeta, "provider" | "model"> &
-    Partial<Pick<ZCodeTaskMeta, "mode" | "thoughtLevel">>;
-  cachedTaskConfigOptions?: readonly ZCodeConfigOption[];
-}): ZCodeConfigOption[] {
+  taskMeta: Pick<XCodeTaskMeta, "provider" | "model"> &
+    Partial<Pick<XCodeTaskMeta, "mode" | "thoughtLevel">>;
+  cachedTaskConfigOptions?: readonly XCodeConfigOption[];
+}): XCodeConfigOption[] {
   let cachedOptions = [...(cachedTaskConfigOptions ?? [])];
   const recoveredOptions = mergeRecoveredTaskModelConfigOptions({
     taskMeta,
@@ -259,18 +251,4 @@ export function resolveTaskRestorePreloadConfigOptions({
   // 工具栏会先隐藏 mode/thought，等新快照回来后再出现；这里保留 task 级缓存，
   // 真正的新 settings 缺项时再由 setTaskConfigOptions 覆盖并隐藏。
   return cachedOptions;
-}
-
-export function mergeGlmRecoveredTaskModelConfigOptions({
-  taskMeta,
-  configOptions,
-}: {
-  taskMeta: Pick<ZCodeTaskMeta, "provider" | "model">;
-  configOptions: readonly ZCodeConfigOption[];
-}): ZCodeConfigOption[] | null {
-  if (taskMeta.provider !== "glm") {
-    return null;
-  }
-
-  return mergeRecoveredTaskModelConfigOptions({ taskMeta, configOptions });
 }

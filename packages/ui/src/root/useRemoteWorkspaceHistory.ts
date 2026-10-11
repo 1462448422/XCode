@@ -17,7 +17,7 @@ import {
   type RemoteWorkspaceSession,
   unregisterRemoteWorkspaceSession,
 } from "@/store/remoteWorkspaceSessionStore.js";
-import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
+import { useXCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import { refreshRemotePinnedTasksForSession } from "@/store/remotePinnedTaskStore.js";
 import { refreshRemoteTimelineTasksForSession } from "@/store/remoteTimelineTaskStore.js";
 import { toast } from "@/components/ui/toast.js";
@@ -48,7 +48,7 @@ import { markRemoteWorkspaceRunningTasksFailed } from "@/lib/remoteWorkspaceSess
 
 export { reconnectRemoteWorkspaceHistoryEntry };
 
-export async function bindRemoteWorkspaceContextAndGetSession(params: {
+async function bindRemoteWorkspaceContextAndGetSession(params: {
   platform: Pick<IPlatformService, "bindRemoteWorkspaceSessionContext">;
   sessionId: string;
   workspacePath: string;
@@ -71,7 +71,7 @@ export async function bindRemoteWorkspaceContextAndGetSession(params: {
   return currentSession;
 }
 
-export function resolveBotRemoteWorkspaceReconnectedIdentity(params: {
+function resolveBotRemoteWorkspaceReconnectedIdentity(params: {
   event: Pick<BotRemoteWorkspaceReconnectedEvent, "workspaceIdentity">;
   resolvedWorkspacePath: string;
   target: BotRemoteWorkspaceReconnectedEvent["target"];
@@ -85,7 +85,7 @@ export function resolveBotRemoteWorkspaceReconnectedIdentity(params: {
   return buildRemoteWorkspaceIdentity(params.resolvedWorkspacePath, params.target);
 }
 
-export function shouldPersistRemoteWorkspaceFailure(params: {
+function shouldPersistRemoteWorkspaceFailure(params: {
   pendingReconnectRequestIds: ReadonlyMap<string, string>;
   sessionEntry: RemoteWorkspaceSessionEntry;
   workspaceKey: string;
@@ -153,7 +153,7 @@ interface ReconnectRemoteWorkspaceByKeyParams {
   options?: ReconnectRemoteWorkspaceOptions;
 }
 
-export async function reconnectRemoteWorkspaceByKey({
+async function reconnectRemoteWorkspaceByKey({
   workspaceKey,
   canUseRemoteWorkspace,
   getRemoteSessions,
@@ -175,7 +175,7 @@ export async function reconnectRemoteWorkspaceByKey({
   return true;
 }
 
-export function collectSshReconnectGroup(params: {
+function collectSshReconnectGroup(params: {
   selected: RemoteWorkspaceSessionEntry;
   sessions: RemoteWorkspaceSessionEntry[];
   tabs: WindowTabState[];
@@ -211,7 +211,7 @@ export function collectSshReconnectGroup(params: {
   ];
 }
 
-export async function reconnectRemoteWorkspaceGroup(params: {
+async function reconnectRemoteWorkspaceGroup(params: {
   selected: RemoteWorkspaceSessionEntry;
   reconnectGroup: RemoteWorkspaceSessionEntry[];
   reconnectEntry: (
@@ -326,7 +326,7 @@ function shouldKeepRemoteWorkspaceInTabs(params: {
     );
 }
 
-export async function cancelPendingRemoteReconnectsForWorkspaceKeys(params: {
+async function cancelPendingRemoteReconnectsForWorkspaceKeys(params: {
   workspaceKeys: string[];
   pendingRequestIds: Map<string, string>;
   cancelPendingRemoteConnection?: (requestId?: string) => Promise<void>;
@@ -360,7 +360,7 @@ export async function cancelPendingRemoteReconnectsForWorkspaceKeys(params: {
   );
 }
 
-export async function openRemoteWorkspaceFromHistoryEntry({
+async function openRemoteWorkspaceFromHistoryEntry({
   workspaceKey,
   tabStoreApi,
   getRemoteSessions,
@@ -457,7 +457,7 @@ export async function openRemoteWorkspaceFromHistoryEntry({
   }
 }
 
-export async function selectRemoteWorkspaceProjectFromDialog({
+async function selectRemoteWorkspaceProjectFromDialog({
   canUseRemoteWorkspace,
   sessionId,
   path,
@@ -629,7 +629,7 @@ export function useRemoteWorkspaceHistory({
   addTab,
   onWorkspaceActivated,
 }: {
-  intl: ReturnType<typeof import("@/i18n/IntlProvider.js").useZCodeIntl>["intl"];
+  intl: ReturnType<typeof import("@/i18n/IntlProvider.js").useXCodeIntl>["intl"];
   services: IServiceAccessor;
   platform: IPlatformService;
   supportsSettings: boolean;
@@ -764,7 +764,7 @@ export function useRemoteWorkspaceHistory({
 
       // 远程连接成功只代表 main/host 已经建好 session，
       // renderer 侧的 MessagePort 仍然可能在下一拍才注册进 zustand store。
-      // 如果此时立刻 addTab，会短暂走到本地 services，导致首屏读目录/预热 ZCode Agent 命中错误服务。
+      // 如果此时立刻 addTab，会短暂走到本地 services，导致首屏读目录/预热 XCode Agent 命中错误服务。
       // 这里等 session 真正挂进 store 再继续。
       await waitForRemoteWorkspaceSessionReady(result.sessionId);
       if (!context) {
@@ -1149,7 +1149,7 @@ export function useRemoteWorkspaceHistory({
       ]
         .filter(Boolean)
         .join(" ");
-      const zcodeSessionStore = useZCodeSessionStore.getState();
+      const zcodeSessionStore = useXCodeSessionStore.getState();
       const failedTaskCount = markRemoteWorkspaceRunningTasksFailed({
         tabs: matchedTabs,
         getWorkspaceState: zcodeSessionStore.getWorkspaceState,
