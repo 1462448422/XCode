@@ -197,7 +197,7 @@ export function boundCausalityGraph(
     };
   });
 
-  const boundSteps: CreateWorkflowStep[] = steps.map((step) => {
+  const boundSteps = steps.map((step) => {
     const lanes = (step.lanes ?? []).filter((lane) => laneIds.has(lane));
     // ask 的 label 来自脚本字面量，可能为空；契约要求 min(1)，退回 step id。
     const label = step.label ? boundGraphText(step.label, CREATE_WORKFLOW_GRAPH_MAX_NAME_CHARS) : step.id;
