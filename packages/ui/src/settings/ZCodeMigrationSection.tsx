@@ -37,7 +37,7 @@ export function ZCodeMigrationSection({
   workspaceIdentity?: string;
   isDesktop?: boolean;
 }) {
-  const { intl, locale } = useXCodeIntl();
+  const { intl, locale } = useZCodeIntl();
   const {
     supportState,
     workspaceFilterMode,

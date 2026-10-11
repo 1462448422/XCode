@@ -138,3 +138,34 @@ export interface WorkflowActorContext {
 }
 
 export type ContextUserInstructionsRequest = UserInstructionsOptions;
+
+// ── fork godmode 类型（xcode2 合并层）──
+
+/** godmode 预置对话（priming turns）单条角色。 */
+export interface SystemPromptPrefillMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/** godmode 预置对话（priming turns）设置：开关 + 消息列表。 */
+export interface SystemPromptPrefillSettings {
+  enabled?: boolean;
+  messages?: SystemPromptPrefillMessage[];
+}
+
+/** godmode 输入混淆档位（Parseltongue light/standard/heavy）。 */
+export type SystemPromptObfuscationTier = "light" | "standard" | "heavy";
+
+/** godmode 输入混淆设置。 */
+export interface SystemPromptObfuscation {
+  tier?: SystemPromptObfuscationTier;
+}
+
+/**
+ * XCode fork：第 1 条 system 消息的自定义替换内容 + godmode 越狱配置。
+ */
+export interface SystemPromptOverrides {
+  cliPrefix?: string;
+  prefill?: SystemPromptPrefillSettings;
+  obfuscation?: SystemPromptObfuscation;
+}

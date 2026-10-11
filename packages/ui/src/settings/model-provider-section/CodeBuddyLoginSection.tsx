@@ -47,7 +47,7 @@ export function CodeBuddyLoginSection({
   /** 供应商显示名（CN 带 CN 后缀，Intl 不带），登录区文案按其插值。 */
   name: string;
 }) {
-  const { intl } = useXCodeIntl();
+  const { intl } = useZCodeIntl();
   // 设置页不在 PlatformProvider 内时回退 window.open（Electron 下开新窗口）。
   const platform = useOptionalPlatform();
   const { providerSettingsService } = useServices();

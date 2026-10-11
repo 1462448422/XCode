@@ -77,7 +77,7 @@ export function QoderLoginSection({
   region: "cn" | "intl";
   name: string;
 }) {
-  const { intl } = useXCodeIntl();
+  const { intl } = useZCodeIntl();
   const platform = useOptionalPlatform();
   const { providerSettingsService } = useServices();
   const [phase, setPhase] = useState<LoginPhase>({ kind: "idle" });

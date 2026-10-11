@@ -22,7 +22,7 @@ export function MigrationSection({
   workspaceIdentity?: string;
   isDesktop?: boolean;
 }) {
-  const { intl } = useXCodeIntl();
+  const { intl } = useZCodeIntl();
   const migration = useZCodeDataMigration({ isDesktop });
   const result = migration.result;
 
