@@ -1,5 +1,6 @@
-import { mkdir, readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { copyFile, mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import {
   onboardingDecisionSchema,
   onboardingRecordEntrySchema,
@@ -12,18 +13,49 @@ import type {
   OnboardingRecordFile,
 } from "@zcode/shared";
 import { atomicWriteText } from "../fs/atomicFileUtils.js";
-import { getAppConfigDir } from "../paths.js";
+import {
+  findZcodeDataDir,
+  getAppConfigDir,
+  getDataBaseDir,
+  getXCodeDataRootDir,
+  getZcodeHomeRoots,
+} from "../paths.js";
 import { createServiceLogger } from "../logger/serviceLogger.js";
 import type {
   CreateOnboardingRecordServiceOptions,
   IOnboardingRecordService,
   OnboardingSettingsSyncPatch,
 } from "./onboardingRecord.js";
+import type { JobSnapshot } from "./backgroundJobRegistry.js";
+import { getJobSnapshot, runBackgroundJob } from "./backgroundJobRegistry.js";
 
 const logger = createServiceLogger("onboardingRecordService");
 
+// 持久化最后一个完成结果的文件（供 host 重启后 UI 仍可见）
+const LAST_RESULT_FILE = join(getAppConfigDir(), "zcode-migration-last-result.json");
+function loadLastResult(): (MigrationResultSnapshot & { finishedAt?: number }) | null {
+  try {
+    const raw = readFileSync(LAST_RESULT_FILE, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+interface MigrationResultSnapshot {
+  copiedFiles: number;
+  skipped: string[];
+  /** SOURCE_MISSING：所有候选根下都没有 .zcode（区别于"迁移了 0 条"）。 */
+  errorCode?: "SOURCE_MISSING";
+  errorMessage?: string;
+}
+
+function persistLastResult(result: MigrationResultSnapshot): void {
+  writeFileSync(LAST_RESULT_FILE, JSON.stringify({ ...result, finishedAt: Date.now() }, null, 2));
+}
+
+
 function getRecordFile(): string {
-  // 记录是设备级数据，必须跟随 dataBaseDir（用户自定义数据目录时落在其 .zcode/v2 下，
+  // 记录是设备级数据，必须跟随 dataBaseDir（用户自定义数据目录时落在其 .xcode/v2 下，
   // 与 telemetry-state.json 一致），不能学 setting.json 固定写 home——setting.json 留在 home
   // 只是启动引导需要固定位置读取 dataBaseDir，不代表其他设备数据的落点。
   return join(getAppConfigDir(), "onboarding-record.json");
@@ -241,6 +273,109 @@ export function createOnboardingRecordService(
       await enqueueWrite(async () => {
         await rm(getRecordFile(), { force: true });
       });
+    },
+
+    // 迁移任务：后台运行，报告进度，UI 通过 getMigrationStatus() 轮询或读取持久化结果
+    async startMigrateZCodeData(): Promise<{ jobId: string }> {
+      // 源按多候选根解析（复刻旧 ZCode 自身的启动解析）：旧 ZCode 同样支持
+      // 自定义数据目录（其 setting.json 的 dataBaseDir），活动数据在
+      // {声明目录}/.zcode；未声明时在真实家目录。此前直接用 getDataBaseDir()
+      // 拼 .zcode，把 XCode 的当前基目录误当旧产品的数据基目录，两个完全不同。
+      const sourceDir = findZcodeDataDir();
+      if (!sourceDir) {
+        // 找不到源是明确的终态，不是"迁移了 0 条"。持久化原因，让 UI 能显示。
+        logger.warn("未找到 ZCode 数据目录，跳过迁移", { searched: getZcodeHomeRoots() });
+        void persistLastResult({
+          copiedFiles: 0,
+          skipped: [],
+          errorCode: "SOURCE_MISSING",
+          errorMessage: `未在以下位置找到 ZCode 数据目录 .zcode：${getZcodeHomeRoots().join("、")}`,
+        });
+        return { jobId: `migration_${Date.now()}` };
+      }
+      const destDir = getXCodeDataRootDir();
+      // 运行在后台任务注册表里（host 重启后仍有最后完成的结果）
+      void runBackgroundJob("zcode-data-migration", async (report) => {
+        const skipped: string[] = [];
+        let copiedFiles = 0;
+        const isSensitive = (name: string) => /^(credentials(\.json)?|[^/]*\.bak)$|credentials/i.test(name);
+        const isSqliteRuntime = (name: string) => /\.(sqlite|sqlite3|db)(-wal|-shm)?$/i.test(name);
+        const copyRecursive = async (src: string, dst: string): Promise<void> => {
+          try {
+            await mkdir(dst, { recursive: true });
+          } catch {
+            return;
+          }
+          let entries;
+          try {
+            entries = await readdir(src, { withFileTypes: true });
+          } catch {
+            return;
+          }
+          for (const entry of entries) {
+            if (isSensitive(entry.name)) {
+              skipped.push(entry.name);
+              continue;
+            }
+            const s = join(src, entry.name);
+            const d = join(dst, entry.name);
+            if (entry.isDirectory() && relative(sourceDir, s) === join("cli", "db")) {
+              skipped.push(join("cli", "db"));
+              continue;
+            }
+            if (isSqliteRuntime(entry.name)) {
+              skipped.push(relative(sourceDir, s));
+              continue;
+            }
+            try {
+              if (entry.isDirectory()) {
+                await copyRecursive(s, d);
+              } else if (entry.isFile()) {
+                await mkdir(dirname(d), { recursive: true });
+                await copyFile(s, d);
+                copiedFiles += 1;
+                report?.({ progress: copiedFiles });
+              }
+            } catch {
+              skipped.push(relative(sourceDir, s));
+            }
+          }
+        };
+        try {
+          await copyRecursive(sourceDir, destDir);
+        } catch {
+          // 部分失败不抛；已复制数 + 跳过列表作为结果
+        }
+        persistLastResult({ copiedFiles, skipped });
+        return { copiedFiles, skipped };
+      });
+      return { jobId: `migration_${Date.now()}` };
+    },
+
+    // ProxyChannel 远程调用一律按 Promise 消费；这里显式 async 保证 UI 端 await 语义。
+    async getMigrationStatus(): Promise<JobSnapshot | null> {
+      const running = getJobSnapshot("zcode-data-migration");
+      if (running) {
+        return running;
+      }
+      // 回落持久化的最后结果：「未找到源」是提前 return 的分支，没有 job 快照；
+      // 不回落的话 UI 永远看不到反馈（表现为点了没反应）。
+      const last = loadLastResult();
+      if (!last) {
+        return null;
+      }
+      const finishedAt = last.finishedAt ?? Date.now();
+      const restored: JobSnapshot = {
+        name: "zcode-data-migration",
+        running: false,
+        startedAt: finishedAt,
+        finishedAt,
+        result: last,
+      };
+      if (last.errorCode) {
+        restored.error = last.errorMessage ?? last.errorCode;
+      }
+      return restored;
     },
   };
 }

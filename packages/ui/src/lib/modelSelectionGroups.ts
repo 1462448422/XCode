@@ -1,14 +1,18 @@
 import {
-  isZCodeAgentProvider,
+  isXCodeAgentProvider,
   resolveModelProviderFamilySpecByProviderId,
   zcodeProviderAccountAccessSchema,
-  type ZCodeProviderAccountAccess,
-  type ZCodeProvider,
+  type XCodeProviderAccountAccess,
+  type XCodeProvider,
 } from "@zcode/shared";
 import type { ModelSelectionView } from "@zcode/services";
 import type { ModelSelectGroup } from "@/ModelConfigSelect.js";
 import { decodeCustomModelValue, encodeCustomModelValue } from "@/lib/zcodeCustomModelValue.js";
 import { shouldShowModelVisionBadge } from "@/lib/modelVisionBadge.js";
+import {
+  parseQoderModelMeta,
+  readQoderModelMetaHeaderValue,
+} from "@/lib/qoderModelDisplayNames.js";
 
 export interface ModelProviderGroupLabelOptions {
   apiKeyLabel?: string;
@@ -22,16 +26,16 @@ export interface ModelProviderGroupLabelOptions {
 }
 
 function supportsRegistryApiFormat(
-  selectedProvider: ZCodeProvider,
+  selectedProvider: XCodeProvider,
   apiFormat: string | null | undefined,
 ): boolean {
   if (!apiFormat) return false;
-  // 仅剩 glm（ZCode Agent）provider；三方 CLI 的 api format 差异已随 provider 下线。
-  return isZCodeAgentProvider(selectedProvider);
+  // 仅剩 glm（XCode Agent）provider；三方 CLI 的 api format 差异已随 provider 下线。
+  return isXCodeAgentProvider(selectedProvider);
 }
 
 export function buildRegistryModelSelectGroups(
-  selectedProvider: ZCodeProvider,
+  selectedProvider: XCodeProvider,
   view: ModelSelectionView,
   labels: ModelProviderGroupLabelOptions = {},
 ): ModelSelectGroup[] {
@@ -45,6 +49,13 @@ export function buildRegistryModelSelectGroups(
       ? getRegistryAccountProviderGroupPresentation(provider.providerId, accountAccess.data, labels)
       : null;
 
+    // XCode fork：Qoder 的选择器只显示上游可读名（Qwen3.8-Max），不显示原始 ID
+    // ——ID 对用户不可读。数据来自拉取上游时写入的 overlay 元数据表；value 仍是
+    // modelId，请求上游不受影响。其他 provider 无元数据，行为与改动前一致。
+    const qoderMeta = parseQoderModelMeta(
+      readQoderModelMetaHeaderValue(provider.config?.api?.headers),
+    );
+
     return [
       {
         key: `registry-provider:${provider.providerId}`,
@@ -54,7 +65,10 @@ export function buildRegistryModelSelectGroups(
         items: provider.models.map(({ modelId, config }) => ({
           key: `registry-provider:${provider.providerId}:${modelId}`,
           value: encodeCustomModelValue(provider.providerId, modelId),
-          name: modelId,
+          // XCode fork：Qoder 的选择器只显示上游可读名（Qwen3.8-Max），不显示
+          // 原始 ID——ID 对用户不可读。value 仍是 modelId，请求上游不受影响；
+          // 其他 provider 无元数据，行为与改动前一致。
+          name: qoderMeta[modelId]?.name ?? modelId,
           ...(shouldShowModelVisionBadge(
             modelId,
             config.properties?.inputFormat?.supportsImage,
@@ -70,7 +84,7 @@ export function buildRegistryModelSelectGroups(
 
 function getRegistryAccountProviderGroupPresentation(
   providerId: string,
-  access: ZCodeProviderAccountAccess,
+  access: XCodeProviderAccountAccess,
   labels: ModelProviderGroupLabelOptions,
 ): Pick<ModelSelectGroup, "label" | "labelBadge"> {
   const familySpec = resolveModelProviderFamilySpecByProviderId(providerId);

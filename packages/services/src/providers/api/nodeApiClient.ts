@@ -1,27 +1,32 @@
 import {
   ApiError,
-  DEFAULT_ZCODE_ENDPOINT_ORIGIN,
+  DEFAULT_XCODE_ENDPOINT_ORIGIN,
   normalizeZCodeEndpointOrigin,
   rewriteZCodeEndpointUrl,
   type ApiClient,
   type ApiRequestInit,
 } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
-import { buildZCodeSourceHeaders } from "../sourceHeaders.js";
+import { buildXCodeSourceHeaders } from "../sourceHeaders.js";
 import { withRequestIdHeader } from "./requestIdHeaders.js";
 
 const log = createServiceLogger("node-api-client");
 
 interface NodeApiClientOptions {
   fetchImpl?: typeof fetch;
-  onZcodeJwtInvalid?: (input: string | URL, headers: Headers) => void;
-  isZcodeJwtRequest?: (input: string | URL, headers: Headers) => boolean | Promise<boolean>;
+  onXcodeJwtInvalid?: (input: string | URL, headers: Headers) => void;
+  isXcodeJwtRequest?: (input: string | URL, headers: Headers) => boolean | Promise<boolean>;
+  resolveXCodeEndpointOrigin?: () => Promise<string> | string;
+  onXcodeJwtInvalid?: (input: string | URL, headers: Headers) => void;
+  isXcodeJwtRequest?: (input: string | URL, headers: Headers) => boolean | Promise<boolean>;
   isBusinessUnauthorizedRequest?: (
     input: string | URL,
     headers: Headers,
   ) => boolean | Promise<boolean>;
   businessUnauthorizedObservationTimeoutMs?: number;
-  resolveZCodeEndpointOrigin?: () => Promise<string> | string;
+  resolveXCodeEndpointOrigin?: () => Promise<string> | string;
+  /** 返回当前激活账号引用（provider:identity）；设置时 X-Device-Mid 按账号读取。 */
+  resolveAccountRef?: () => string | null;
 }
 
 const DEFAULT_BUSINESS_UNAUTHORIZED_OBSERVATION_TIMEOUT_MS = 1000;
@@ -113,24 +118,25 @@ function readHeaderKeys(headers: RequestInit["headers"] | undefined): string[] {
 
 function isRequestForEndpoint(input: string | URL, endpointOrigin: string): boolean {
   try {
-    return new URL(resolveUrl(input)).origin === normalizeZCodeEndpointOrigin(endpointOrigin);
+    return new URL(resolveUrl(input)).origin === normalizeXCodeEndpointOrigin(endpointOrigin);
   } catch {
     return false;
   }
 }
 
-function withZCodeEndpointHeaders(
+function withXCodeEndpointHeaders(
   headers: RequestInit["headers"] | undefined,
   endpointOrigin: string,
+  accountRef?: string | null,
 ): RequestInit["headers"] {
-  const next = new Headers(buildZCodeSourceHeaders());
+  const next = new Headers(buildXCodeSourceHeaders({ accountRef: accountRef ?? undefined }));
   if (headers) {
     new Headers(headers).forEach((value, key) => {
       next.set(key, value);
     });
   }
 
-  if (next.get("HTTP-Referer") === DEFAULT_ZCODE_ENDPOINT_ORIGIN) {
+  if (next.get("HTTP-Referer") === DEFAULT_XCODE_ENDPOINT_ORIGIN) {
     next.set("HTTP-Referer", endpointOrigin);
   }
   return next;
@@ -140,41 +146,50 @@ function resolveRequestHeaders(
   requestInput: string | URL,
   headers: RequestInit["headers"] | undefined,
   endpointOrigin: string,
+  accountRef?: string | null,
 ): RequestInit["headers"] | undefined {
   if (!isRequestForEndpoint(requestInput, endpointOrigin)) {
     return headers;
   }
 
-  // ZCode 后端请求以前只有部分业务路径手动补来源头。
+  // XCode 后端请求以前只有部分业务路径手动补来源头。
   // 统一在 ApiClient 出口按 endpoint origin 注入，避免 OAuth/config/billing/snapshot 等链路遗漏。
-  return withZCodeEndpointHeaders(headers, endpointOrigin);
+  return withXCodeEndpointHeaders(headers, endpointOrigin, accountRef);
 }
 
 export class NodeApiClient implements ApiClient {
   private readonly fetchImpl?: typeof fetch;
-  private readonly resolveZCodeEndpointOrigin?: () => Promise<string> | string;
-  private readonly onZcodeJwtInvalid?: (input: string | URL, headers: Headers) => void;
-  private readonly isZcodeJwtRequest?: NodeApiClientOptions["isZcodeJwtRequest"];
+  private readonly resolveXCodeEndpointOrigin?: () => Promise<string> | string;
+  private readonly onXcodeJwtInvalid?: (input: string | URL, headers: Headers) => void;
+  private readonly isXcodeJwtRequest?: NodeApiClientOptions["isXcodeJwtRequest"];
+  private readonly resolveXCodeEndpointOrigin?: () => Promise<string> | string;
+  private readonly onXcodeJwtInvalid?: (input: string | URL, headers: Headers) => void;
+  private readonly isXcodeJwtRequest?: NodeApiClientOptions["isXcodeJwtRequest"];
   private readonly isBusinessUnauthorizedRequest?: NodeApiClientOptions["isBusinessUnauthorizedRequest"];
   private readonly businessUnauthorizedObservationTimeoutMs: number;
+  private readonly resolveAccountRef?: () => string | null;
 
   constructor(options: NodeApiClientOptions = {}) {
     this.fetchImpl = options.fetchImpl;
-    this.onZcodeJwtInvalid = options.onZcodeJwtInvalid;
-    this.isZcodeJwtRequest = options.isZcodeJwtRequest;
+    this.onXcodeJwtInvalid = options.onXcodeJwtInvalid;
+    this.isXcodeJwtRequest = options.isXcodeJwtRequest;
+    this.resolveXCodeEndpointOrigin = options.resolveXCodeEndpointOrigin;
+    this.onXcodeJwtInvalid = options.onXcodeJwtInvalid;
+    this.isXcodeJwtRequest = options.isXcodeJwtRequest;
     this.isBusinessUnauthorizedRequest = options.isBusinessUnauthorizedRequest;
     this.businessUnauthorizedObservationTimeoutMs =
       options.businessUnauthorizedObservationTimeoutMs ??
       DEFAULT_BUSINESS_UNAUTHORIZED_OBSERVATION_TIMEOUT_MS;
-    this.resolveZCodeEndpointOrigin = options.resolveZCodeEndpointOrigin;
+    this.resolveXCodeEndpointOrigin = options.resolveXCodeEndpointOrigin;
+    this.resolveAccountRef = options.resolveAccountRef;
   }
 
   async request(input: string | URL, init?: ApiRequestInit): Promise<Response> {
-    const endpointOrigin = this.resolveZCodeEndpointOrigin
-      ? await this.resolveZCodeEndpointOrigin()
+    const endpointOrigin = this.resolveXCodeEndpointOrigin
+      ? await this.resolveXCodeEndpointOrigin()
       : undefined;
-    const activeEndpointOrigin = endpointOrigin ?? DEFAULT_ZCODE_ENDPOINT_ORIGIN;
-    const requestInput = rewriteZCodeEndpointUrl(input, activeEndpointOrigin);
+    const activeEndpointOrigin = endpointOrigin ?? DEFAULT_XCODE_ENDPOINT_ORIGIN;
+    const requestInput = rewriteXCodeEndpointUrl(input, activeEndpointOrigin);
     const url = resolveUrl(requestInput);
     const method = resolveMethod(init);
     const timeoutMs = init?.timeoutMs;
@@ -199,7 +214,12 @@ export class NodeApiClient implements ApiClient {
       }
       const fetchImpl = this.fetchImpl ?? globalThis.fetch;
       const requestHeaders = withRequestIdHeader(
-        resolveRequestHeaders(requestInput, init?.headers, activeEndpointOrigin),
+        resolveRequestHeaders(
+          requestInput,
+          init?.headers,
+          activeEndpointOrigin,
+          this.resolveAccountRef?.(),
+        ),
       );
       if (isRequestForEndpoint(requestInput, activeEndpointOrigin)) {
         // 调试说明：这里只记录 header key，避免 Authorization / token 等敏感值落盘。
@@ -214,15 +234,15 @@ export class NodeApiClient implements ApiClient {
         headers: requestHeaders,
         ...(signal ? { signal } : {}),
       });
-      if ((response.status === 401 || response.status === 200) && this.onZcodeJwtInvalid) {
+      if ((response.status === 401 || response.status === 200) && this.onXcodeJwtInvalid) {
         try {
           const requestHeadersForObservation = new Headers(requestHeaders);
-          const isCurrentZCodeJwtRequest = await this.isZcodeJwtRequest?.(
+          const isCurrentXcodeJwtRequest = await this.isXcodeJwtRequest?.(
             requestInput,
             requestHeadersForObservation,
           );
           if (
-            isCurrentZCodeJwtRequest &&
+            isCurrentXcodeJwtRequest &&
             (response.status === 401 ||
               ((await this.isBusinessUnauthorizedRequest?.(
                 requestInput,
@@ -233,7 +253,7 @@ export class NodeApiClient implements ApiClient {
                   this.businessUnauthorizedObservationTimeoutMs,
                 ))))
           ) {
-            this.onZcodeJwtInvalid(requestInput, requestHeadersForObservation);
+            this.onXcodeJwtInvalid(requestInput, requestHeadersForObservation);
           }
         } catch (error) {
           log.warn("zcode jwt invalid response observation failed", { error });

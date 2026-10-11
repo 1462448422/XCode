@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { Loader2, RefreshCcw, TriangleAlert } from "lucide-react";
+import { Check, DatabaseBackup, Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
 import {
   Card,
@@ -10,20 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card.js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.js";
-import { Input } from "@/components/ui/input.js";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select.js";
-import { useClaudeSessionMigration } from "@/hooks/useClaudeSessionMigration.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { MigrationCandidatesCard } from "@/settings/MigrationCandidatesCard.js";
-
-const RANGE_OPTIONS = ["7d", "30d", "90d", "all"] as const;
-const WORKSPACE_FILTER_OPTIONS = ["all", "current"] as const;
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
+import { ZCodeMigrationSection } from "@/settings/ZCodeMigrationSection.js";
+import { useZCodeDataMigration } from "@/hooks/useZCodeDataMigration.js";
 
 export function MigrationSection({
   workspacePath,
@@ -34,49 +22,11 @@ export function MigrationSection({
   workspaceIdentity?: string;
   isDesktop?: boolean;
 }) {
-  const { intl, locale } = useZCodeIntl();
-  const {
-    supportState,
-    workspaceFilterMode,
-    setWorkspaceFilterMode,
-    hasCurrentWorkspaceFilter,
-    range,
-    setRange,
-    limitInput,
-    setLimitInput,
-    scanLimit,
-    candidates,
-    selectedSessionIds,
-    selectedCount,
-    scanError,
-    importError,
-    lastImportResult,
-    isScanning,
-    isImporting,
-    scan,
-    importSelectedSessions,
-    toggleSessionSelection,
-    selectAllSessions,
-    clearSelectedSessions,
-  } = useClaudeSessionMigration({
-    workspacePath,
-    workspaceIdentity,
-    isDesktop,
-  });
+  const { intl } = useXCodeIntl();
+  const migration = useZCodeDataMigration({ isDesktop });
+  const result = migration.result;
 
-  const dateTimeFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }),
-    [locale],
-  );
-
-  const unsupportedDescription =
-    supportState.reason === "desktopOnly"
-      ? intl.formatMessage({ id: "settings.migration.unsupported.desktopOnly" })
-      : null;
+  const dataMigrationSupported = migration.supported;
 
   return (
     <div className="space-y-6">
@@ -87,118 +37,85 @@ export function MigrationSection({
               type="button"
               size="sm"
               variant="outline"
-              disabled={!supportState.supported || isScanning}
-              onClick={() => {
-                void scan();
-              }}
+              disabled={!dataMigrationSupported || migration.isRunning}
+              onClick={() => void migration.start()}
             >
-              {isScanning ? (
+              {migration.isRunning ? (
                 <Loader2 className="size-3.5 animate-spin" />
               ) : (
-                <RefreshCcw className="size-3.5" />
+                <DatabaseBackup className="size-3.5" />
               )}
-              {intl.formatMessage({ id: "settings.migration.scan" })}
+              {intl.formatMessage({ id: "settings.migration.zcodeData.action" })}
             </Button>
           </CardAction>
           <div className="space-y-1">
-            <CardTitle>{intl.formatMessage({ id: "settings.migration.filtersTitle" })}</CardTitle>
+            <CardTitle>
+              {intl.formatMessage({ id: "settings.migration.zcodeData.title" })}
+            </CardTitle>
             <CardDescription>
-              {intl.formatMessage({ id: "settings.migration.filtersDescription" })}
+              {intl.formatMessage({ id: "settings.migration.zcodeData.description" })}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-4 px-4 py-4">
-          {!supportState.supported ? (
+          {!dataMigrationSupported ? (
             <Alert>
               <TriangleAlert className="size-4" />
               <AlertTitle>
                 {intl.formatMessage({ id: "settings.migration.unsupported.title" })}
               </AlertTitle>
-              <AlertDescription>{unsupportedDescription}</AlertDescription>
+              <AlertDescription>
+                {intl.formatMessage({ id: "settings.migration.unsupported.desktopOnly" })}
+              </AlertDescription>
             </Alert>
           ) : null}
 
-          <div className="grid gap-4 xl:grid-cols-3">
-            <div className="space-y-2">
-              <div className="text-ui-base font-medium text-foreground">
-                {intl.formatMessage({ id: "settings.migration.workspaceFilterLabel" })}
-              </div>
-              <Select
-                value={workspaceFilterMode}
-                disabled={!supportState.supported || isScanning || isImporting}
-                onValueChange={(value) =>
-                  setWorkspaceFilterMode(value as (typeof WORKSPACE_FILTER_OPTIONS)[number])
-                }
-              >
-                <SelectTrigger size="lg" className="w-full justify-between">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {intl.formatMessage({ id: "settings.migration.workspaceFilter.all" })}
-                  </SelectItem>
-                  {hasCurrentWorkspaceFilter ? (
-                    <SelectItem value="current">
-                      {intl.formatMessage({ id: "settings.migration.workspaceFilter.current" })}
-                    </SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-ui-base font-medium text-foreground">
-                {intl.formatMessage({ id: "settings.migration.rangeLabel" })}
-              </div>
-              <Select
-                value={range}
-                disabled={!supportState.supported || isScanning || isImporting}
-                onValueChange={(value) => setRange(value as (typeof RANGE_OPTIONS)[number])}
-              >
-                <SelectTrigger size="lg" className="w-full justify-between">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {RANGE_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {intl.formatMessage({ id: `settings.migration.range.${option}` })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-ui-base font-medium text-foreground">
-                {intl.formatMessage({ id: "settings.migration.limitLabel" })}
-              </div>
-              <Input
-                type="number"
-                min={1}
-                max={500}
-                value={limitInput}
-                disabled={!supportState.supported || isScanning || isImporting}
-                onChange={(event) => setLimitInput(event.target.value)}
-              />
-              <div className="text-ui-base text-foreground-subtle">
-                {intl.formatMessage(
-                  { id: "settings.migration.limitHint" },
-                  { max: String(scanLimit) },
-                )}
-              </div>
-            </div>
-          </div>
-
-          {scanError ? (
+          {migration.error ? (
             <Alert>
               <TriangleAlert className="size-4" />
               <AlertTitle>
-                {intl.formatMessage({ id: "settings.migration.scanFailedTitle" })}
+                {intl.formatMessage({ id: "settings.migration.zcodeData.failedTitle" })}
               </AlertTitle>
               <AlertDescription>
                 {intl.formatMessage(
-                  { id: "settings.migration.scanFailedDescription" },
-                  { error: scanError },
+                  { id: "settings.migration.zcodeData.failedDescription" },
+                  { error: migration.error },
+                )}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {result && !migration.isRunning && (
+            <Alert>
+              <Check className="size-4" />
+              <AlertTitle>
+                {intl.formatMessage({ id: "settings.migration.zcodeData.resultTitle" })}
+              </AlertTitle>
+              <AlertDescription>
+                {intl.formatMessage(
+                  { id: "settings.migration.zcodeData.resultSummary" },
+                  {
+                    copied: String(result.copiedFiles ?? 0),
+                    skipped: String((result.skipped ?? []).length),
+                  },
+                )}
+                {(result.skipped ?? []).length > 0 ? `（跳过项：${(result.skipped ?? []).slice(0, 3).join(", ")}...` : ""}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* 只在运行中显示：progress 完成后保留最后值，若只看 progress > 0，
+              完成卡片下方会残留一张"正在迁移中"，误导用户以为还没结束。 */}
+          {migration.isRunning && migration.progress > 0 ? (
+            <Alert>
+              <Loader2 className="size-4 animate-spin" />
+              <AlertTitle>
+                {intl.formatMessage({ id: "settings.migration.zcodeData.inProgressTitle" })}
+              </AlertTitle>
+              <AlertDescription>
+                {intl.formatMessage(
+                  { id: "settings.migration.zcodeData.inProgressDescription" },
+                  { count: migration.progress },
                 )}
               </AlertDescription>
             </Alert>
@@ -206,22 +123,21 @@ export function MigrationSection({
         </CardContent>
       </Card>
 
-      <MigrationCandidatesCard
-        supportState={supportState}
-        candidates={candidates}
-        selectedSessionIds={selectedSessionIds}
-        selectedCount={selectedCount}
-        importError={importError}
-        lastImportResult={lastImportResult}
-        isImporting={isImporting}
-        dateTimeFormatter={dateTimeFormatter}
-        onToggleSelection={toggleSessionSelection}
-        onSelectAll={selectAllSessions}
-        onClearSelection={clearSelectedSessions}
-        onImportSelected={() => {
-          void importSelectedSessions();
-        }}
-      />
+      <div className="border-t border-border pt-6">
+        <div className="space-y-1 pb-2">
+          <h2 className="text-ui-lg font-semibold text-foreground">
+            {intl.formatMessage({ id: "settings.migration.zcode.sectionTitle" })}
+          </h2>
+          <p className="text-ui-base text-foreground-subtle">
+            {intl.formatMessage({ id: "settings.migration.zcode.sectionDescription" })}
+          </p>
+        </div>
+        <ZCodeMigrationSection
+          workspacePath={workspacePath}
+          workspaceIdentity={workspaceIdentity}
+          isDesktop={isDesktop}
+        />
+      </div>
     </div>
   );
 }

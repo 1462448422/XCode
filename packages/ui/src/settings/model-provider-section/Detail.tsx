@@ -11,6 +11,7 @@ import {
   isIndividualCodingPlanModelProviderId,
   resolveModelProviderFamilySpecByProviderId,
   type ModelConnectivityResult,
+  type UpstreamModelListResult,
   type OAuthProviderId,
 } from "@zcode/shared";
 import {
@@ -18,8 +19,8 @@ import {
   type ProviderSettingsFormProvider,
 } from "@/lib/providerSettingsFormTypes.js";
 import { ArrowRightIcon, AstroidIcon, UsersIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import {
   type CodingPlanStatus,
   type CodingPlanProviderId,
@@ -54,6 +55,9 @@ import { resolveStartPlanEntitlementSummary } from "./StartPlanCard.js";
 import { useCodingPlanProducts } from "./useCodingPlanProducts.js";
 import { useEnterpriseCodingPlanProducts } from "./useEnterpriseCodingPlanProducts.js";
 import { useUsageEntitlement } from "@/hooks/useUsageEntitlement.js";
+import { useServices } from "@/hooks/useServices.js";
+import { CodeBuddyLoginSection } from "./CodeBuddyLoginSection.js";
+import { QoderLoginSection } from "./QoderLoginSection.js";
 import {
   createCodingPlanFunnelContext,
   resolveCodingPlanEntryPlanState,
@@ -246,6 +250,7 @@ export function ModelProviderSectionDetail({
   onDelete,
   onReorderProviderModels,
   onTestModel,
+  onFetchUpstreamModels,
   onCodingPlanLogin,
   onRetryCodingPlan,
   onCodingPlanDisconnect,
@@ -285,6 +290,8 @@ export function ModelProviderSectionDetail({
   onDelete: (provider: ProviderSettingsFormProvider) => Promise<void>;
   onReorderProviderModels?: (providerId: string, modelIds: string[]) => Promise<void>;
   onTestModel: (providerId: string, modelId: string) => Promise<ModelConnectivityResult>;
+  /** 从供应商上游拉取模型列表，用于批量添加。 */
+  onFetchUpstreamModels?: (providerId: string) => Promise<UpstreamModelListResult>;
   onRetryCodingPlan?: () => void | Promise<void>;
   onCodingPlanLogin: (
     presetId: BuiltinModelProviderId,
@@ -304,7 +311,7 @@ export function ModelProviderSectionDetail({
   onSelectNavItem?: (item: ModelProviderNavItem) => void;
   providerSettingsView?: ProviderSettingsView | null;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { openCodingPlanUpgrade } = useCodingPlanUpgradeDialog();
   const loadingLabel = intl.formatMessage({ id: "common.loading" });
   const [upgradePlansVisibleProviderId, setUpgradePlansVisibleProviderId] =
@@ -314,12 +321,19 @@ export function ModelProviderSectionDetail({
   const rootProviderSettingsView =
     rootProviderSettingsRead.state.status === "ready" ? rootProviderSettingsRead.state.view : null;
   const providerSettingsView = providerSettingsViewOverride ?? rootProviderSettingsView;
+  const { providerSettingsService } = useServices();
   // 账号分支曾漏传删除回调，出现只删 UI 不写盘。所有详情共用同一套模型操作装配。
   const modelEditingProps = {
     onAddPersonalModel,
     onSavePersonalModelDraft,
     onSetPersonalModelEnabled,
     onDeletePersonalModel,
+    onFetchUpstreamModels,
+    onResolveModelConfig: useCallback(
+      (cardProviderId: string, modelId: string) =>
+        providerSettingsService.resolveModelConfig({ providerId: cardProviderId, modelId }),
+      [providerSettingsService],
+    ),
     settingsRevision: providerSettingsView?.revision,
   };
   const selectedPlanAccess = useMemo(() => {
@@ -436,6 +450,69 @@ export function ModelProviderSectionDetail({
           headerActionsVisible={familySpec ? false : undefined}
         />
       </ProviderFamilyDetailShell>
+    );
+  }
+
+  // 免费供应商详情——复用自定义供应商的模型配置页（增删/批量导入），
+  // 但连接信息只读、API Key 区隐藏（凭据内置，不对用户显示）。
+  if (selectedNavItem.type === "free") {
+    const freeProvider = selectedNavItem.provider;
+    return (
+      <InlineEditableProviderCard
+        provider={freeProvider}
+        onSave={onSave}
+        {...modelEditingProps}
+        onReorderModelIds={
+          onReorderProviderModels
+            ? (modelIds) => onReorderProviderModels(freeProvider.providerId, modelIds)
+            : undefined
+        }
+        onTestModel={onTestModel}
+        readOnlyEndpoints
+        hideApiKeySection
+        upstreamImportEnabled
+        nameEditable={false}
+      />
+    );
+  }
+
+  // 其他登录型供应商详情（CodeBuddy 等）——连接信息只读；模型列表上方为
+  // 登录区（OAuth 设备码 + API Key 双模式），登录成功后令牌写入 personal
+  // overlay 的 access.apiKey，执行链按普通 openai-compatible Bearer 发送。
+  if (selectedNavItem.type === "other") {
+    const otherProvider = selectedNavItem.provider;
+    return (
+      <InlineEditableProviderCard
+        provider={otherProvider}
+        onSave={onSave}
+        {...modelEditingProps}
+        onReorderModelIds={
+          onReorderProviderModels
+            ? (modelIds) => onReorderProviderModels(otherProvider.providerId, modelIds)
+              : undefined
+        }
+        onTestModel={onTestModel}
+        readOnlyEndpoints
+        hideConnectionSection
+        hideApiKeySection
+        upstreamImportEnabled
+        nameEditable={false}
+        loginSection={otherProvider.providerId.includes("qoder")
+          ? (
+            <QoderLoginSection
+              providerId={otherProvider.providerId}
+              region={otherProvider.providerId.includes("qoder-cn") ? "cn" : "intl"}
+              name={otherProvider.providerId.includes("qoder-cn") ? "Qoder CN" : "Qoder"}
+            />
+          )
+          : (
+            <CodeBuddyLoginSection
+              providerId={otherProvider.providerId}
+              region={otherProvider.providerId.includes("codebuddy-cn") ? "cn" : "intl"}
+              name={otherProvider.providerId.includes("codebuddy-cn") ? "CodeBuddy CN" : "CodeBuddy"}
+            />
+          )}
+      />
     );
   }
 
@@ -702,6 +779,8 @@ export function ModelProviderSectionDetail({
             provider={dedicatedProvider}
             onSave={onSave}
             {...modelEditingProps}
+            // Coding Plan 端点由账号 Overlay 管理，不提供个人上游模型拉取入口。
+            onFetchUpstreamModels={undefined}
             onReorderModelIds={
               onReorderProviderModels
                 ? (modelIds) => onReorderProviderModels(dedicatedProvider.providerId, modelIds)
@@ -898,7 +977,7 @@ function CodingPlanPurchaseChoiceBanners({
   onSelectStartPlan?: () => void;
 }) {
   const entryGate = useCodingPlanEntryGate();
-  const { intl, locale } = useZCodeIntl();
+  const { intl, locale } = useXCodeIntl();
   const startPlanSummary = startPlanPreview
     ? resolveStartPlanEntitlementSummary(startPlanPreview, intl, locale)
     : null;
@@ -1199,7 +1278,7 @@ function PurchaseChoiceBannerPrice({
   currency: string | null;
   locale: string;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const formattedAmount = formatCodingPlanAmount(price, currency, locale);
   const isChineseLocale = locale.toLowerCase().startsWith("zh");
   if (!isChineseLocale) {
@@ -1243,7 +1322,7 @@ function CodingPlanAccessBanner({ title, description }: { title: string; descrip
 
 function resolveCodingPlanAccessBanner(
   status: CodingPlanStatus,
-  intl: ReturnType<typeof useZCodeIntl>["intl"],
+  intl: ReturnType<typeof useXCodeIntl>["intl"],
   reloginOnFailure = false,
 ): { title: string; description: string } | null {
   if (

@@ -6,17 +6,25 @@ import {
   type ProviderSettingsFormProvider,
   type ProviderSettingsFormModel,
 } from "@/lib/providerSettingsFormTypes.js";
-import type { ModelConnectivityResult } from "@zcode/shared";
+import type { ModelConnectivityResult, UpstreamModelListResult } from "@zcode/shared";
 import {
+  extractManualModelConfig,
   isApiKeyAccess,
+  type ModelConfigObject,
+  type ModelConfigResolution,
   type ProviderApiType,
   type SavePersonalModelDraftInput,
 } from "@zcode/provider";
 import { logger } from "@/logger.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { Switch } from "@/components/ui/switch.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { isImeComposingKeyEvent } from "@/lib/imeComposition.js";
+import {
+  isQoderModelMetaHeader,
+  parseQoderModelMeta,
+  readQoderModelMetaHeaderValue,
+} from "@/lib/qoderModelDisplayNames.js";
 import { resolvePendingProviderDraftSave, type ProviderDraftValues } from "./ProviderDraftSave.js";
 import {
   ProviderApiKeySection,
@@ -24,7 +32,10 @@ import {
   ProviderConnectionSection,
   ProviderModelsSection,
 } from "./ProviderCardSections.js";
-import { resolveModelProviderDisplayName } from "./constants.js";
+import {
+  DEFAULT_PERSONAL_PROVIDER_API_FORMAT,
+  resolveModelProviderDisplayName,
+} from "./constants.js";
 import { useProviderDetailFeedback } from "./ProviderDetailFeedback.js";
 import { MODEL_PROVIDER_TEXT_IDLE_TRIGGER_MS, useIdleTrigger } from "./useIdleTrigger.js";
 import { useOptimisticReorder } from "./useOptimisticReorder.js";
@@ -146,11 +157,17 @@ export function InlineEditableProviderCard({
   onDeletePersonalModel,
   onDelete,
   onTestModel,
+  onFetchUpstreamModels,
+  onResolveModelConfig,
   onReorderModelIds,
   readOnlyEndpoints,
+  hideConnectionSection,
+  hideApiKeySection,
+  upstreamImportEnabled,
   presetApiKeyUrl,
   onOpenPresetApiKey,
   statusSection,
+  loginSection,
   nameEditable,
   headerVisible = true,
   headerActionsVisible,
@@ -164,6 +181,11 @@ export function InlineEditableProviderCard({
     config: ProviderSettingsFormModel["personalConfig"],
     useRecommendedConfig?: boolean,
   ) => Promise<unknown>;
+  /** 解析模型在系统默认规则下的继承配置；上游元数据导入时用于补齐 manual 必填字段。 */
+  onResolveModelConfig?: (
+    providerId: string,
+    modelId: string,
+  ) => Promise<ModelConfigResolution | null>;
   onSavePersonalModelDraft?: (input: SavePersonalModelDraftInput) => Promise<unknown>;
   onSetPersonalModelEnabled?: (
     providerId: string,
@@ -173,22 +195,32 @@ export function InlineEditableProviderCard({
   onDeletePersonalModel?: (providerId: string, modelId: string) => Promise<unknown>;
   onDelete?: () => void | Promise<void>;
   onTestModel?: (providerId: string, modelId: string) => Promise<ModelConnectivityResult>;
+  /** 从上游拉取模型列表批量添加；只读端点的预设供应商不提供。 */
+  onFetchUpstreamModels?: (providerId: string) => Promise<UpstreamModelListResult>;
   onReorderModelIds?: (modelIds: string[]) => Promise<void>;
   readOnlyEndpoints?: boolean;
+  /** 隐藏连接区（Base URL + API 格式）：登录型供应商端点由内置配置决定。 */
+  hideConnectionSection?: boolean;
+  /** 隐藏 API Key 区（免费供应商凭据内置，不对用户显示）。 */
+  hideApiKeySection?: boolean;
+  /** 只读端点下仍放开上游批量导入（免费供应商复用自定义供应商模型页）。 */
+  upstreamImportEnabled?: boolean;
   presetApiKeyUrl?: string;
   onOpenPresetApiKey?: () => void;
   statusSection?: ReactNode;
+  /** 登录区（其他登录型供应商）：渲染在模型列表上方。 */
+  loginSection?: ReactNode;
   nameEditable?: boolean;
   headerVisible?: boolean;
   headerActionsVisible?: boolean;
   settingsRevision?: number;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl } = useXCodeIntl();
   const { dismissFeedback, showFeedback } = useProviderDetailFeedback();
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(getProviderFormLabel(provider));
   const [apiFormat, setApiFormat] = useState<ProviderApiType>(
-    provider.config.api?.type ?? "anthropic-messages",
+    provider.config.api?.type ?? DEFAULT_PERSONAL_PROVIDER_API_FORMAT,
   );
   const [baseUrlValue, setBaseUrlValue] = useState(provider.config.api?.baseUrl ?? "");
   const [apiKeyValue, setApiKeyValue] = useState(getProviderFormApiKey(provider));
@@ -231,13 +263,13 @@ export function InlineEditableProviderCard({
   };
   const draftRef = useRef<ProviderDraftValues>({
     nameValue: getProviderFormLabel(provider),
-    apiFormat: provider.config.api?.type ?? "anthropic-messages",
+    apiFormat: provider.config.api?.type ?? DEFAULT_PERSONAL_PROVIDER_API_FORMAT,
     baseUrlValue: provider.config.api?.baseUrl ?? "",
     apiKeyValue: getProviderFormApiKey(provider),
   });
 
   useEffect(() => {
-    const resolvedApiFormat = provider.config.api?.type ?? "anthropic-messages";
+    const resolvedApiFormat = provider.config.api?.type ?? DEFAULT_PERSONAL_PROVIDER_API_FORMAT;
     const resolvedBaseUrl = provider.config.api?.baseUrl ?? "";
     const resolvedApiKey = getProviderFormApiKey(provider);
     const resolvedLabel = getProviderFormLabel(provider);
@@ -668,29 +700,28 @@ export function InlineEditableProviderCard({
   );
 
   const handleDeleteModel = useCallback(
-    (modelId: string) => {
+    (modelId: string): Promise<void> => {
       const index = models.findIndex((model) => model.modelId === modelId);
       const model = models[index];
       if (!model) {
-        return;
+        return Promise.resolve();
       }
-      if (!model.builtin) {
-        void runSaveOperation(
-          async () => {
-            if (!onDeletePersonalModel)
-              throw new Error("当前设置入口未装配 Personal Model 删除能力");
-            await onDeletePersonalModel(provider.providerId, model.modelId);
-          },
-          { modelId: model.modelId, operation: "delete" },
-        ).catch((error) => {
-          logger.warn("[ModelProviderSection] 删除 Personal Model 失败", {
-            providerId: provider.providerId,
-            modelId: model.modelId,
-            error,
-          });
+      // 返回真实 Promise：批量删除需要串行等待每次写入落盘，否则后续删除会
+      // 撞上"模型已不存在"，变成一串无意义的失败。
+      return runSaveOperation(
+        async () => {
+          if (!onDeletePersonalModel)
+            throw new Error("当前设置入口未装配 Personal Model 删除能力");
+          await onDeletePersonalModel(provider.providerId, model.modelId);
+        },
+        { modelId: model.modelId, operation: "delete" },
+      ).catch((error) => {
+        logger.warn("[ModelProviderSection] 删除 Personal Model 失败", {
+          providerId: provider.providerId,
+          modelId: model.modelId,
+          error,
         });
-        return;
-      }
+      });
     },
     [models, onDeletePersonalModel, provider.providerId, runSaveOperation],
   );
@@ -725,6 +756,159 @@ export function InlineEditableProviderCard({
       );
     },
     [onAddPersonalModel, provider.providerId, runSaveOperation],
+  );
+
+  // 上游模型批量导入。刻意不走 runSaveOperation 的单模型三态通知——
+  // 整批只发一条 pending，串行保存完成后用一条汇总反馈收尾（成功/含失败），
+  // 避免导入 N 个模型弹 N 组 toast。单个失败不中断整批，失败明细回传给对话框保留重试。
+  const handleImportUpstreamModels = useCallback(
+    async (
+      items: ReadonlyArray<{
+        modelId: string;
+        config: ModelConfigObject;
+        displayName?: string;
+        priceFactor?: number;
+        contextTiers?: ReadonlyArray<{ name: string; tokenCount: number }>;
+        thinkingEfforts?: ReadonlyArray<string>;
+      }>,
+    ): Promise<{ added: number; failed: number; failedModelIds: string[] }> => {
+      if (!onAddPersonalModel) throw new Error("当前设置入口未装配 Personal Model 添加能力");
+      selfSaveRequestedRef.current = true;
+      const feedbackKey = `models-import:${provider.providerId}`;
+      showFeedback({
+        key: feedbackKey,
+        message: intl.formatMessage({ id: "settings.modelProvider.importModels.importing" }),
+        state: "pending",
+        durationMs: 0,
+      });
+      let added = 0;
+      const failedModelIds: string[] = [];
+      for (const rawItem of items) {
+        const modelId = rawItem.modelId.trim();
+        if (!modelId) continue;
+        try {
+          // manual 规则 schema 要求完整布尔字段；上游元数据只覆盖 contextWindow/
+          // maxOutputTokens，其余字段从系统默认继承配置中按 manual 白名单补齐，
+          // 缺失继承的语义在运行时 overlay 保持不变。
+          let config = rawItem.config;
+          if (onResolveModelConfig) {
+            const resolution = await onResolveModelConfig(provider.providerId, modelId);
+            if (resolution) {
+              const inherited = extractManualModelConfig(resolution.inheritedConfig);
+              config = {
+                ...inherited,
+                ...config,
+                properties: { ...inherited.properties, ...config.properties },
+                optionSpecs: {
+                  ...inherited.optionSpecs,
+                  ...config.optionSpecs,
+                  ...(config.optionSpecs?.maxOutputTokens || inherited.optionSpecs?.maxOutputTokens
+                    ? {
+                        maxOutputTokens: {
+                          ...inherited.optionSpecs?.maxOutputTokens,
+                          ...config.optionSpecs?.maxOutputTokens,
+                        },
+                      }
+                    : undefined),
+                },
+              };
+            }
+          }
+          // addPersonalModel 是 Host 配置写入事务，串行执行避免并发写冲突；
+          // useRecommendedConfig=false + 每项自己的配置（统一配置或上游元数据派生）。
+          await onAddPersonalModel(
+            provider.providerId,
+            modelId,
+            structuredClone(config),
+            false,
+          );
+          added += 1;
+        } catch (error) {
+          failedModelIds.push(modelId);
+          logger.warn("[ModelProviderSection] 批量导入模型添加失败", {
+            providerId: provider.providerId,
+            modelId,
+            error,
+          });
+        }
+      }
+
+      // XCode fork：把上游的可读名与倍率写进 provider overlay 的模型元数据表。
+      // 存headers 而非模型规则——规则 schema 是 strict 的，加字段会波及所有
+      // provider 的配置解析（未知键被拒会让整层 personal 配置加载失败）。
+      const metaEntries = items
+        .map((rawItem) => {
+          const modelId = rawItem.modelId.trim();
+          if (
+            !modelId ||
+            (rawItem.displayName === undefined &&
+              rawItem.priceFactor === undefined &&
+              rawItem.contextTiers === undefined &&
+              rawItem.thinkingEfforts === undefined)
+          ) {
+            return null;
+          }
+          return [
+            modelId,
+            {
+              ...(rawItem.displayName ? { name: rawItem.displayName } : {}),
+              ...(rawItem.priceFactor !== undefined ? { priceFactor: rawItem.priceFactor } : {}),
+              ...(rawItem.contextTiers ? { tiers: rawItem.contextTiers } : {}),
+              ...(rawItem.thinkingEfforts ? { efforts: rawItem.thinkingEfforts } : {}),
+            },
+          ] as const;
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+      if (metaEntries.length > 0) {
+        try {
+          const previous = provider.personalConfig;
+          const baseHeaders = {
+            ...((previous?.api?.headers as Record<string, string> | undefined) ?? {}),
+          };
+          // 合并而非覆盖：同provider 多次拉取时保留先前的元数据。
+          const merged = {
+            ...parseQoderModelMeta(readQoderModelMetaHeaderValue(baseHeaders)),
+            ...Object.fromEntries(metaEntries),
+          };
+          for (const key of Object.keys(baseHeaders)) {
+            if (isQoderModelMetaHeader(key)) delete baseHeaders[key];
+          }
+          baseHeaders["X-Qoder-Model-Meta"] = JSON.stringify(merged);
+          await onSave({
+            ...provider,
+            personalConfig: {
+              ...previous,
+              api: { ...(previous?.api ?? {}), headers: baseHeaders },
+            },
+          });
+        } catch (metaError) {
+          // 元数据是展示增强，写失败不影响已导入的模型。
+          logger.warn("[ModelProviderSection] 写入 Qoder 模型元数据失败", {
+            providerId: provider.providerId,
+            error: metaError,
+          });
+        }
+      }
+
+      const failed = failedModelIds.length;
+      showFeedback({
+        key: feedbackKey,
+        message: intl.formatMessage(
+          { id: "settings.modelProvider.importModels.result" },
+          { added, failed },
+        ),
+        state: failed > 0 ? "failure" : "success",
+        ...(failed > 0
+          ? {
+              durationMs: 8_000,
+              dismissible: true,
+              dismissLabel: intl.formatMessage({ id: "common.close" }),
+            }
+          : {}),
+      });
+      return { added, failed, failedModelIds };
+    },
+    [intl, onAddPersonalModel, onSave, provider, showFeedback],
   );
 
   const handleReorderModelIds = useCallback(
@@ -815,6 +999,7 @@ export function InlineEditableProviderCard({
           <ProviderConnectionSection
             provider={provider}
             readOnly={readOnlyEndpoints}
+            hidden={hideConnectionSection}
             apiFormat={apiFormat}
             baseUrlValue={baseUrlValue}
             onApiFormatChange={handleApiFormatChange}
@@ -826,7 +1011,7 @@ export function InlineEditableProviderCard({
           />
         )}
 
-        {isApiKeyProvider ? (
+        {isApiKeyProvider && !hideApiKeySection ? (
           <ProviderApiKeySection
             apiKeyValue={apiKeyValue}
             apiKeyVisible={apiKeyVisible}
@@ -841,6 +1026,7 @@ export function InlineEditableProviderCard({
           />
         ) : null}
 
+        {loginSection}
         <ProviderModelsSection
           // 不同 Provider 可以有同名模型；不能复用上一供应商的打开中草稿和版本。
           key={provider.providerId}
@@ -848,12 +1034,21 @@ export function InlineEditableProviderCard({
           providerName={getProviderFormLabel(provider)}
           providerEnabled={provider.enabled}
           providerAccess={provider.config.access}
+          providerApiHeaders={provider.config.api?.headers as Record<string, string> | undefined}
           models={models}
           onTestModel={onTestModel ? handleTestModel : undefined}
           onModelCommit={handleModelCommit}
           onModelEnabledChange={handleModelEnabledChange}
           onDeleteModel={handleDeleteModel}
           onAddModel={handleAddModel}
+          onFetchUpstreamModels={
+            upstreamImportEnabled || !readOnlyEndpoints ? onFetchUpstreamModels : undefined
+          }
+          onImportUpstreamModels={
+            (upstreamImportEnabled || !readOnlyEndpoints) && onAddPersonalModel
+              ? handleImportUpstreamModels
+              : undefined
+          }
           onReorderModelIds={onReorderModelIds ? handleReorderModelIds : undefined}
           settingsRevision={settingsRevision ?? 0}
         />
