@@ -4,8 +4,8 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
-  ZCODE_COMMAND_AGENT_SOURCE,
-  ZCODE_COMMAND_AGENT_SOURCES,
+  XCODE_COMMAND_AGENT_SOURCE,
+  XCODE_COMMAND_AGENT_SOURCES,
   type CommandAgentSource,
   type CommandCreateParams,
   type CommandDeleteParams,

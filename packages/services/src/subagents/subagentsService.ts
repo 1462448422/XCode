@@ -6,7 +6,7 @@ import {
   createPluginAgentStateId,
   parsePluginSubagentModelSelectionOverrides,
   DEFAULT_ENABLED_OFFICIAL_PLUGIN_IDS,
-  ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
+  XCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
   modelSelectionSchema,
   type SubagentRuntimeConfig,
   type AgentCreateParams,

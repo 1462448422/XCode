@@ -4,7 +4,7 @@ import { channelContentPartsSchema, type ChannelContentPart } from "./channel-me
 import { z } from "zod";
 import { modelSelectionSchema, type ModelSelection } from "./model-selection.js";
 import { conversationQuotesSchema } from "./conversationSelection.js";
-import { ZCODE_AGENT_PROVIDER, ZCODE_AGENT_PROVIDER_LABEL } from "./zcode-agent-policy.js";
+import { XCODE_AGENT_PROVIDER, XCODE_AGENT_PROVIDER_LABEL } from "./zcode-agent-policy.js";
 import type {
   ZCodeConfigOption,
   ZCodeElicitationRequest,
@@ -709,7 +709,7 @@ export const botCommandPolicySchema = botAllowedCommandsSchema;
 // 因此解析时继续接受这些历史值，并统一归一到当前唯一的 agent provider。
 const legacyBotAgentProviderSchema = z
   .enum(["codex", "claude", "opencode", "gemini", "glm"])
-  .transform((): typeof ZCODE_AGENT_PROVIDER => ZCODE_AGENT_PROVIDER);
+  .transform((): typeof XCODE_AGENT_PROVIDER => XCODE_AGENT_PROVIDER);
 
 export const botCurrentOptionsSchema = z
   .object({
@@ -924,7 +924,7 @@ export function normalizeBotReplyGranularity(
   return supported.includes(candidate) ? candidate : supported[0]!;
 }
 
-export const BOT_ZCODE_PROVIDER_OPTIONS: Array<{
+export const BOT_XCODE_PROVIDER_OPTIONS: Array<{
   id: ZCodeProvider;
   label: string;
-}> = [{ id: ZCODE_AGENT_PROVIDER, label: ZCODE_AGENT_PROVIDER_LABEL }];
+}> = [{ id: XCODE_AGENT_PROVIDER, label: XCODE_AGENT_PROVIDER_LABEL }];

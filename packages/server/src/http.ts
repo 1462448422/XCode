@@ -35,8 +35,8 @@ import {
   formatZodError,
   remoteTargetSchema,
   SERVER_REMOTE_PROTOCOL_VERSION,
-  ZCODE_RPC_HOST_CAPABILITY_HEADER,
-  ZCODE_VERSION,
+  XCODE_RPC_HOST_CAPABILITY_HEADER,
+  XCODE_VERSION,
   type BotProvider,
   type ServerRemoteInfo,
   type ServerRemoteWorkspaceInfo,
@@ -184,7 +184,7 @@ function createServerInfo(options: HttpServerOptions): ServerRemoteInfo {
     ...(options.name?.trim() || readTrimmedEnv("ZCODE_SERVER_NAME")
       ? { name: options.name?.trim() || readTrimmedEnv("ZCODE_SERVER_NAME") }
       : {}),
-    version: ZCODE_VERSION,
+    version: XCODE_VERSION,
     protocolVersion: SERVER_REMOTE_PROTOCOL_VERSION,
     authRequired: options.authRequired ?? Boolean(readTrimmedEnv("ZCODE_SERVER_TOKEN")),
     workspaces: resolveServerWorkspaces(options),

@@ -1,4 +1,4 @@
-import { ZCODE_VERSION } from "@zcode/shared";
+import { XCODE_VERSION } from "@zcode/shared";
 import type { IRemoteBackend, RemoteEnvironment } from "@zcode/server/remote/backend.js";
 import {
   REMOTE_BASE,

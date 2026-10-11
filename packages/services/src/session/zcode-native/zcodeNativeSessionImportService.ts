@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { XCodeImportSessionsResult, XCodeTaskMeta } from "@zcode/shared";
+import type { ZCodeImportSessionsResult, ZCodeTaskMeta } from "@zcode/shared";
 import { generateTraceId, XCODE_AGENT_PROVIDER } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import { getConversationWorkspaceDir } from "#src/paths.js";

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join, normalize, resolve, sep } from "node:path";
-import type { XCodeImportableSessionCandidate } from "@zcode/shared";
+import type { ZCodeImportableSessionCandidate } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import { getDataBaseDir, getXCodeDataRootDir, getZcodeHomeRoots } from "#src/paths.js";
 

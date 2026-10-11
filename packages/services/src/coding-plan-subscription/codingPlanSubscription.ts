@@ -81,7 +81,7 @@ export interface ICodingPlanSubscriptionService {
     forceRefresh?: boolean;
   }): Promise<DynamicWorkflowClientConfig>;
   /** 兼容接口：固定返回 preflight-v1，不读取远端配置或缓存。 */
-  getModelContextBudgetStrategy(): Promise<XCodeModelContextBudgetStrategy>;
+  getModelContextBudgetStrategy(): Promise<ZCodeModelContextBudgetStrategy>;
   getBillingDiscount(): Promise<CodingPlanBillingDiscountConfig | undefined>;
   getRequestVerificationConfig(): Promise<RequestVerificationConfig | null>;
   getForceUpdateConfig(): Promise<ForceUpdateConfig | null>;

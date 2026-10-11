@@ -1,6 +1,6 @@
 import type { ZCodeEnv } from "./env.js";
 
-export const DEFAULT_ZCODE_ENDPOINT_ORIGIN = "https://zcode.z.ai";
+export const DEFAULT_XCODE_ENDPOINT_ORIGIN = "https://zcode.z.ai";
 export const TEST_ZCODE_ENDPOINT_ORIGIN = "https://zcode.z.ai";
 export const CODING_PLAN_LOCAL_WEBVIEW_ORIGIN = "http://localhost:3000";
 export const DEFAULT_BIGMODEL_API_ORIGIN = "https://bigmodel.cn";
@@ -75,16 +75,16 @@ export interface ZCodeEndpointUrls {
 
 export interface RuntimeZCodeEndpointEnv {
   [key: string]: string | undefined;
-  ZCODE_ENV?: string;
-  ZCODE_BASE_URL?: string;
-  ZCODE_ENDPOINT_ORIGIN?: string;
+  XCODE_ENV?: string;
+  XCODE_BASE_URL?: string;
+  XCODE_ENDPOINT_ORIGIN?: string;
   ZCODE_TEST_BASE_URL?: string;
   ZCODE_PRODUCTION_BASE_URL?: string;
 }
 
 export interface RuntimeBigModelApiEnv {
   [key: string]: string | undefined;
-  ZCODE_ENV?: string;
+  XCODE_ENV?: string;
   BIGMODEL_API_BASE_URL?: string;
   BIGMODEL_TEST_API_BASE_URL?: string;
   BIGMODEL_PRODUCTION_API_BASE_URL?: string;
@@ -92,7 +92,7 @@ export interface RuntimeBigModelApiEnv {
 
 export interface RuntimeZaiEndpointEnv {
   [key: string]: string | undefined;
-  ZCODE_ENV?: string;
+  XCODE_ENV?: string;
   ZAI_OAUTH_ORIGIN?: string;
   ZAI_TEST_OAUTH_ORIGIN?: string;
   ZAI_PRODUCTION_OAUTH_ORIGIN?: string;
@@ -162,7 +162,7 @@ export function isTrustedCodingPlanWebviewOrigin(
   try {
     const origin = normalizeZCodeEndpointOrigin(value);
     if (
-      origin === DEFAULT_ZCODE_ENDPOINT_ORIGIN ||
+      origin === DEFAULT_XCODE_ENDPOINT_ORIGIN ||
       origin === TEST_ZCODE_ENDPOINT_ORIGIN ||
       origin === CODING_PLAN_LOCAL_WEBVIEW_ORIGIN
     ) {
@@ -185,7 +185,7 @@ export function resolveZCodeEndpointOrigin(options?: {
   if (env === "production") {
     return envBaseOrigin
       ? normalizeZCodeEndpointOrigin(envBaseOrigin)
-      : DEFAULT_ZCODE_ENDPOINT_ORIGIN;
+      : DEFAULT_XCODE_ENDPOINT_ORIGIN;
   }
 
   const overrideOrigin = options?.overrideOrigin?.trim();
@@ -197,8 +197,8 @@ export function resolveZCodeEndpointOrigin(options?: {
 }
 
 export function resolveRuntimeZCodeEnv(env: RuntimeZCodeEndpointEnv = {}): ZCodeEnv {
-  // 独立 CLI / 服务测试未注入 ZCODE_ENV 时默认生产域；桌面测试包会显式下发 ZCODE_ENV=test。
-  return env.ZCODE_ENV?.trim().toLowerCase() === "test" ? "test" : "production";
+  // 独立 CLI / 服务测试未注入 XCODE_ENV 时默认生产域；桌面测试包会显式下发 XCODE_ENV=test。
+  return env.XCODE_ENV?.trim().toLowerCase() === "test" ? "test" : "production";
 }
 
 export function resolveRuntimeZCodeEndpointOrigin(
@@ -270,7 +270,7 @@ export function buildBigModelApiUrl(env: RuntimeBigModelApiEnv = {}, path: strin
 }
 
 export function buildBigModelCodingPlanPersonalManageUrl(env: RuntimeBigModelApiEnv = {}): string {
-  // 修复原因：BigModel Coding Plan 管理页要跟随 ZCODE_ENV；
+  // 修复原因：BigModel Coding Plan 管理页要跟随 XCODE_ENV；
   // 测试环境如果继续写死 bigmodel.cn，会把测试账号带到生产套餐页。
   return buildBigModelApiUrl(env, "/coding-plan/personal/overview");
 }
@@ -394,7 +394,7 @@ export function rewriteZCodeEndpointUrl(input: string | URL, endpointOrigin: str
   } catch {
     return input;
   }
-  const sourceOrigin = DEFAULT_ZCODE_ENDPOINT_ORIGIN;
+  const sourceOrigin = DEFAULT_XCODE_ENDPOINT_ORIGIN;
   if (parsed.origin !== sourceOrigin) {
     return input;
   }

@@ -5,7 +5,7 @@ import {
   type RequestVerificationClientConfig,
 } from "@zcode/shared";
 /* eslint-disable max-lines -- Coding Plan provider 需要集中维护 BigModel 支付宝与 Z.ai Stripe/PayPal 接口映射，拆分会让共享鉴权和响应解包更难追踪。 */
-import { buildXCodeSourceHeaders } from "../providers/sourceHeaders.js";
+import { buildZCodeSourceHeaders } from "../providers/sourceHeaders.js";
 import { ensureDeviceMidForAccount } from "../device/deviceMid.js";
 import { buildZaiStartPlanBalanceUrl, type ZaiStartPlanBalanceEnvelope } from "../model-provider/zaiStartPlanBilling.js";
 import type {
@@ -493,7 +493,7 @@ export class BigModelCodingPlanSubscriptionProvider {
     }
   }
 
-  async getModelContextBudgetStrategy(): Promise<XCodeModelContextBudgetStrategy> {
+  async getModelContextBudgetStrategy(): Promise<ZCodeModelContextBudgetStrategy> {
     // 3.12.2：预算统一为 preflight-v1；保留兼容方法，但不能再为每次建会话等待远端配置。
     return DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY;
   }
@@ -1164,7 +1164,7 @@ export class BigModelCodingPlanSubscriptionProvider {
 }
 
 export function resolveCodingPlanClientConfigUrl(env: NodeJS.ProcessEnv): URL {
-  return new URL(buildRuntimeXCodeApiUrl(env, XCODE_CLIENT_CONFIG_API_PREFIX));
+  return new URL(buildRuntimeZCodeApiUrl(env, XCODE_CLIENT_CONFIG_API_PREFIX));
 }
 
 function resolveFallbackEnterpriseTeamPlanProduct(

@@ -1,5 +1,5 @@
 import {
-  ZCODE_VERSION,
+  XCODE_VERSION,
   buildRuntimeZCodeApiUrl,
   buildRuntimeZCodeEndpointUrls,
 } from "@zcode/shared";

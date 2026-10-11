@@ -20,8 +20,8 @@ import {
 } from "@zcode/shared";
 
 export {
-  materializeXCodeBuiltinProviderConfig,
-  XCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV,
+  materializeZCodeBuiltinProviderConfig,
+  ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV,
 } from "@zcode/provider-node";
 import { randomUUID } from "node:crypto";
 import { getAppConfigDir as getContentAppConfigDir } from "#src/paths.js";
@@ -67,8 +67,8 @@ export {
   parseFsFaultRulesFromEnvValue,
   resetProcessFsFaultInjectorForTests,
   setFsFaultInjectorForTests,
-  XCODE_E2E_FS_FAULTS_ALLOW_ENV,
-  XCODE_E2E_FS_FAULTS_ENV,
+  ZCODE_E2E_FS_FAULTS_ALLOW_ENV,
+  ZCODE_E2E_FS_FAULTS_ENV,
 } from "./fs/fsFaultInjection.js";
 export type {
   FsFaultCheckInput,
@@ -106,26 +106,26 @@ export {
 } from "./setting/settingService.js";
 export { createCredentialService } from "./credential/credentialService.js";
 export { createBroadcastService } from "./broadcast/broadcastService.js";
-export { createXCodeAgentService } from "./zcode-agent/zcodeAgentService.js";
+export { createZCodeAgentService } from "./zcode-agent/zcodeAgentService.js";
 export { createZCodeTaskServiceAdapter } from "./zcode-agent/zcodeTaskServiceAdapter.js";
-export { createXCodeSessionService } from "./zcode-session/zcodeSessionService.js";
+export { createZCodeSessionService } from "./zcode-session/zcodeSessionService.js";
 export {
-  resolveDefaultXCodeAgentCommand,
-  XCodeAgentProcessManager,
+  resolveDefaultZCodeAgentCommand,
+  ZCodeAgentProcessManager,
 } from "./zcode-agent/zcodeAgentProcessManager.js";
 export type {
-  XCodeAgentCommand,
-  XCodeAgentCommandResolver,
-  XCodeAgentCommandResolverContext,
-  XCodeAgentProcessManagerOptions,
+  ZCodeAgentCommand,
+  ZCodeAgentCommandResolver,
+  ZCodeAgentCommandResolverContext,
+  ZCodeAgentProcessManagerOptions,
 } from "./zcode-agent/zcodeAgentProcessManager.js";
-export { XCodeProtocolClient } from "./zcode-agent/zcodeProtocolClient.js";
-export type { XCodeProtocolTransport } from "./zcode-agent/zcodeProtocolTransport.js";
-export { XCodeStdioTransport } from "./zcode-agent/zcodeStdioTransport.js";
+export { ZCodeProtocolClient } from "./zcode-agent/zcodeProtocolClient.js";
+export type { ZCodeProtocolTransport } from "./zcode-agent/zcodeProtocolTransport.js";
+export { ZCodeStdioTransport } from "./zcode-agent/zcodeStdioTransport.js";
 export {
-  getXCodeStdioTapDevLogDir,
-  readXCodeStdioTapDevState,
-  setXCodeStdioTapDevEnabled,
+  getZCodeStdioTapDevLogDir,
+  readZCodeStdioTapDevState,
+  setZCodeStdioTapDevEnabled,
 } from "./zcode-agent/zcodeStdioTapDevConfig.js";
 export type { ZCodeStdioTapDevState } from "@zcode/shared";
 export {
@@ -324,10 +324,10 @@ import { ISettingService } from "./setting/setting.js";
 import { IOnboardingRecordService } from "./onboarding/onboardingRecord.js";
 import { ICredentialService } from "./credential/credential.js";
 import { IBroadcastService } from "./broadcast/broadcast.js";
-import { IXCodeTaskService } from "./session/zcodeTaskService.js";
-import { IXCodeAgentService } from "./zcode-agent/zcodeAgent.js";
+import { IZCodeTaskService } from "./session/zcodeTaskService.js";
+import { IZCodeAgentService } from "./zcode-agent/zcodeAgent.js";
 import type { CuaOperationStateReporter } from "./zcode-agent/cuaOperationTurnTracker.js";
-import { IXCodeSessionService } from "./zcode-session/zcodeSession.js";
+import { IZCodeSessionService } from "./zcode-session/zcodeSession.js";
 import {
   createUnsupportedConversationShareService,
   IConversationShareService,
@@ -373,13 +373,13 @@ import { createLegacyTeamOrganizationResolver } from "./model-provider/legacyTea
 import { createObservableSettingService } from "./setting/observableSettingService.js";
 import { createCredentialService } from "./credential/credentialService.js";
 import { createBroadcastService } from "./broadcast/broadcastService.js";
-import { createXCodeAgentService } from "./zcode-agent/zcodeAgentService.js";
-import type { XCodeAgentCommandResolver } from "./zcode-agent/zcodeAgentProcessManager.js";
+import { createZCodeAgentService } from "./zcode-agent/zcodeAgentService.js";
+import type { ZCodeAgentCommandResolver } from "./zcode-agent/zcodeAgentProcessManager.js";
 import { buildAgentTelemetrySpawnEnv } from "./zcode-agent/agentTelemetryEnv.js";
-import { resolveXCodeAgentPresentationSurface } from "./zcode-agent/zcodeAgentPresentationSurface.js";
+import { resolveZCodeAgentPresentationSurface } from "./zcode-agent/zcodeAgentPresentationSurface.js";
 import { createZCodeTaskServiceAdapter } from "./zcode-agent/zcodeTaskServiceAdapter.js";
-import { createXCodeSessionService } from "./zcode-session/zcodeSessionService.js";
-import { createXCodeTaskIndexSyncer } from "./zcode-agent/zcodeTaskIndexSyncer.js";
+import { createZCodeSessionService } from "./zcode-session/zcodeSessionService.js";
+import { createZCodeTaskIndexSyncer } from "./zcode-agent/zcodeTaskIndexSyncer.js";
 import { TaskIndexRepo } from "./session/taskIndexRepo.js";
 import { createBotsService } from "./bots/botsService.js";
 import { createBotRemoteWorkspaceService } from "./bots/botRemoteWorkspaceBridge.js";
@@ -407,7 +407,7 @@ import { AccountProviderApiClient } from "./model-provider/accountProviderApiCli
 import { createAccountProjectTokenClient } from "./model-provider/accountProjectTokenClient.js";
 import { AccountProviderApiKeyResolver } from "./model-provider/accountProviderApiKeyResolver.js";
 import { createProviderConfigRuntime } from "./model-provider/providerConfigRuntime.js";
-import { fetchXCodeBuiltinRemoteRelease } from "./model-provider/zcodeBuiltinRemoteConfig.js";
+import { fetchZCodeBuiltinRemoteRelease } from "./model-provider/zcodeBuiltinRemoteConfig.js";
 import {
   createProviderRuntimeFromConfigRuntime,
   type ProviderRuntime,
@@ -1397,7 +1397,7 @@ export function createLocalServices(options: {
         else providerConfigLog.debug(undefined, "ZCode Built-in 刷新检查", event);
       },
       fetchRelease: (endpointOrigin, signal) =>
-        fetchZCodeBuiltinRemoteRelease({
+        fetchXCodeBuiltinRemoteRelease({
           apiClient,
           endpointOrigin,
           signal,
@@ -2008,7 +2008,7 @@ export function createLocalServices(options: {
           resolveOffPeakClientConfig: () => codingPlanSubscriptionService.getOffPeakClientConfig(),
           resolveOffPeakTaskService: () => offPeakTaskServiceForAgent,
         };
-  const zcodeAgentService = createZCodeAgentService({
+  const zcodeAgentService = zcodeAgentService({
     ...(agentAccountProviderConfigSource
       ? { accountProviderConfigSource: agentAccountProviderConfigSource }
       : {}),
@@ -2024,7 +2024,7 @@ export function createLocalServices(options: {
     ...(resolveDynamicWorkflowUserMode ? { resolveDynamicWorkflowUserMode } : {}),
     forwardDynamicWorkflowUserMode: options?.forwardDynamicWorkflowUserMode,
     commandResolver: options?.zcodeAgentCommandResolver,
-    presentationSurface: resolveZCodeAgentPresentationSurface({
+    presentationSurface: resolveXCodeAgentPresentationSurface({
       runtimeSurface: options?.agentTelemetry?.runtimeSurface,
       serviceAuthorityMode: options?.serviceAuthorityMode,
       desktopContextPromptEnabled,
@@ -2223,7 +2223,7 @@ export function createLocalServices(options: {
   // mapServiceEvent 路径，导致 task_complete 永远不会写回 sqlite，侧边栏 spinner 不停。
   // 在 services 层装配一个共享的 taskIndexRepo + syncer，session 任意入口都会唤醒
   // shadow 订阅，把 runtime 终态收敛进 sqlite。
-  const zcodeTaskIndexSyncer = createZCodeTaskIndexSyncer({
+  const zcodeTaskIndexSyncer = zcodeTaskIndexSyncer({
     agentService: zcodeAgentService,
     taskIndexRepo,
   });

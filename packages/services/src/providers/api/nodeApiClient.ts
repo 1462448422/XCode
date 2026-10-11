@@ -7,7 +7,7 @@ import {
   type ApiRequestInit,
 } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
-import { buildXCodeSourceHeaders } from "../sourceHeaders.js";
+import { buildZCodeSourceHeaders } from "../sourceHeaders.js";
 import { withRequestIdHeader } from "./requestIdHeaders.js";
 
 const log = createServiceLogger("node-api-client");
@@ -118,7 +118,7 @@ function readHeaderKeys(headers: RequestInit["headers"] | undefined): string[] {
 
 function isRequestForEndpoint(input: string | URL, endpointOrigin: string): boolean {
   try {
-    return new URL(resolveUrl(input)).origin === normalizeXCodeEndpointOrigin(endpointOrigin);
+    return new URL(resolveUrl(input)).origin === normalizeZCodeEndpointOrigin(endpointOrigin);
   } catch {
     return false;
   }
@@ -189,7 +189,7 @@ export class NodeApiClient implements ApiClient {
       ? await this.resolveXCodeEndpointOrigin()
       : undefined;
     const activeEndpointOrigin = endpointOrigin ?? DEFAULT_XCODE_ENDPOINT_ORIGIN;
-    const requestInput = rewriteXCodeEndpointUrl(input, activeEndpointOrigin);
+    const requestInput = rewriteZCodeEndpointUrl(input, activeEndpointOrigin);
     const url = resolveUrl(requestInput);
     const method = resolveMethod(init);
     const timeoutMs = init?.timeoutMs;

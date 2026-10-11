@@ -6,8 +6,8 @@ export type ZCodeProductFlavor = "production" | "preview";
 export type ArmsRumEnv = "local" | "prod";
 
 // 非构建环境（如 e2e 测试的 mocha）下 define 不存在，用 typeof 检查 + fallback 避免 ReferenceError
-declare const __ZCODE_ENV__: string;
-declare const __ZCODE_PRODUCT_FLAVOR__: string;
+declare const __XCODE_ENV__: string;
+declare const __XCODE_PRODUCT_FLAVOR__: string;
 declare const __ZCODE_ARMS_RUM_ENDPOINT__: string;
 declare const __ZCODE_TELEMETRY_REPORT_ENDPOINT__: string;
 declare const __ZCODE_AUTO_UPDATE_ENABLED__: boolean;
@@ -16,8 +16,8 @@ export function normalizeZCodeEnv(value: string | undefined): ZCodeEnv {
   return value?.trim().toLowerCase() === "production" ? "production" : "test";
 }
 
-export const ZCODE_ENV = normalizeZCodeEnv(
-  typeof __ZCODE_ENV__ !== "undefined" ? __ZCODE_ENV__ : undefined,
+export const XCODE_ENV = normalizeZCodeEnv(
+  typeof __XCODE_ENV__ !== "undefined" ? __XCODE_ENV__ : undefined,
 );
 
 /**
@@ -36,24 +36,24 @@ export function normalizeZCodeProductFlavor(
   return zcodeEnv === "production" ? "production" : "preview";
 }
 
-export const ZCODE_PRODUCT_FLAVOR = normalizeZCodeProductFlavor(
-  typeof __ZCODE_PRODUCT_FLAVOR__ !== "undefined" ? __ZCODE_PRODUCT_FLAVOR__ : undefined,
-  ZCODE_ENV,
+export const XCODE_PRODUCT_FLAVOR = normalizeZCodeProductFlavor(
+  typeof __XCODE_PRODUCT_FLAVOR__ !== "undefined" ? __XCODE_PRODUCT_FLAVOR__ : undefined,
+  XCODE_ENV,
 );
-export const ZCODE_APP_VERSION_ENV = "ZCODE_APP_VERSION" as const;
-export const ZCODE_BUILD_COMMIT_ID_ENV = "ZCODE_BUILD_COMMIT_ID" as const;
+export const XCODE_APP_VERSION_ENV = "ZCODE_APP_VERSION" as const;
+export const XCODE_BUILD_COMMIT_ID_ENV = "ZCODE_BUILD_COMMIT_ID" as const;
 
 // ── 运行时环境变量（不经过编译打包，启动时从 process.env 读取） ──
-// 启用调试模式，值为 inspect-brk 的端口号，如 ZCODE_DEBUG=9230
-export const RUNTIME_ZCODE_DEBUG =
-  typeof process !== "undefined" ? process.env.ZCODE_DEBUG : undefined;
+// 启用调试模式，值为 inspect-brk 的端口号，如 XCODE_DEBUG=9230
+export const RUNTIME_XCODE_DEBUG =
+  typeof process !== "undefined" ? process.env.XCODE_DEBUG : undefined;
 
 // ── 构建期可选能力（见 docs/desktop/build-time-optional-capabilities.md），未注入时一律关闭 ──
 /** ARMS RUM 上报地址；为空时 SDK 以 enable=false 初始化，不产生上报。 */
-export const ZCODE_ARMS_RUM_ENDPOINT: string =
+export const XCODE_ARMS_RUM_ENDPOINT: string =
   typeof __ZCODE_ARMS_RUM_ENDPOINT__ !== "undefined" ? __ZCODE_ARMS_RUM_ENDPOINT__ : "";
 /** 事件上报（数仓）地址；为空时不上报。 */
-export const ZCODE_TELEMETRY_REPORT_ENDPOINT: string =
+export const XCODE_TELEMETRY_REPORT_ENDPOINT: string =
   typeof __ZCODE_TELEMETRY_REPORT_ENDPOINT__ !== "undefined"
     ? __ZCODE_TELEMETRY_REPORT_ENDPOINT__
     : "";
@@ -61,7 +61,7 @@ export const ZCODE_TELEMETRY_REPORT_ENDPOINT: string =
 export const ZCODE_AUTO_UPDATE_ENABLED: boolean =
   typeof __ZCODE_AUTO_UPDATE_ENABLED__ !== "undefined" ? __ZCODE_AUTO_UPDATE_ENABLED__ : false;
 
-/** 将本地运行态与编译期 ZCODE_ENV 映射为 ARMS 控制台识别的上报环境标签 */
+/** 将本地运行态与编译期 XCODE_ENV 映射为 ARMS 控制台识别的上报环境标签 */
 export function mapZCodeEnvToArmsRumEnv(runtimeEnv: ZCodeRuntimeEnv): ArmsRumEnv {
-  return runtimeEnv !== "development" && ZCODE_ENV === "production" ? "prod" : "local";
+  return runtimeEnv !== "development" && XCODE_ENV === "production" ? "prod" : "local";
 }

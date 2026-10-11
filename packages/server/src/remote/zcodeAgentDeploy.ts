@@ -1,6 +1,6 @@
 import {
-  ZCODE_AGENT_RUNTIME,
-  ZCODE_AGENT_PROVIDER,
+  XCODE_AGENT_RUNTIME,
+  XCODE_AGENT_PROVIDER,
   type RemoteResourcePackageId,
 } from "@zcode/shared";
 import type { IRemoteBackend, RemoteEnvironment } from "@zcode/server/remote/backend.js";

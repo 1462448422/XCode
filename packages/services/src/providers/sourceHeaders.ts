@@ -4,9 +4,9 @@ import { join } from "node:path";
 import {
   buildZCodeSourceHeadersFromContext,
   normalizeZCodeSourceHeaderValue,
-  ZCODE_ENV,
-  ZCODE_SOURCE_HEADERS,
-  ZCODE_VERSION,
+  ZCodeEnv,
+  XCODE_SOURCE_HEADERS,
+  XCODE_VERSION,
 } from "@zcode/shared";
 import { getAppConfigDir } from "../paths.js";
 
