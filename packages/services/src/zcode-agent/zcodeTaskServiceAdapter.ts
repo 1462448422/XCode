@@ -2862,6 +2862,15 @@ export function createXCodeTaskServiceAdapter(
       return settingsToConfigOptions(snapshot.settings);
     },
 
+    // 1010 新增：workspace + provider 的主配置文件路径（agent 侧无独立配置文件，返回不存在）
+    async getWorkspaceProviderConfigFile(params) {
+      return {
+        provider: GLM_PROVIDER,
+        path: params.workspacePath,
+        exists: false,
+      };
+    },
+
     async getTaskNativeSessionLogFile() {
       const path = resolveXCodeAgentCurrentLogFilePath();
       // 返回 XCode Agent 的结构化日志 JSONL；日志行中的 sessionId 用于按当前任务排查。
