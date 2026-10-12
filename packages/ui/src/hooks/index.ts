@@ -54,3 +54,7 @@ export { useGitActions } from "./useGitActions.js";
 export { useTaskNativeSessionLogFile } from "./useTaskNativeSessionLogFile.js";
 export { useTaskSessionFilePath } from "./useTaskSessionFilePath.js";
 export { useUsageStats } from "./useUsageStats.js";
+
+// ── 1010 新增 barrel 导出 ──
+export { useZCodeAgentService } from "./useZCodeAgentService.js";
+export { useWorkspaceProviderConfigFile } from "./useWorkspaceProviderConfigFile.js";
