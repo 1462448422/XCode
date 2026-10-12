@@ -474,3 +474,6 @@ function stringify(value: unknown): string {
     return String(value);
   }
 }
+
+// ── 1010 新增 barrel 导出 ──
+export * from "./app-tools.js";

@@ -25,3 +25,6 @@ export * from "./browser-control.port.js";
 export * from "./shared.js";
 
 export * from "./permission-full-access.js";
+
+// ── 1010 新增 barrel 导出 ──
+export * from "./provider-endpoint-routing.port.js";
