@@ -1,5 +1,6 @@
 import type { ProviderApiType } from "@zcode/provider";
 import type { UpstreamModelEntry, UpstreamModelListResult } from "@zcode/shared";
+import { isOffReasoningLevel, sortReasoningLevelsByIntensity } from "@zcode/shared";
 import { createServiceLogger } from "../logger/serviceLogger.js";
 import { fetchQoderUpstreamModels, type QoderUpstreamRegion } from "./qoderUpstreamModels.js";
 import { fetchCodeBuddyUpstreamModels } from "./codebuddyUpstreamModels.js";
@@ -151,8 +152,29 @@ interface ModelsDevModelLimit {
   output?: number;
 }
 
+/**
+ * models.dev 的推理能力声明。实测（2026-10-12 抓 models.dev/api.json 的 `opencode` 目录）
+ * 每个模型都有 `reasoning: boolean`，可选的 `reasoning_options` 是一个**数组**，
+ * 元素形态互斥或并存：
+ *   - `{type:"effort", values:[...]}`          —— 离散档位，这是我们要的
+ *   - `{type:"toggle"}`                        —— 只有开/关两态（GLM/Kimi/Qwen 系）
+ *   - `{type:"budget_tokens", min|max}`        —— 思考 token 预算，与档位正交
+ *   - `[]` / `null`                            —— 有 thinking 但无可调档位 / 不支持 thinking
+ * 只有 `effort` 形态能给出档位；`toggle` 形态回落到「关闭/启用」两档。
+ */
+interface ModelsDevReasoningOption {
+  type?: string;
+  values?: string[];
+}
+
+interface ModelsDevModel {
+  limit?: ModelsDevModelLimit;
+  reasoning?: boolean;
+  reasoning_options?: ModelsDevReasoningOption[] | null;
+}
+
 interface ModelsDevProvider {
-  models?: Record<string, { limit?: ModelsDevModelLimit }>;
+  models?: Record<string, ModelsDevModel>;
 }
 
 type ModelsDevDatabase = Record<string, ModelsDevProvider>;
@@ -183,7 +205,49 @@ async function loadModelsDevDatabase(fetchImpl: typeof globalThis.fetch): Promis
   }
 }
 
-/** 用 models.dev 的 opencode-zen 目录补齐缺失的 contextWindow / maxOutputTokens。 */
+/**
+ * 从 models.dev 的推理声明里取出该模型的可选档位（已按强度升序）。
+ *
+ * 与 Qoder/CodeBuddy 不同，这里**上游没有为 OpenCode 提供档位端点**：
+ * 实测 `opencode.ai/zen/v1/models` 的响应只有 `{id, object, created, owned_by}`，
+ * 官方客户端的档位信息同样来自 models.dev，所以这是同一份上游事实、同一来源。
+ *
+ * 取值规则（依据 reasoning_options 的三种实测形态）：
+ *   - `reasoning !== true`（trinity-large-preview-free / ling-2.6-flash-free）
+ *     → 模型不支持思考，返回 undefined：让导入流程不写 reasoningLevel，
+ *       思考强度选择器不出现，而不是给一个必然无效的档位表。
+ *   - 出现 `{type:"effort", values:[...]}` → 用它的 values。这才是真正的动态档位来源
+ *     （space-bunny-free = low/medium/high/xhigh/max、hy3-free = low/medium/high、
+ *      fledge-alpha-free = low/high/max、kimi-k3 = 仅 max、exo-free = 仅 high）。
+ *   - 只有 `{type:"toggle"}`（GLM-5 系 / Qwen3.8-Max / Kimi 系）
+ *     → 上游只声明开关，映射成 `enabled` 一档 + 前端的 `disabled` 关闭档，
+ *       与内置静态配置里这些模型的既有取值一致。
+ *   - `[]`（minimax-m2.5 系 / mimo 系 / nemotron 系：有 thinking 但未声明任何可调项）
+ *     → 同 toggle 处理：`enabled`。给一个上游没承诺的离散档位等于凭空发明。
+ *
+ * 排序走共享的 `sortReasoningLevelsByIntensity`：上游数组顺序不可信
+ * （与 Qoder `Object.keys()` 同一个坑），不排序会把非单调序列写进 optionSpecs。
+ */
+export function extractModelsDevReasoningEfforts(model: ModelsDevModel | undefined): string[] | undefined {
+  if (!model) return undefined;
+  if (model.reasoning !== true) return undefined;
+  const options = Array.isArray(model.reasoning_options) ? model.reasoning_options : [];
+  for (const option of options) {
+    if (!option || option.type !== "effort" || !Array.isArray(option.values)) continue;
+    const levels = option.values
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0 && !isOffReasoningLevel(value));
+    if (levels.length > 0) return sortReasoningLevelsByIntensity(levels);
+  }
+  // 有 thinking 但只声明 toggle（或什么都没声明）：只给「启用」一档。
+  return ["enabled"];
+}
+
+/**
+ * 用 models.dev 的 opencode-zen 目录补齐缺失的 contextWindow / maxOutputTokens，
+ * 并按模型给出各自的思考强度档位。
+ */
 async function mergeModelsDevOpencodeZenEntries(
   ids: readonly string[],
   existing: readonly UpstreamModelEntry[],
@@ -197,13 +261,19 @@ async function mergeModelsDevOpencodeZenEntries(
   const byId = new Map<string, UpstreamModelEntry>();
   for (const entry of existing) byId.set(entry.id, entry);
   for (const id of ids) {
-    const upstream = provider.models[id]?.limit;
-    if (!upstream) continue;
+    const upstreamModel = provider.models[id];
+    // 档位与 limit 相互独立：只要该模型在目录里，就取它的档位（可能没有 limit）。
+    const upstream = upstreamModel?.limit;
+    const thinkingEfforts = extractModelsDevReasoningEfforts(upstreamModel);
+    if (!upstream && !thinkingEfforts) continue;
     const current = byId.get(id) ?? { id };
     const merged: UpstreamModelEntry = {
       id,
-      contextWindow: current.contextWindow ?? (typeof upstream.context === "number" && upstream.context > 0 ? upstream.context : undefined),
-      maxOutputTokens: current.maxOutputTokens ?? (typeof upstream.output === "number" && upstream.output > 0 ? upstream.output : undefined),
+      contextWindow: current.contextWindow ?? (typeof upstream?.context === "number" && upstream.context > 0 ? upstream.context : undefined),
+      maxOutputTokens: current.maxOutputTokens ?? (typeof upstream?.output === "number" && upstream.output > 0 ? upstream.output : undefined),
+      // XCode fork：思考强度档位按 models.dev 该模型自己的声明给出；
+      // 显式 spread 省略 undefined，避免给「不支持思考」的模型写出空数组语义。
+      ...(thinkingEfforts ? { thinkingEfforts } : {}),
     };
     byId.set(id, merged);
   }
@@ -413,9 +483,12 @@ export function createUpstreamModelListFetcher(deps: {
         },
       };
     }
-    // XCode fork：OpenCode Zen 的 /models 不带上下文元数据，而官方客户端从 models.dev
-    // 的 "opencode-zen" 目录读取真实 contextWindow/output。仅对 opencode.ai 系 baseUrl
-    // 做 best-effort 补齐（models.dev 不可达时静默跳过，不影响导入）。
+    // XCode fork：OpenCode Zen 的 /models 只回 {id, object, created, owned_by}，
+    // 既不带上下文元数据也不带思考档位；而官方客户端的上下文与档位同样来自
+    // models.dev 的 "opencode" 目录（实测抓包：/models 响应无 reasoning 字段，
+    // models.dev/api.json 该目录每模型有 reasoning + reasoning_options）。
+    // 因此这里不只补 contextWindow/output，还按模型给出 reasoning_options 里的档位。
+    // 仅对 opencode.ai 系 baseUrl 生效（models.dev 不可达时静默跳过，不影响导入）。
     let entries = extracted.entries;
     if (/opencode\.ai/i.test(input.baseUrl)) {
       entries = await mergeModelsDevOpencodeZenEntries(extracted.ids, entries, deps.fetch);

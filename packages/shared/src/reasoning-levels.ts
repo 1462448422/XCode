@@ -69,6 +69,14 @@ export function normalizeReasoningLevel(value: string): string {
   return value.trim().toLowerCase();
 }
 
+/**
+ * 归一化后的档位强度秩，供按模型钳制时比较强弱。未知值是 `Infinity`，
+ * 因此永远排在已知档位之后、又不会与已知档位混淆。
+ */
+export function reasoningIntensityOf(value: string): number {
+  return REASONING_LEVEL_INTENSITY[normalizeReasoningLevel(value)] ?? Number.POSITIVE_INFINITY;
+}
+
 /** 是否是「关闭思考」档位（含各家别名）。 */
 export function isOffReasoningLevel(value: string): boolean {
   return OFF_REASONING_LEVELS.has(normalizeReasoningLevel(value));
@@ -147,10 +155,6 @@ const QODER_REASONING_EFFORT_BY_LEVEL: Readonly<Record<string, QoderReasoningEff
   ultra: "max",
 };
 
-function reasoningIntensityOf(value: string): number {
-  return REASONING_LEVEL_INTENSITY[value] ?? Number.POSITIVE_INFINITY;
-}
-
 /**
  * 把选中的档位夹进**该模型自己宣告的** efforts 值域。
  *
@@ -164,20 +168,25 @@ function reasoningIntensityOf(value: string): number {
  *
  * 夹取规则：降到不高于所选强度的**最强**受支持档位（宁弱勿强，绝不偷偷升级用户的选择）；
  * 若所选强度低于该模型的全部档位，则取该模型最弱的一档（总比不发字段让上游默认成 max 弱）。
+ *
+ * @param effort 已通过各家白名单的档位值
+ * @param supportedEfforts 该模型自己宣告的档位集合；空/缺省表示不钳制
+ * @param allowedValues 网关全局合法值域；只有落在其中的上游档位才可作为钳制目标
  */
-function clampToModelEfforts(
-  effort: QoderReasoningEffort,
+export function clampToModelEfforts<T extends string>(
+  effort: T,
   supportedEfforts: readonly string[] | undefined,
-): QoderReasoningEffort {
+  allowedValues: ReadonlySet<string>,
+): T {
   if (!supportedEfforts || supportedEfforts.length === 0) return effort;
   const supported = supportedEfforts
     .map(normalizeReasoningLevel)
-    .filter((value): value is QoderReasoningEffort => QODER_REASONING_EFFORT_VALUES.has(value));
+    .filter((value): value is T => allowedValues.has(value));
   if (supported.length === 0) return effort;
   if (supported.includes(effort)) return effort;
 
   const target = reasoningIntensityOf(effort);
-  let best: QoderReasoningEffort | undefined;
+  let best: T | undefined;
   for (const candidate of supported) {
     const rank = reasoningIntensityOf(candidate);
     if (rank <= target && (best === undefined || rank > reasoningIntensityOf(best))) {
@@ -217,5 +226,83 @@ export function mapReasoningEffortForQoder(
   if (typeof value !== "string") return undefined;
   const mapped = QODER_REASONING_EFFORT_BY_LEVEL[normalizeReasoningLevel(value)];
   if (!mapped) return undefined;
-  return clampToModelEfforts(mapped, supportedEfforts);
+  return clampToModelEfforts(mapped, supportedEfforts, QODER_REASONING_EFFORT_VALUES);
+}
+
+// ---------------------------------------------------------------------------
+// XCode fork：OpenCode Zen 的档位映射
+// ---------------------------------------------------------------------------
+
+/**
+ * OpenCode Zen 网关 `reasoning_effort` 的合法值域。
+ *
+ * 取值依据（2026-10-12 实测 `opencode.ai/zen/v1/chat/completions`，非推断）：
+ *   1. 网关路由层：非法值原样回传下游错误原文，例如 big-pickle
+ *      （后端是 sglang）报 `literal['none','minimal','low','medium','high','xhigh','max']`，
+ *      `reasoning.effort` 同值域，报 `invalid reasoning effort: 'ultra'`。
+ *   2. 逐模型并不一致：space-bunny-free 收到 `none` 直接 400
+ *      （`[invalid_request_error] invalid request`），而 big-pickle 收 `none` 正常 200。
+ *      因此 `none` **不进入**本白名单——关闭思考一律靠「不发该字段」表达。
+ *
+ * `ultra` 被两个后端同时拒绝（big-pickle literal 校验失败、space-bunny-free 400），
+ * 与 Qoder 下游供应商的结论一致，故同样不发。
+ */
+export type OpenCodeReasoningEffort =
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
+
+const OPENCODE_REASONING_EFFORT_VALUES: ReadonlySet<string> = new Set<OpenCodeReasoningEffort>([
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
+
+/**
+ * 输入档位 → OpenCode Zen 合法 `reasoning_effort` 的**白名单**。
+ * 与 Qoder 表同构：关闭族与任何未知值一律不发该字段（`undefined`）。
+ */
+const OPENCODE_REASONING_EFFORT_BY_LEVEL: Readonly<Record<string, OpenCodeReasoningEffort>> = {
+  minimal: "minimal",
+  low: "low",
+  medium: "medium",
+  high: "high",
+  // 开关式旧值：语义等于 high，翻译成合法档位而不是原样发出
+  // （原样发 `on` 会被两个后端同时 400，2026-10-12 实测）。
+  on: "high",
+  enable: "high",
+  enabled: "high",
+  true: "high",
+  xhigh: "xhigh",
+  "extra-high": "xhigh",
+  extra_high: "xhigh",
+  max: "max",
+  // `ultra` 与 Qoder 同处理：语义最接近的合法档位是 `max`，且绝不原样透传。
+  ultra: "max",
+};
+
+/**
+ * 把模型选项层写进请求体的档位值翻译成 OpenCode Zen 合法值；
+ * 返回 `undefined` 表示该字段不应出现在请求里（上游按自身默认）。
+ *
+ * `supportedEfforts` 是**该模型**在 models.dev 目录里宣告的 effort 值集合
+ * （`reasoning_options[].type === "effort"` 的 `values`）。传入后会再夹一次到
+ * 模型自己的值域——实测 space-bunny-free（目录 low/medium/high/xhigh/max）
+ * 收到目录外的 `none` 会直接 400，big-pickle（目录空）却接受 none，
+ * 说明值域确实是逐模型的，按目录钳制才不会靠运气。
+ */
+export function mapReasoningEffortForOpenCode(
+  value: unknown,
+  supportedEfforts?: readonly string[],
+): OpenCodeReasoningEffort | undefined {
+  if (typeof value !== "string") return undefined;
+  const mapped = OPENCODE_REASONING_EFFORT_BY_LEVEL[normalizeReasoningLevel(value)];
+  if (!mapped) return undefined;
+  return clampToModelEfforts(mapped, supportedEfforts, OPENCODE_REASONING_EFFORT_VALUES);
 }

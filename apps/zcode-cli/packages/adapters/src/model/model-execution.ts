@@ -23,7 +23,7 @@ import {
   type ModelRequestAuth,
 } from "@zcode/contracts";
 import type { RegistryProviderConfig } from "@zcode/provider";
-import { isOffReasoningLevel, withOpenRouterAttributionHeaders } from "@zcode/shared";
+import { isOffReasoningLevel, mapReasoningEffortForOpenCode, withOpenRouterAttributionHeaders } from "@zcode/shared";
 import { createAnthropicCompatFetch } from "./anthropic-stream-compat.js";
 import { createOpenAIResponsesJsonCompatFetch } from "./openai-responses-json-compat.js";
 import { createModelOptionMapFetch, type RawRequestBodyCapture } from "./model-option-map-fetch.js";
@@ -193,7 +193,8 @@ export class AiSdkModelExecution {
     readonly providerConfig: RegistryProviderConfig;
     readonly supportsJsonSchemaOutput: boolean;
     readonly optionSpecs: {
-      readonly reasoningLevel: { readonly map: string };
+      /** XCode fork：values 是该模型宣告的思考档位全集，OpenCode 画像按它钳制。 */
+      readonly reasoningLevel: { readonly map: string; readonly values?: readonly string[] };
       readonly maxOutputTokens: { readonly map: string };
     };
   }): AiSdkBoundModelResolution {
@@ -212,6 +213,9 @@ export class AiSdkModelExecution {
     readonly modelId: string;
     readonly providerConfig: RegistryProviderConfig;
     readonly supportsJsonSchemaOutput: boolean;
+    readonly optionSpecs?: {
+      readonly reasoningLevel: { readonly values?: readonly string[] };
+    };
   }): AiSdkModelSnapshot {
     const configuredProvider = toAiSdkProviderConfig(input.providerId, input.providerConfig);
     // 重构后模型 SDK 曾只接到用户 Header，漏掉版本和站点归因；在公共绑定边界恢复，
@@ -233,6 +237,8 @@ export class AiSdkModelExecution {
       providerId: input.providerId as ModelProviderId,
       modelId: input.modelId as ModelId,
       supportsJsonSchemaOutput: input.supportsJsonSchemaOutput,
+      // XCode fork：冻结该模型宣告的思考档位，请求期钳制要用（值域逐模型不同）。
+      reasoningLevelValues: input.optionSpecs?.reasoningLevel.values,
     };
   }
 
@@ -253,6 +259,7 @@ export class AiSdkModelExecution {
       optionValues,
       rawRequestBodyCapture,
       snapshot.supportsJsonSchemaOutput,
+      snapshot.reasoningLevelValues,
     );
     return {
       baseURL: providerConfig.baseURL,
@@ -273,6 +280,8 @@ export class AiSdkModelExecution {
     optionValues: ModelOptionValues | undefined,
     rawRequestBodyCapture: RawRequestBodyCapture,
     supportsJsonSchemaOutput: boolean,
+    /** XCode fork：该模型宣告的思考档位全集，OpenCode 画像按它钳制。 */
+    reasoningLevelValues: readonly string[] | undefined,
   ): LanguageModelFactory {
     const apiKey = this.resolveApiKey(providerConfig);
     const headers = providerConfig.headers;
@@ -288,6 +297,7 @@ export class AiSdkModelExecution {
       fetch: providerTransport,
       // persona 注入是请求级开关：默认关闭，仅当供应商 headers 显式声明开启时启用。
       qoderInjectPersona: readQoderPersonaFlag(providerConfig.headers),
+      reasoningLevelValues,
     });
     const fetch = createProviderBusinessErrorFetch({
       fetch: profiledTransport,
@@ -371,6 +381,8 @@ interface AiSdkModelSnapshot {
   readonly providerConfig: AiSdkProviderConfig;
   readonly providerId: ModelProviderId;
   readonly modelId: ModelId;
+  /** XCode fork：该模型宣告的思考档位全集（OpenCode 画像按它钳制）。 */
+  readonly reasoningLevelValues?: readonly string[];
 }
 
 function toAiSdkProviderConfig(
@@ -498,15 +510,55 @@ function appendResponsesFingerprintTools(body: Record<string, unknown>): void {
 }
 
 /**
- * 剥离 OpenCode 网关后端不兼容的推理字段。模型选项层会同时下发四种风格
- * （thinking / enable_thinking / reasoning_effort / reasoning）以兼容不同供应商，
- * 但部分免费模型后端（实测 space-bunny-free）对 thinking、reasoning_effort 直接
- * 400 invalid_request；enable_thinking 与 reasoning:{effort} 则各后端普遍接受，
- * 推理档位语义由这两者承载即可。
+ * 归一化 OpenCode 网关的推理字段：只保留**合法**的档位表达。
+ *
+ * XCode fork（2026-10-12 实测 `opencode.ai/zen/v1/chat/completions`）：本函数原先
+ * 无条件 `delete body.reasoning_effort`，理由写的是「space-bunny-free 对
+ * reasoning_effort 直接 400」。复测证明该结论只对**非法值**成立，对合法值不成立：
+ *   space-bunny-free：reasoning_effort = minimal/low/medium/high/xhigh/max 全部 200，
+ *                     仅 none / ultra / disabled / on 报 400。
+ *   big-pickle（后端 sglang）：同样七个值全部 200，非法值回传 pydantic 原文
+ *                     `literal['none','minimal','low','medium','high','xhigh','max']`。
+ * 而真正承载档位语义的就是 reasoning_effort——同一模型上它随档位单调变化
+ * （big-pickle 的 reasoning_content 分片数：none 0 / minimal 8 / low 16 / medium 19 /
+ * high 31 / xhigh 11 / max 18）；`reasoning:{effort}` 在 space-bunny-free 上完全不生效
+ * （low/high/max 一律 5 片，ultra/disabled 反而 0 片）。
+ * 原实现把字段整个删掉，等于让「思考强度」选择器对 OpenCode 免费档完全失效——
+ * 用户选了 high 与 disabled 发出的是同一个请求。
+ *
+ * 因此改为：按该模型**自己宣告的**档位集钳制后下发，表外值（关闭族 + 任何未知值）
+ * 一律不发该字段（上游按自身默认思考），绝不原样透传一个会被 400 拒掉的值。
+ * `thinking`（Anthropic 风格）仍整体剥离：它不是 OpenAI chat 契约的一部分。
+ *
+ * `supportedReasoningLevels` 是该模型 `optionSpecs.reasoningLevel.values`（去掉
+ * 关闭档后的全集）。网关合法值域是**逐模型**的：space-bunny-free 目录档位
+ * low/medium/high/xhigh/max，收 none 会 400；big-pickle 目录为空、收 none 正常。
  */
-function stripIncompatibleReasoningFields(body: Record<string, unknown>): void {
+function normalizeOpenCodeReasoningFields(
+  body: Record<string, unknown>,
+  supportedReasoningLevels: readonly string[] | undefined,
+): void {
   delete body.thinking;
-  delete body.reasoning_effort;
+  const effort = mapReasoningEffortForOpenCode(body.reasoning_effort, supportedReasoningLevels);
+  if (effort) {
+    body.reasoning_effort = effort;
+  } else {
+    delete body.reasoning_effort;
+  }
+  // reasoning:{effort}（Responses 风格）与 reasoning_effort 共用同一值域：
+  // big-pickle 收到非法值会 400「invalid reasoning effort」。两处都要归一化，
+  // 否则只修一半仍会被拒。
+  const reasoning = body.reasoning;
+  if (reasoning && typeof reasoning === "object" && !Array.isArray(reasoning)) {
+    const nested = reasoning as Record<string, unknown>;
+    const nestedEffort = mapReasoningEffortForOpenCode(nested.effort, supportedReasoningLevels);
+    if (nestedEffort) {
+      nested.effort = nestedEffort;
+    } else {
+      delete nested.effort;
+      if (Object.keys(nested).length === 0) delete body.reasoning;
+    }
+  }
 }
 
 /**
@@ -671,6 +723,8 @@ export function createUpstreamRequestProfileFetch(input: {
   fetch: ProviderFetch;
   /** Qoder：是否注入官方 IDE 身份 persona（默认关闭，见 qoderProtocol）。 */
   qoderInjectPersona?: boolean;
+  /** XCode fork：OpenCode 画像按该模型自己宣告的档位集钳制 reasoning_effort。 */
+  reasoningLevelValues?: readonly string[];
 }): ProviderFetch {
   // Qoder 画像：COSY 签名 + WAF 编码 + 信封解包（协议非 OpenAI 兼容，
   // 整个请求由 qoderProtocol 重建，AI SDK 的 model 仅承担消息结构化）。
@@ -792,7 +846,7 @@ export function createUpstreamRequestProfileFetch(input: {
     if (url.endsWith("/responses")) {
       body.stream = true;
       body.store = false;
-      stripIncompatibleReasoningFields(body);
+      normalizeOpenCodeReasoningFields(body, input.reasoningLevelValues);
       appendResponsesFingerprintTools(body);
       // muse-spark 上游要求 max_output_tokens >= 16，连通性探测只发 1 会被 400。
       if (
@@ -804,7 +858,7 @@ export function createUpstreamRequestProfileFetch(input: {
       }
     } else {
       body.stream = true;
-      stripIncompatibleReasoningFields(body);
+      normalizeOpenCodeReasoningFields(body, input.reasoningLevelValues);
       appendChatFingerprintTools(body);
     }
     const nextInit = { ...init, body: JSON.stringify(body) };
