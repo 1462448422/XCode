@@ -28,8 +28,10 @@ let billingDiscountCache: {
   value: CodingPlanBillingDiscountConfig | undefined;
   expiresAt: number;
 } | null = null;
+// service.getBillingDiscount() 在 fork 的 ICodingPlanSubscriptionService 里返回 `| null`，
+// 请求缓存的宽度必须容纳它（下游读取处已做 `?? undefined` 归一）。
 let billingDiscountRequest: Promise<
-  CodingPlanBillingDiscountConfig | undefined
+  CodingPlanBillingDiscountConfig | null | undefined
 > | null = null;
 
 export function useCodingPlanBillingDiscount(): {
@@ -301,7 +303,7 @@ async function loadCodingPlanBillingDiscount(
     return billingDiscountCache.value;
   }
   if (billingDiscountRequest) {
-    return billingDiscountRequest;
+    return billingDiscountRequest.then((value) => value ?? undefined);
   }
 
   // service 返回 `Config | null`（fork 的 ICodingPlanSubscriptionService 约定）；

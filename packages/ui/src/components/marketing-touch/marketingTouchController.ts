@@ -164,7 +164,12 @@ export function createMarketingTouchController(options: {
           if (disposed || current !== generation) return;
           let prepared: PreparedMarketingDelivery;
           try {
-            prepared = await options.prepare(delivery);
+            // 本 controller 是 1010 版（prepare 收 1010 的 MarketingDelivery），
+            // 而数据来自 fork 的 IMarketingTouchService（MarketingTouchDelivery）。
+            // 两者判别值同为 banner/popup 且字段同构，运行兼容，故在此显式转换。
+            prepared = await options.prepare(
+              delivery as unknown as Parameters<typeof options.prepare>[0],
+            );
           } catch {
             logger.warn("[marketing-touch] banner resource rejected", {
               campaignId: delivery.campaign_id,
