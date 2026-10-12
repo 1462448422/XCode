@@ -321,8 +321,8 @@ import "./highspeed/highspeedMockTransport.js";
 import "./gen-ui/contract.js";
 
 // ── 1010 新增模块导出（导入时补齐）──
+// 注：IMarketingTouchService 本文件已在 L247 用相对路径导出，此处不再重复（避免 TS2300）
 export { ICloudContentService } from "#src/cloud-content/cloudContent.js";
-export { IMarketingTouchService } from "#src/marketing-touch/marketingTouch.js";
 export { IOutputStyleService } from "./output-style/outputStyle.js";
 export {
   createPluginUiBridgeService,
