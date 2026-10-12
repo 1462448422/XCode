@@ -144,6 +144,16 @@ export {
   createOpenInEditorRemoteTarget,
 } from "./platform.js";
 export type {
+  EmbeddedBrowserPermissionDeviceOption,
+  EmbeddedBrowserPermissionPromptEvent,
+  EmbeddedBrowserPermissionResolution,
+  EmbeddedBrowserPermissionResolveRequest,
+  EmbeddedBrowserPermissionScreenOption,
+  EmbeddedBrowserSitePermissionResetRequest,
+  EmbeddedBrowserSitePermissionUpdateRequest,
+  EmbeddedBrowserSitePermissionsSnapshot,
+} from "./platform.js";
+export type {
   ArmsCustomEventPayload,
   ConfigureFinalArmsCustomEventE2ERequest,
   FinalArmsCustomEventE2EEntry,
