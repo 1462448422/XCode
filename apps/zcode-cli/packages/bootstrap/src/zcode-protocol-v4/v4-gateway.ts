@@ -163,6 +163,8 @@ function rowTargetActionForCommand(
     case "retryTurn":
     case "applyFileRewind":
     case "setAssistantFeedback":
+    // 1010 新增：高速卡指标上报命令（与 fork 的 editAssistantMessage 并存）
+    case "setHighspeedMetrics":
       return type;
     default:
       return null;

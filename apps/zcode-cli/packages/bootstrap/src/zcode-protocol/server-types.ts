@@ -110,6 +110,8 @@ export interface SessionCustomSystemMessages {
 
 export interface XCodeProtocolSessionRecord {
   app: XCodeApp;
+  /** 1010 新增：子代理运行时配置是否启用（subagents/readRuntimeConfig 的回退依据）。 */
+  subagentRuntimeConfigEnabled?: boolean;
   memoryEnabled: boolean;
   nativeSearchEnhancementsEnabled: boolean;
   modelContextBudgetStrategy: XCodeModelContextBudgetStrategy;
@@ -189,6 +191,16 @@ export interface XCodeProtocolAgentServerContext {
     options?: XCodeProtocolClientRequestOptions,
   ): Promise<T>;
 }
+
+/** 1010 新增：Protocol 客户端请求失败的错误码（JSON-RPC 自定义段）。 */
+export const PROTOCOL_CLIENT_REQUEST_ERROR_CODES = {
+  /** 没有 XCode Protocol client 挂载，无法投递请求。 */
+  noClientAttached: -32020,
+  /** 请求在收到应答前被取消。 */
+  cancelled: -32021,
+  /** 请求等待应答超时。 */
+  timedOut: -32022,
+} as const;
 
 export class ProtocolRequestError extends Error {
   constructor(
