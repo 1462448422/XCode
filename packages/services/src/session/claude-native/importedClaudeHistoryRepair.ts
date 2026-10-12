@@ -21,6 +21,9 @@ export interface ImportedClaudeHistoryRepairTarget {
 }
 
 export interface ImportedClaudeHistoryRepairResult {
+  // fork 保留：上游 1010 删掉了 traceId，但 fork 的 zcodeTaskServiceAdapter 仍以
+  // `history.traceId ?? createSessionTraceId()` 恢复会话 trace。删除会导致 TS2339。
+  traceId?: string;
   title?: string;
   createdAt?: number;
   updatedAt?: number;
@@ -88,7 +91,9 @@ export function shouldRepairImportedClaudeSnapshot(
   return hasLegacyFixedMessageIds;
 }
 
-function readLegacyImportedClaudeHistory(
+// fork 保留 export：上游 1010 已将其收为模块私有，但 fork 的 zcodeTaskServiceAdapter.ts 仍按
+// 具名导入使用（await 非 Promise 值在运行时安全）。删除 export 会导致 TS2459。
+export function readLegacyImportedClaudeHistory(
   target: ImportedClaudeHistoryRepairTarget,
 ): ImportedClaudeHistoryRepairResult | null {
   const snapshotPath = [

@@ -7,7 +7,9 @@ import { listSSHConfigAliasesFromLocalConfig } from "@zcode/services/node";
 import { DEV_HELPER_APP_NAME, HELPER_APP_NAME } from "@zcode/zcode-cua/broker/helperConstants";
 import {
   XCODE_APP_VERSION_ENV,
+  XCODE_BUILD_COMMIT_ID_ENV,
   XCODE_AGENT_RUNTIME,
+  XCODE_COMMIT,
   XCODE_DYNAMIC_WORKFLOW_MODE_ENV,
   XCODE_ENV,
   XCODE_PRODUCT_FLAVOR,
@@ -15,8 +17,6 @@ import {
   XCODE_VERSION,
   buildXCodeToolEnvPassthroughEnv,
   resolveRuntimeXCodeEndpointOrigin,
-  readProductEndpointEnv,
-  pickProductEndpointEnv,
   resolveZaiBusinessBaseUrl,
   resolveZaiOAuthClientId,
   resolveZaiOAuthOrigin,
@@ -38,13 +38,16 @@ import {
 } from "./remoteCdn.js";
 import { getElectronAppPath, isElectronAppPackaged } from "./desktopElectronApp.js";
 
+declare const __XCODE_PACKAGED_AGENT_TELEMETRY_ENV__: Readonly<Record<string, string>> | undefined;
+
 const isLocalDevelopmentRuntime = !isElectronAppPackaged();
 export const desktopRuntimeEnv: XCodeRuntimeEnv = isLocalDevelopmentRuntime
   ? "development"
   : "production";
 // 身份看编译期 flavor 而不是 XCODE_ENV：XCODE_PREVIEW_IDENTITY=1 的生产后端构建同样是 Preview，
 // 需要独立的应用名、Electron 数据目录和 Helper 安装子目录才能与正式版并排运行。
-const isPreviewPackagedRuntime = !isLocalDevelopmentRuntime && XCODE_PRODUCT_FLAVOR === "preview";
+export const isPreviewPackagedRuntime =
+  !isLocalDevelopmentRuntime && XCODE_PRODUCT_FLAVOR === "preview";
 
 function readRuntimeEnvOverride(name: string): string | undefined {
   return process.env[name]?.trim() || undefined;
@@ -153,9 +156,7 @@ function resolveWorkspaceRootForEnvFiles(): string | null {
 
 export function loadHostProcessEnvFromLocalFiles(): Record<string, string> {
   if (isElectronAppPackaged()) {
-    // 安装包不内嵌 OTLP 端点或鉴权，避免 CI 凭据随产物公开；连接配置由运行时环境提供。
-    // 只保留打包身份元数据，缺少端点时不会启用上报。
-    return { XCODE_TELEMETRY_RUNTIME_DISTRIBUTION: "packaged" };
+    return resolvePackagedAgentTelemetryEnv();
   }
 
   const desktopRoot = resolve(import.meta.dirname, "../..");
@@ -198,6 +199,28 @@ export function loadHostProcessEnvFromLocalFiles(): Record<string, string> {
   }
 
   return applySelectedXCodeEnvLinks(merged);
+}
+
+export function resolvePackagedAgentTelemetryEnv(
+  compiledEnv:
+    | Readonly<Record<string, string>>
+    | undefined = typeof __XCODE_PACKAGED_AGENT_TELEMETRY_ENV__ === "undefined"
+    ? undefined
+    : __XCODE_PACKAGED_AGENT_TELEMETRY_ENV__,
+): Record<string, string> {
+  if (!compiledEnv) {
+    return {};
+  }
+
+  // 修复原因：开发版通过启动进程继承 OTLP 配置，正式安装包从 Finder/开始菜单启动时没有
+  // 这组运行时环境，Agent 因而静默落入 Noop。构建默认值只允许连接字段进入 Main；
+  // UID、Device MID 和 runtime surface 仍由 Host 的可信运行时上下文生成。
+  return readXCodeAgentTelemetryEnv({
+    OTEL_EXPORTER_OTLP_ENDPOINT: compiledEnv.OTEL_EXPORTER_OTLP_ENDPOINT,
+    OTEL_EXPORTER_OTLP_HEADERS: compiledEnv.OTEL_EXPORTER_OTLP_HEADERS,
+    OTEL_SERVICE_NAME: compiledEnv.OTEL_SERVICE_NAME,
+    XCODE_TELEMETRY_RUNTIME_DISTRIBUTION: compiledEnv.XCODE_TELEMETRY_RUNTIME_DISTRIBUTION,
+  });
 }
 
 function resolveDevelopmentMockCdnDir(): string {
@@ -245,15 +268,16 @@ function resolveEnvValue(envName: string, localEnv: LocalRuntimeEnv = {}): strin
 export function resolveXCodeEndpointEnvBaseOrigin(
   localEnv: LocalRuntimeEnv = {},
 ): string | undefined {
-  const buildEnv = readProductEndpointEnv();
-  // main 进程临时验证更新服务时不会重新写 .env，命令行传入的 endpoint 必须优先于本地文件。
+  const scopedEnvName =
+    XCODE_ENV === "production" ? "XCODE_PRODUCTION_BASE_URL" : "XCODE_TEST_BASE_URL";
+  // Bugfix: main 进程临时验证更新服务时不会重新写 .env，命令行传入的 endpoint 必须优先于本地文件。
   return (
     process.env["XCODE_BASE_URL"]?.trim() ||
     process.env["XCODE_ENDPOINT_ORIGIN"]?.trim() ||
+    process.env[scopedEnvName]?.trim() ||
     localEnv.XCODE_BASE_URL?.trim() ||
     localEnv.XCODE_ENDPOINT_ORIGIN?.trim() ||
-    buildEnv.XCODE_BASE_URL?.trim() ||
-    buildEnv.XCODE_ENDPOINT_ORIGIN?.trim() ||
+    localEnv[scopedEnvName]?.trim() ||
     undefined
   );
 }
@@ -270,13 +294,11 @@ function readDefinedProcessEnv(): Record<string, string> {
 
 function applySelectedXCodeEnvLinks(env: Record<string, string>): Record<string, string> {
   const endpointEnv = {
-    ...readProductEndpointEnv(),
     ...env,
     XCODE_ENV,
   };
 
   return {
-    ...pickProductEndpointEnv(endpointEnv),
     ...env,
     XCODE_BASE_URL: env.XCODE_BASE_URL ?? resolveRuntimeXCodeEndpointOrigin(endpointEnv),
     ZAI_OAUTH_ORIGIN: env.ZAI_OAUTH_ORIGIN ?? resolveZaiOAuthOrigin(endpointEnv),
@@ -416,7 +438,7 @@ function resolveHostProcessBinaryEnv(
   return undefined;
 }
 
-function resolveWindowsAppInstallDirForDataBaseDirGuard(
+export function resolveWindowsAppInstallDirForDataBaseDirGuard(
   options: {
     platform?: NodeJS.Platform | string;
     isPackaged?: boolean;
@@ -448,7 +470,7 @@ function resolveWindowsAppInstallDirForDataBaseDirGuard(
  * Main 是唯一决策者：对这个键只有「写」和「删」两种动作，绝不原样透传，
  * Host 端的 resolveDynamicWorkflowClientConfig 才能无条件相信读到的值。
  */
-function resolveDynamicWorkflowModeHostEnv(options: {
+export function resolveDynamicWorkflowModeHostEnv(options: {
   inheritedValue: string | undefined;
   isPackaged: boolean;
   isPreview: boolean;
@@ -553,6 +575,9 @@ export function buildHostProcessEnv(hostProcessLocalEnv: Record<string, string>)
     // 模型请求默认 header 由 agent 进程构造，过去只继承 shell env 导致桌面启动时拿不到 app 版本。
     // 这里从 main 进程显式下发，agent 子进程继承 host env 后即可稳定写入请求 header。
     [XCODE_APP_VERSION_ENV]: XCODE_VERSION,
+    // Telemetry 的构建身份必须来自 Desktop 编译期元数据，不能让 Agent 在运行时读取
+    // 工作树或根据安装路径猜测；否则同一产品版本的不同修复包无法在 ARMS 中区分。
+    [XCODE_BUILD_COMMIT_ID_ENV]: XCODE_COMMIT,
     ...(dataBaseDir !== homedir() ? { XCODE_DATA_BASE_DIR: dataBaseDir } : {}),
     ...(windowsAppInstallDir ? { [XCODE_WINDOWS_APP_INSTALL_DIR_ENV]: windowsAppInstallDir } : {}),
     ...(bundledCuaHelperAppPath

@@ -18,9 +18,18 @@ export const legacyZCodeProviderSchema = z
 // fork 兼容：单值字面量 schema（1010 版改名/移除，此处保留导出）
 export const zcodeAgentProviderSchema = z.literal(XCODE_AGENT_PROVIDER);
 
+/**
+ * 上一轮合并漏做了本文件这两处导出的 Z→X 词表改名（仍是 ZCODE_ 前缀），而 W 类
+ * 合并进来的 task-realtime-core / validation / validationAppSettings 已按词表引用
+ * XCode 侧名字。此处补上规范名，并把旧名保留为别名，避免依赖两套命名的调用方断裂。
+ */
+export const legacyXCodeProviderSchema = legacyZCodeProviderSchema;
+
 export const ZCODE_ENABLED_AGENT_PROVIDERS = [
   XCODE_AGENT_PROVIDER,
 ] as const satisfies readonly XCodeProvider[];
+
+export const XCODE_ENABLED_AGENT_PROVIDERS = ZCODE_ENABLED_AGENT_PROVIDERS;
 
 export const XCODE_COMMAND_AGENT_SOURCES = [
   XCODE_COMMAND_AGENT_SOURCE,

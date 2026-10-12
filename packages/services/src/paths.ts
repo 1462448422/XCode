@@ -4,7 +4,10 @@ import { cp } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, join, win32 } from "node:path";
 import { homedir } from "node:os";
-import { DATA_BASE_DIR_FORBIDDEN_WINDOWS_INSTALL_DIR_ERROR_CODE } from "@zcode/shared";
+import {
+  DATA_BASE_DIR_FORBIDDEN_WINDOWS_INSTALL_DIR_ERROR_CODE,
+  XCODE_AGENT_RUNTIME,
+} from "@zcode/shared";
 
 let _dataBaseDir: string | null = null;
 export const XCODE_WINDOWS_APP_INSTALL_DIR_ENV = "XCODE_WINDOWS_APP_INSTALL_DIR";
@@ -19,13 +22,13 @@ const defaultDataBaseDir =
 // 应用数据目录固定用 .xcode（fork 品牌）。XCODE_DATA_BASE_DIR 只是「父级基目录」，
 // 真正的数据根目录见 getXCodeDataRootDir() = {base}/.xcode。
 
-interface DataBaseDirTargetValidationOptions {
+export interface DataBaseDirTargetValidationOptions {
   platform?: NodeJS.Platform | string;
   env?: Record<string, string | undefined>;
   appInstallDir?: string | null;
 }
 
-type DataBaseDirTargetValidationResult =
+export type DataBaseDirTargetValidationResult =
   | { ok: true }
   | {
       ok: false;
@@ -53,24 +56,24 @@ export function getXCodeDataRootDir(): string {
 }
 
 /**
- * ZCode（旧产品）数据目录的候选根，按优先级去重。
+ * XCode（旧产品）数据目录的候选根，按优先级去重。
  *
- * 旧 ZCode 与本产品是同一套自举设计：setting.json 固定在
+ * 旧 XCode 与本产品是同一套自举设计：setting.json 固定在
  * `{真实家目录}/.zcode/v2/setting.json`，其中的 `dataBaseDir` 字段决定真正的
  * 数据根（`{dataBaseDir}/.zcode`）。因此旧数据可能出现在两处：
- *   - 旧 ZCode 声明过自定义目录 → `{声明的基目录}/.zcode`（活动数据在这）；
+ *   - 旧 XCode 声明过自定义目录 → `{声明的基目录}/.zcode`（活动数据在这）；
  *   - 未声明 → `{真实家目录}/.zcode`。
- * 声明目录排在前：它存在时就是旧 ZCode 的活动数据根；真实家目录的 .zcode
+ * 声明目录排在前：它存在时就是旧 XCode 的活动数据根；真实家目录的 .zcode
  * 此时只剩 setting.json（自举文件），不能当数据源。
  */
 export function getZcodeHomeRoots(): string[] {
   const homes = new Set<string>();
-  // 1) 旧 ZCode setting.json 里声明的自定义基目录（其活动数据根，最高优先）
+  // 1) 旧 XCode setting.json 里声明的自定义基目录（其活动数据根，最高优先）
   const declared = readLegacyZcodeDeclaredDataBaseDir();
   if (declared) {
     homes.add(declared);
   }
-  // 2) 真实家目录（旧 ZCode 的默认位置；setting.json 本体也在这里）
+  // 2) 真实家目录（旧 XCode 的默认位置；setting.json 本体也在这里）
   homes.add(
     process.env.XCODE_DESKTOP_HOME_DIR?.trim() ||
       process.env.HOME?.trim() ||
@@ -82,8 +85,8 @@ export function getZcodeHomeRoots(): string[] {
   if (envHome) {
     homes.add(envHome);
   }
-  // 4) 旧版环境变量（旧 ZCode 在 setting.json 未声明时使用）
-  const legacyEnv = process.env.ZCODE_DATA_BASE_DIR?.trim();
+  // 4) 旧版环境变量（旧 XCode 在 setting.json 未声明时使用）
+  const legacyEnv = process.env.XCODE_DATA_BASE_DIR?.trim();
   if (legacyEnv) {
     homes.add(legacyEnv);
   }
@@ -95,7 +98,7 @@ export function getZcodeHomeRoots(): string[] {
   return [...homes];
 }
 
-/** 读旧 ZCode 的 setting.json（固定在 {真实家目录}/.zcode/v2/），取其 dataBaseDir。 */
+/** 读旧 XCode 的 setting.json（固定在 {真实家目录}/.zcode/v2/），取其 dataBaseDir。 */
 function readLegacyZcodeDeclaredDataBaseDir(): string | null {
   const home =
     process.env.XCODE_DESKTOP_HOME_DIR?.trim() ||
@@ -113,12 +116,12 @@ function readLegacyZcodeDeclaredDataBaseDir(): string | null {
       return declared.trim();
     }
   } catch {
-    // 文件不存在 / 损坏 / 未声明自定义目录——都按"旧 ZCode 用默认位置"处理。
+    // 文件不存在 / 损坏 / 未声明自定义目录——都按"旧 XCode 用默认位置"处理。
   }
   return null;
 }
 
-/** 第一个真实存在的 ZCode 数据目录；都不存在时返回 null。 */
+/** 第一个真实存在的 XCode 数据目录；都不存在时返回 null。 */
 export function findZcodeDataDir(): string | null {
   for (const root of getZcodeHomeRoots()) {
     const candidate = join(root, ".zcode");

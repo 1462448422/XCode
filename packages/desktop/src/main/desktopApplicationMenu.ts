@@ -305,6 +305,14 @@ function buildApplicationMenuTemplate(options: {
                         DesktopCommandIds.SetXCodeEndpointProduction,
                       ),
                   },
+                  {
+                    id: HELP_XCODE_ENDPOINT_TEST_MENU_ID,
+                    label: getLabel(desktopMenuMessageIds.helpXCodeEndpointTest),
+                    type: "radio" as const,
+                    checked: options.zcodeEndpointSelection === "test",
+                    click: () =>
+                      void options.executeDesktopCommand(DesktopCommandIds.SetXCodeEndpointTest),
+                  },
                   { type: "separator" as const },
                   {
                     label: getLabel(desktopMenuMessageIds.helpXCodeEndpointCustom),

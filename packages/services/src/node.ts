@@ -101,6 +101,10 @@ export type {
 export { XCodeProtocolClient } from "./zcode-agent/zcodeProtocolClient.js";
 export type { XCodeProtocolTransport } from "./zcode-agent/zcodeProtocolTransport.js";
 export { XCodeStdioTransport } from "./zcode-agent/zcodeStdioTransport.js";
+// fork 补：W 类合并进来的 zcode-server-cli/server-core 需要从 @zcode/services/node 取
+// 该工厂（1010 的 node.ts 有此 re-export，上一轮合并时丢失，导致 TS2305）。
+export { createTopicResourcePeers } from "./zcode-agent/topicResourcePeers.js";
+export type { TopicResourcePeers } from "./zcode-agent/topicResourcePeers.js";
 export {
   getXCodeStdioTapDevLogDir,
   readXCodeStdioTapDevState,

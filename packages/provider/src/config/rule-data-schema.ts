@@ -105,7 +105,7 @@ export const builtinProviderConfigRuleSchema = providerConfigRuleSchema.extend({
     group: providerGroupDataSchema.exclude(["standard-personal"]),
   }),
 });
-const personalProviderConfigRuleSchema = providerConfigRuleSchema
+export const personalProviderConfigRuleSchema = providerConfigRuleSchema
   .extend({
     // XCode fork：允许个人层覆盖 builtinModelIds（拍平 Built-in 模型名单，
     // 使 Built-in 模型可删除）；[] 表示该 Provider 不再继承任何 Built-in 模型。

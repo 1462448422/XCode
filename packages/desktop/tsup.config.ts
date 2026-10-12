@@ -1,21 +1,34 @@
-import { pickProductEndpointEnv } from "@zcode/shared/zcodeEndpoint";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { defineConfig } from "tsup";
 import { getBuildMetadata } from "./scripts/build-metadata.mjs";
 import { resolveDesktopProductFlavor } from "./scripts/desktop-product-identity.mjs";
+const { copyGenUiRuntimeAssets } = await import(
+  pathToFileURL(resolve(import.meta.dirname, "scripts/gen-ui-runtime-assets.mjs")).href
+);
 // tsup 会先打包配置文件；动态加载构建工具，避免其 import.meta.dirname 被重定位到 desktop。
 const { loadBuiltinProviderConfig } = await import(
   pathToFileURL(resolve(import.meta.dirname, "../../scripts/builtin-provider-config.mjs")).href
 );
+const { resolveBuildTimeConfig, createBuildTimeConfigDefines } = await import(
+  pathToFileURL(resolve(import.meta.dirname, "../../scripts/build-time-config.mjs")).href
+);
+// 构建期可选能力（ARMS、事件上报、自动更新），见 docs/desktop/build-time-optional-capabilities.md
+const buildTimeConfigDefines = createBuildTimeConfigDefines(
+  await resolveBuildTimeConfig(process.env),
+);
 
 const buildMetadata = getBuildMetadata();
+
+function resolveXCodeEnv(value: string | undefined): "test" | "production" {
+  return value?.trim().toLowerCase() === "production" ? "production" : "test";
+}
 
 // 手动加载 .env 文件，tsup 不像 Vite 会自动读取 .env.*；这些文件只提供链接常量。
 function loadEnvFiles(): Record<string, string> {
   const vars: Record<string, string> = {};
-  const files = ["../../.env", "../../.env.local"];
+  const files = ["../../.env"];
   if (process.env.NODE_ENV === "production") {
     files.push("../../.env.production");
   } else {
@@ -42,20 +55,15 @@ function loadEnvFiles(): Record<string, string> {
   if (process.env.ZAI_BUSINESS_LOGIN_URL) {
     vars.ZAI_BUSINESS_LOGIN_URL = process.env.ZAI_BUSINESS_LOGIN_URL;
   }
+  if (process.env.CDN_DOMAIN) vars.CDN_DOMAIN = process.env.CDN_DOMAIN;
+  if (process.env.OSS_PATH_PREFIX) vars.OSS_PATH_PREFIX = process.env.OSS_PATH_PREFIX;
   if (process.env.VITE_ZAI_OAUTH_CLIENT_ID) {
     vars.VITE_ZAI_OAUTH_CLIENT_ID = process.env.VITE_ZAI_OAUTH_CLIENT_ID;
   }
   if (process.env.VITE_ZAI_OAUTH_ORIGIN) {
     vars.VITE_ZAI_OAUTH_ORIGIN = process.env.VITE_ZAI_OAUTH_ORIGIN;
   }
-  return {
-    ...vars,
-    ...Object.fromEntries(
-      Object.entries(process.env).filter(
-        (entry): entry is [string, string] => entry[1] !== undefined,
-      ),
-    ),
-  };
+  return vars;
 }
 
 const env = loadEnvFiles();
@@ -63,6 +71,93 @@ const { environment: zcodeEnv } = await loadBuiltinProviderConfig();
 // 安装包身份与后端环境分轴：XCODE_PREVIEW_IDENTITY=1 让生产后端的构建仍以 XCode Preview 身份打包运行。
 const zcodeProductFlavor = resolveDesktopProductFlavor({ ...process.env, XCODE_ENV: zcodeEnv });
 console.log(`[tsup] XCODE_ENV=${zcodeEnv} XCODE_PRODUCT_FLAVOR=${zcodeProductFlavor}`);
+
+function parseCsvEnv(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function resolveBuildRemoteCdnReleaseRoots(runtimeEnv: Record<string, string | undefined>) {
+  const domains = parseCsvEnv(runtimeEnv.CDN_DOMAIN);
+  const pathPrefixes = parseCsvEnv(runtimeEnv.OSS_PATH_PREFIX || "zcode/electron/releases");
+  if (domains.length === 0) {
+    return [];
+  }
+  if (pathPrefixes.length !== 1 && pathPrefixes.length !== domains.length) {
+    throw new Error(
+      `OSS_PATH_PREFIX must contain one value or match CDN_DOMAIN count (${domains.length}), got ${pathPrefixes.length}`,
+    );
+  }
+
+  return domains.map((domain, index) => {
+    const pathPrefix = pathPrefixes.length === 1 ? pathPrefixes[0] : pathPrefixes[index];
+    return `https://${domain}/${pathPrefix}`.replace(/\/+$/, "");
+  });
+}
+
+export function resolveBuildPackagedAgentTelemetryEnv(
+  runtimeEnv: Record<string, string | undefined>,
+): Record<string, string> {
+  const endpoint = runtimeEnv.XCODE_PACKAGED_AGENT_OTEL_ENDPOINT?.trim();
+  const headers = runtimeEnv.XCODE_PACKAGED_AGENT_OTEL_HEADERS?.trim();
+  const serviceName =
+    runtimeEnv.XCODE_PACKAGED_AGENT_OTEL_SERVICE_NAME?.trim() || "zcode-cli-agent";
+
+  if (!endpoint && !headers) {
+    if (
+      runtimeEnv.CI &&
+      (runtimeEnv.CI_COMMIT_TAG || runtimeEnv.CI_COMMIT_BRANCH === "release/current")
+    ) {
+      throw new Error("Packaged Agent OTLP configuration is required for release builds");
+    }
+    return {};
+  }
+  if (!endpoint || !headers) {
+    throw new Error(
+      "XCODE_PACKAGED_AGENT_OTEL_ENDPOINT and XCODE_PACKAGED_AGENT_OTEL_HEADERS must be configured together",
+    );
+  }
+  if (endpoint.length > 2_048) {
+    throw new Error("XCODE_PACKAGED_AGENT_OTEL_ENDPOINT exceeds 2048 characters");
+  }
+  if (headers.length > 8_192 || /[\r\n]/u.test(headers)) {
+    throw new Error("XCODE_PACKAGED_AGENT_OTEL_HEADERS is invalid");
+  }
+  if (!/^[A-Za-z0-9._:-]{1,128}$/u.test(serviceName)) {
+    throw new Error("XCODE_PACKAGED_AGENT_OTEL_SERVICE_NAME is invalid");
+  }
+
+  let parsedEndpoint: URL;
+  try {
+    parsedEndpoint = new URL(endpoint);
+  } catch {
+    throw new Error("XCODE_PACKAGED_AGENT_OTEL_ENDPOINT must be a valid HTTP(S) URL");
+  }
+  if (
+    !["http:", "https:"].includes(parsedEndpoint.protocol) ||
+    parsedEndpoint.username ||
+    parsedEndpoint.password
+  ) {
+    throw new Error("XCODE_PACKAGED_AGENT_OTEL_ENDPOINT must be a valid HTTP(S) URL");
+  }
+  if (
+    resolveXCodeEnv(runtimeEnv.XCODE_ENV) === "production" &&
+    parsedEndpoint.protocol !== "https:"
+  ) {
+    throw new Error("XCODE_PACKAGED_AGENT_OTEL_ENDPOINT must use HTTPS in production");
+  }
+
+  return {
+    OTEL_EXPORTER_OTLP_ENDPOINT: parsedEndpoint.toString(),
+    OTEL_EXPORTER_OTLP_HEADERS: headers,
+    OTEL_SERVICE_NAME: serviceName,
+    // 只有打进正式 Desktop 安装包的 Agent 才能由构建链可信判定为 packaged；
+    // source/development_bundle 不在运行时猜测，未显式注入时保持 unknown。
+    XCODE_TELEMETRY_RUNTIME_DISTRIBUTION: "packaged",
+  };
+}
 
 export function resolveDesktopTsupBundleSecurityOptions(
   runtimeEnv: Record<string, string | undefined> = process.env,
@@ -100,8 +195,8 @@ function createSharedDefines() {
     __XCODE_COMMIT__: JSON.stringify(buildMetadata.buildCommitId),
     __XCODE_BUILD_TIME__: JSON.stringify(buildMetadata.buildTime),
     __XCODE_ENV__: JSON.stringify(zcodeEnv),
-    __XCODE_ENDPOINT_ENV__: JSON.stringify(pickProductEndpointEnv(env)),
     __XCODE_PRODUCT_FLAVOR__: JSON.stringify(zcodeProductFlavor),
+    ...buildTimeConfigDefines,
     // Computer Use Helper build identity — helperInstaller 读它决定下载哪个 Helper bundle。
     // 缺失时 installer 抛 "Packaged XCode is missing its embedded Computer Use Helper build identity"。
     // CI 构建时通过 XCODE_CUA_HELPER_BUILD_ID env 注入；dev 为空串走兜底（dev helper 不走下载）。
@@ -167,9 +262,8 @@ export default defineConfig([
       // producer 的 JS broker 必须跟随 services 一起内联，原生 addon 仍只存在于独立 Helper。
       "@zcode/zcode-cua",
     ],
-    // OTLP 端点与鉴权只在运行时读取；构建环境中的凭据不能写进公开安装包。
-    define: createSharedDefines(),
-    // main/host 同时 watch 且共享 out 根目录时，默认 chunk 命名会互相覆盖，
+    define: createMainDefines(),
+    // 修复原因：main/host 同时 watch 且共享 out 根目录时，默认 chunk 命名会互相覆盖，
     // 可能让 main 的 import 指向被 host 刚重写的 chunk，触发“缺少命名导出”的偶发启动报错。
     // 这里按目标分目录输出 chunk，确保并发构建下产物隔离。
     esbuildOptions(options) {
@@ -184,10 +278,12 @@ export default defineConfig([
     entry: {
       "preload/embeddedBrowserJavaScriptDialog": "src/preload/embeddedBrowserJavaScriptDialog.ts",
       "preload/codingPlanWebview": "src/preload/codingPlanWebview.ts",
+      "preload/rewardsWebview": "src/preload/rewardsWebview.ts",
       "preload/browserVideoRecorder": "src/preload/browserVideoRecorder.ts",
       "preload/index": "src/preload/index.ts",
       "preload/resourceManager": "src/preload/resourceManager.ts",
       "preload/cuaPermissionPanel": "src/preload/cuaPermissionPanel.ts",
+      "preload/pluginSandbox": "src/preload/pluginSandbox/index.ts",
     },
     outDir: "out",
     format: "cjs",
@@ -201,6 +297,30 @@ export default defineConfig([
       applyDesktopTsupEsbuildSecurityOptions(options);
     },
     onSuccess: createDevReadyMarkerHook("preload"),
+    ...desktopTsupBundleSecurityOptions,
+  },
+  {
+    // 插件 iframe 内的 window.zcode / window.openai 别名脚本（官方 ext-apps `App` 上的薄封装）：IIFE、浏览器平台，
+    // 由 zcode-sandbox:// protocol handler 同源服务。
+    name: "plugin-sandbox-alias",
+    loader: { ".css": "text" },
+    entry: {
+      "plugin-sandbox-alias": "src/renderer/src/plugin-sandbox/alias.ts",
+      "gen-ui": "src/renderer/src/plugin-sandbox/genUi.ts",
+    },
+    // 不能放 out/renderer：vite renderer 构建 emptyOutDir 会把先落盘的别名脚本清掉。
+    outDir: "out/plugin-sandbox",
+    onSuccess: () => copyGenUiRuntimeAssets(resolve("out/plugin-sandbox")),
+    format: "iife",
+    platform: "browser",
+    target: "es2022",
+    // 沙箱页面没有 node_modules：SDK（ext-apps / client / core / zod）必须全部打进 IIFE。
+    noExternal: [/.*/],
+    outExtension: () => ({ js: ".js" }),
+    define: createSharedDefines(),
+    esbuildOptions(options) {
+      applyDesktopTsupEsbuildSecurityOptions(options);
+    },
     ...desktopTsupBundleSecurityOptions,
   },
   {

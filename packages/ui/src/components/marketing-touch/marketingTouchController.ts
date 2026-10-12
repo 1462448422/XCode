@@ -88,7 +88,10 @@ export function createMarketingTouchController(options: {
     if (disposed) return;
     void options
       .report({
-        scope: value.scope,
+        // 1010 的 snapshot.scope 是 optional，但 IMarketingTouchService.report 要求 uuid 形状的
+        // scope（服务端用它校验「领取期间账号未切换」）。缺失时补一个本次会话 scope，
+        // 与服务端 currentScope 不一致时后端会拒绝，而不是把 undefined 当空串发出去。
+        scope: value.scope ?? crypto.randomUUID(),
         campaignId: value.delivery.campaign_id,
         actionType,
         locale: options.locale,

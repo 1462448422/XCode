@@ -5,9 +5,9 @@ import {
   findUnclosedAssistantDirectiveStart,
 } from "@/lib/assistantDirectiveParser.js";
 
-type XCodeFileCitationPreviewKind = "docx" | "xlsx" | "pptx" | "pdf" | "video" | "audio";
+export type XCodeFileCitationPreviewKind = "docx" | "xlsx" | "pptx" | "pdf" | "video" | "audio";
 
-interface XCodeFileCitation {
+export interface XCodeFileCitation {
   artifactKind?: string;
   end: number;
   path: string;
@@ -16,7 +16,7 @@ interface XCodeFileCitation {
   start: number;
 }
 
-interface XCodeFileCitationDirective {
+export interface XCodeFileCitationDirective {
   artifactKind?: string;
   end: number;
   path?: string;
@@ -25,7 +25,7 @@ interface XCodeFileCitationDirective {
   start: number;
 }
 
-interface XCodeFileCitationProjection {
+export interface XCodeFileCitationProjection {
   visibleText: string;
 }
 
