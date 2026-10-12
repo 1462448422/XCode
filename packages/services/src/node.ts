@@ -366,7 +366,10 @@ import { isCurrentOAuthCredentialRequest } from "#src/oauth/oauthUnauthorizedReq
 import { createOAuthProviderLogoutHandler } from "./oauth/oauthProviderLogout.js";
 import { OAuthCredentialRepo } from "./oauth/repo/oauthCredentialRepo.js";
 import { readLegacyXCodeConfigProviders } from "./model-provider/legacyXCodeConfigProviderReader.js";
-import { resolveAccountTeamPlanRuntimeApiKey } from "./model-provider/accountProviderTeamPlanRequestKey.js";
+import {
+  resolveAccountTeamPlanRuntimeApiKey,
+  resolveAccountTeamPlanRuntimeMaterial,
+} from "./model-provider/accountProviderTeamPlanRequestKey.js";
 import { createAccountProviderCredentialStore } from "./model-provider/accountProviderCredentialStore.js";
 import { createAccountProviderCredentialService } from "./model-provider/accountProviderCredentialService.js";
 import { createAccountProviderRequestAuthService } from "./model-provider/accountProviderRequestAuthService.js";
@@ -1487,15 +1490,18 @@ export function createLocalServices(options: {
     accountProviderApiKeyRemoteClient.fetchRemoteData.bind(accountProviderApiKeyRemoteClient),
   );
   const accountProviderCredentialService = createAccountProviderCredentialService({
-    credentialStore: accountProviderCredentialStore,
+    // 1010 起 credentialStore 参数被 loadOAuthAccessToken 取代（凭据统一走 OAuth token）
     async loadOAuthAccessToken(family) {
       const oauthProviderId = family === "zai" ? ZAI_PROVIDER_ID : BIGMODEL_PROVIDER_ID;
       return (await oauthCredentialRepo.loadTokenSet(oauthProviderId))?.accessToken ?? null;
     },
-    resolveProviderApiKey: (family, accessToken) =>
-      accountProviderApiKeyResolver.resolveProviderApiKey(
+    // 1010 起从「拿 key」改为「拿完整材料」（ProjectAccessTokenMaterial）
+    resolveProviderMaterial: (family, accessToken, accountIdentity, rejectedProjectTokenFingerprint) =>
+      accountProviderApiKeyResolver.resolveProviderMaterial(
         family === "zai" ? ZAI_PROVIDER_ID : BIGMODEL_PROVIDER_ID,
         accessToken,
+        accountIdentity,
+        rejectedProjectTokenFingerprint,
       ),
   });
   const resolveLegacyTeamOrganization = createLegacyTeamOrganizationResolver({
@@ -1529,18 +1535,19 @@ export function createLocalServices(options: {
           loadAccountIdentity,
         }),
       loadOAuthTokenSet: (providerId) => oauthCredentialRepo.loadTokenSet(providerId),
-      async loadIndividualPlanApiKey(providerId, family) {
+      async loadIndividualPlanMaterial(providerId, family, rejectedProjectTokenFingerprint) {
         const oauthProviderId = family === "zai" ? ZAI_PROVIDER_ID : BIGMODEL_PROVIDER_ID;
         const accountIdentity = (await oauthCredentialRepo.loadUserProfile(oauthProviderId))?.id;
         if (!accountIdentity) return null;
-        return accountProviderCredentialService.loadCodingPlanApiKey({
+        return accountProviderCredentialService.loadCodingPlanMaterial({
           providerId,
           family,
           accountIdentity,
+          rejectedProjectTokenFingerprint,
         });
       },
-      resolveTeamPlanApiKey: (access) =>
-        resolveAccountTeamPlanRuntimeApiKey({ apiClient, credentialService, access }),
+      resolveTeamPlanMaterial: (access) =>
+        resolveAccountTeamPlanRuntimeMaterial({ apiClient, credentialService, access }),
     }),
   );
   const providerConfigLog = createServiceLogger("provider-config");

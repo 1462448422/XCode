@@ -1640,6 +1640,11 @@ export function createXCodeTaskServiceAdapter(
       return;
     }
 
+    if (event.type === "providerRuntimeHeaders.request") {
+      // 1010 新增分支：provider 运行时请求头不参与 task 事件投影，提前返回
+      return;
+    }
+
     if (event.type === "session.event") {
       recordAgentModelNetworkTelemetry(event.event);
       if (event.event.type === "turn.started") {
