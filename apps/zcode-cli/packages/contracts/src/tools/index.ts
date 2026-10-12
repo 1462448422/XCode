@@ -57,3 +57,5 @@ export * from "./performance.js";
 
 // Shared types (only once to avoid duplicates)
 export type { DiffHunk, GitDiff } from "./write.js";
+export * from "./workflow-settings.js";
+export * from "./fill-workflow-hole.js";
