@@ -5,9 +5,6 @@ import type { SkillRoot } from "../skills/index.js";
 import type { ExecutionContext, TraceContext } from "../tracing/tracer.js";
 
 export const XCODE_OFFICIAL_PLUGIN_MARKETPLACE = "zcode-plugins-official";
-export const XCODE_INLINE_PLUGIN_MARKETPLACE = "inline";
-export const XCODE_PLUGIN_HOST_COMMAND = "__zcode-plugin-host";
-export const XCODE_OFFICIAL_PLUGIN_MARKETPLACE = "zcode-plugins-official";
 export const CLAUDE_OFFICIAL_PLUGIN_MARKETPLACE = "claude-plugins-official";
 export const XCODE_INLINE_PLUGIN_MARKETPLACE = "inline";
 export const XCODE_PLUGIN_HOST_COMMAND = "__zcode-plugin-host";
