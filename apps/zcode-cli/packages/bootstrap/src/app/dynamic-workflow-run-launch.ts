@@ -51,6 +51,7 @@ import type { WorkflowEscalationRegistry } from "./workflow-escalation-registry.
 import type { WorkflowRunControl } from "./workflow-run-control.js";
 import { createWorkflowRunSeatGate } from "./workflow-seat-gate.js";
 import type { DynamicWorkflowRunServiceDeps } from "./dynamic-workflow-run-service.js";
+import type { CompiledHole } from "./dynamic-workflow-run-holes.js";
 
 /** 适配包内校验器到引擎的 ValidateFn 契约（launch 是 runWorkflowScript 的唯一调用点）。 */
 const validateFn: ValidateFn = (schema, value) => validate(schema as JsonSchema, value);
@@ -64,6 +65,14 @@ export interface CompiledDynamicWorkflowScript {
   declaredRunCommands: ReadonlySet<string>;
   /** 每个 actor 站点的 submit profile。 */
   actorSubmitProfiles: ReadonlyMap<string, ActorSubmitProfile>;
+  /** 站点 → 词法出生阶段名（docs/execution-engine.md「Identity: sites, ordinals, phases」）。 */
+  sitePhases: ReadonlyMap<string, string>;
+  /** 已补全留白的函数体文本（站点 id → `(async () => { … })`）。 */
+  holeBodies: Readonly<Record<string, string>>;
+  /** 脚本里每处留白的编译期事实（开放与已补全都在，源码序）。 */
+  holes: readonly CompiledHole[];
+  /** 按控制流投影取的阶段表与其中开放留白的下标。 */
+  phases: { phaseNames: string[]; holes: number[] };
 }
 
 interface LaunchDynamicWorkflowRunInput {
@@ -130,6 +139,12 @@ interface LaunchDynamicWorkflowRunInput {
    * 问得着「前驱的会话写完了没有」。原样下传，本文件不读它。
    */
   onQuiescenceProbe?: (probe: ActorSessionQuiescence) => void;
+  /**
+   * 某处留白的类型实参原文（进度载荷给 `hole-reached` 补 `type`）。是函数而不是表：
+   * 一次补全会换掉有效脚本，嵌套在函数体里的新留白随之出现，表在 run 的一生里会变——
+   * 调用方（run service）让它读注册表条目上此刻的那张。缺席即不补。
+   */
+  holeTypeOf?: (siteId: string) => string | undefined;
 }
 
 /**
