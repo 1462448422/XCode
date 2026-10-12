@@ -304,10 +304,12 @@ async function loadCodingPlanBillingDiscount(
     return billingDiscountRequest;
   }
 
+  // service 返回 `Config | null`（fork 的 ICodingPlanSubscriptionService 约定）；
+  // 本函数对外契约是 `| undefined`，在此归一。
   const request = service.getBillingDiscount();
   billingDiscountRequest = request;
   try {
-    const discount = await request;
+    const discount = (await request) ?? undefined;
     billingDiscountCache = {
       value: discount,
       expiresAt: now + BILLING_DISCOUNT_CACHE_TTL_MS,
