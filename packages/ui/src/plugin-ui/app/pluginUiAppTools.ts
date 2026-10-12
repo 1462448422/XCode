@@ -11,40 +11,40 @@ import {
 } from "@zcode/shared/mcp-apps";
 import type { PluginUiHostBridge } from "./pluginUiHostBridge.js";
 
-/** tools/list ç¿»é¡µä¸éï¼å¤åæ»¡ 50 ä¸ªå·¥å·ï¼é²é¡µé¢è¿åæ ç©·æ¸¸æ ã */
+/** tools/list 翻页上限：够取满 50 个工具，防页面返回无穷游标。 */
 const MAX_TOOL_LIST_PAGES = 10;
 /**
- * è®¤é¢ä¸åä¼ æ callId å¹ç­ï¼ä¼ è¾å¤±è´¥éè¯ï¼`accepted: false` æ¯ agent çæç¡®è£å³ï¼ä¸éè¯ã
- * æ»ç­å¾ï¼0.5 s + 1 sï¼çå¨ 5 s è®¤é¢æéåã
+ * 认领与回传按 callId 幂等：传输失败重试；`accepted: false` 是 agent 的明确裁决，不重试。
+ * 总等待（0.5 s + 1 s）留在 5 s 认领期限内。
  */
 export const PLUGIN_UI_APP_TOOL_RPC_ATTEMPTS = 3;
 export const PLUGIN_UI_APP_TOOL_RPC_RETRY_DELAY_MS = 500;
 
 export interface PluginUiAppTools {
   isBusy(): boolean;
-  /** æ°ç«¯å£å°è¾¾ï¼æ³¨éä¸ä¸ä¸ªé¡µé¢å®ä¾çç»è®°ï¼æ°å®ä¾æ¡æåæèªå·±çè½åéæ°ç»è®°ï¼ã */
+  /** 新端口到达：注销上一个页面实例的登记（新实例握手后按自己的能力重新登记）。 */
   resetForAttach(): void;
-  /** æ¡æå®æï¼é¡µé¢å£°æäº appCapabilities.tools æåç°å¹¶ç»è®°ï¼å£°æ listChanged æ¶çå¬åæ´ã */
+  /** 握手完成：页面声明了 appCapabilities.tools 才发现并登记，声明 listChanged 时监听变更。 */
   onInitialized(
     active: PluginUiHostBridge,
     capabilities: McpUiAppCapabilities | undefined,
     isCurrent: () => boolean,
   ): void;
-  /** ä¿¡ç®±æéå°è¾¾ï¼è®¤é¢å¹¶è®©é¡µé¢æ§è¡ï¼æ callId å»éï¼ã */
+  /** 信箱投递到达：认领并让页面执行（按 callId 去重）。 */
   execute(active: PluginUiHostBridge, call: McpAppsAppToolCallRequest): void;
-  /** å®ä¾éæ¯ï¼æ³¨éç»è®°ï¼best effortï¼ã */
+  /** 实例销毁：注销登记（best effort）。 */
   dispose(): void;
 }
 
 /**
- * App-Provided Tools çæ¸²æç«¯ï¼åç°é¡µé¢å·¥å·å¹¶ç»è®°å° agentï¼æ¨¡ååèµ·çè°ç¨ç»å®ä¾ä¿¡ç®±å°è¾¾å
- * è®¤é¢ â é¡µé¢ tools/call â åä¼ ãç»è®°è¡¨ä¸è°ç¨æé½ç± agent ææï¼è¿éåªè®°æ¬å®ä¾å·²ç»å¼å§å¤çç callIdã
+ * App-Provided Tools 的渲染端：发现页面工具并登记到 agent；模型发起的调用经实例信箱到达后
+ * 认领 → 页面 tools/call → 回传。登记表与调用态都由 agent 持有，这里只记本实例已经开始处理的 callId。
  */
 export function createPluginUiAppTools(deps: {
   bridge: IPluginUiAppToolsService;
   pluginScope: () => PluginUiPluginScope;
   scopeId: string;
-  /** å½åå®ä¾ä»£éï¼ç«¯å£æªå°è¾¾æ¶ undefinedã */
+  /** 当前实例代际；端口未到达时 undefined。 */
   currentGeneration: () => number | undefined;
   setTimer: (callback: () => void, ms: number) => () => void;
   now?: () => number;
@@ -101,7 +101,7 @@ export function createPluginUiAppTools(deps: {
       if (!isCurrent() || runEpoch !== epoch) return;
       await deps.bridge.registerAppTools({ ...bound, tools });
       if (!isCurrent() || runEpoch !== epoch) {
-        // ç»è®°å¨éæ¶å®ä¾å·²è¢«æ¿æ¢ / éæ¯ï¼è¡¥ä¸æ¬¡æ³¨éï¼é¿å agent æ´é²å·²å³é­é¡µé¢çå·¥å·ã
+        // 登记在途时实例已被替换 / 销毁：补一次注销，避免 agent 暴露已关闭页面的工具。
         void deps.bridge.unregisterAppTools(bound).catch(() => undefined);
         return;
       }
@@ -119,7 +119,7 @@ export function createPluginUiAppTools(deps: {
     }
   };
 
-  // list_changed èæµï¼ä¸¤æ¬¡éæ°ç»è®°è³å°é´é 1 sï¼çªå£åçå¤æ¬¡éç¥åå¹¶ä¸ºä¸æ¬¡å°¾éå·æ°ã
+  // list_changed 节流：两次重新登记至少间隔 1 s，窗口内的多次通知合并为一次尾随刷新。
   const schedule = (active: PluginUiHostBridge, isCurrent: () => boolean) => {
     if (refreshing) {
       pendingRefresh = true;
@@ -208,7 +208,7 @@ export function createPluginUiAppTools(deps: {
         started.add(call.callId);
         return;
       }
-      // ä¿¡ç®±æ callId å»éï¼æå½±éæ¾ / éå¤æéä¸ä¼è®©é¡µé¢æ§è¡ä¸¤æ¬¡ã
+      // 信箱按 callId 去重：投影重放 / 重复投递不会让页面执行两次。
       if (started.has(call.callId)) return;
       started.add(call.callId);
       const cancel = new AbortController();

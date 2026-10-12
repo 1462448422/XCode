@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- è¿ç«¯ workspace åå²éä¸­ç»´æ¤æä¹åãå­æ®å MCP è·¯å¾æ å°åæ°æ®ï¼æåä¼æ©å¤§æ¢å¤é¾è·¯åå½é¢ã */
+/* eslint-disable max-lines -- 远端 workspace 历史集中维护持久化、凭据和 MCP 路径映射元数据，拆分会扩大恢复链路回归面。 */
 import type {
   AppSettings,
   PersistedWorkspaceSessionEntry,
@@ -109,15 +109,15 @@ export function formatRemoteWorkspaceTargetSubtitle(
 ): string {
   switch (target.kind) {
     case "ssh":
-      return `SSH Â· ${target.username}@${target.host}${target.port ? `:${target.port}` : ""}`;
+      return `SSH · ${target.username}@${target.host}${target.port ? `:${target.port}` : ""}`;
     case "wsl": {
       const user = getWslRemoteTargetUser(target);
-      return ["WSL", target.distro, user].filter(Boolean).join(" Â· ");
+      return ["WSL", target.distro, user].filter(Boolean).join(" · ");
     }
     case "docker":
-      return `Docker Â· ${target.container}`;
+      return `Docker · ${target.container}`;
     case "server":
-      return `Server Â· ${getServerRemoteTargetDisplayName(target)}`;
+      return `Server · ${getServerRemoteTargetDisplayName(target)}`;
   }
 }
 
@@ -149,8 +149,8 @@ export function formatRemoteWorkspaceDisplayLabel(
 }
 
 function normalizeWorkspacePathForIdentity(path: string): string {
-  // è¿ç¨ç®å½å¯è½åºç°ç¬¦å·é¾æ¥å«åï¼ä¾å¦ /dev ä¸ /home/devï¼ã
-  // èº«ä»½è®¡ç®åç»ä¸ååéç¬¦å½ä¸åä¸æ¶å°¾ææ æ¸çï¼é¿ååä¸è·¯å¾ææ¬åªå£°å¯¼è´èº«ä»½æ¼ç§»ã
+  // 远程目录可能出现符号链接别名（例如 /dev 与 /home/dev）。
+  // 身份计算前统一做分隔符归一化与收尾斜杠清理，避免同一路径文本噪声导致身份漂移。
   const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
   return normalized.length > 0 ? normalized : "/";
 }
@@ -164,8 +164,8 @@ function getRemoteWorkspaceAuthorityKey(target: RemoteTarget | RemoteTargetSnaps
       return ["ssh", normalizedHost, normalizedPort, normalizedUsername].join(":");
     }
     case "wsl": {
-      // WSL é»è®¤ç¨æ·ä¸ root/å¶ä»æ¾å¼ç¨æ·çæä»¶æéè¾¹çä¸åï¼
-      // workspace identity å¿é¡»åºåæ¾å¼ userï¼é¿å sessionãç¼å­åéåä¸²ç¨ã
+      // WSL 默认用户与 root/其他显式用户的文件权限边界不同，
+      // workspace identity 必须区分显式 user，避免 session、缓存和队列串用。
       const user = getWslRemoteTargetUser(target);
       const base = ["wsl", target.distro ?? "default"];
       return user ? [...base, user].join(":") : base.join(":");
@@ -410,8 +410,8 @@ export function buildRemoteWorkspaceSessionMutation(params: {
   const nextEntry: RemoteWorkspaceSessionEntry = {
     kind: "remote",
     workspacePath: params.workspacePath,
-    // filesystem MCP åæ­¥éè¦ç¨âæ¬æº workspace -> è¿ç«¯ workspaceâæ å°ã
-    // è¿ç«¯åå²ä¹ååªä¿å­è¿ç«¯è·¯å¾ï¼å·²è¿æ¥åç Settings/Header å¥å£æ æ³åæ¢å¤æ¬æºåºåè·¯å¾ã
+    // filesystem MCP 同步需要用“本机 workspace -> 远端 workspace”映射。
+    // 远端历史之前只保存远端路径，已连接后的 Settings/Header 入口无法再恢复本机基准路径。
     ...(localWorkspacePath ? { localWorkspacePath } : {}),
     workspaceIdentity: resolvedWorkspaceIdentity,
     target: nextSnapshot,
@@ -507,9 +507,9 @@ export function buildPersistedWorkspaceSessionEntries(
       const workspaceKey = buildWorkspaceSessionKey(tab);
       const remoteEntry = remoteSessionsByWorkspaceKey.get(workspaceKey);
 
-      // lastWorkspaceSession ç°å¨æ¯è¿ç«¯ workspace çå¯ä¸æä¹åæ¥æºã
-      // å¦æè¿éå ä¸º tab æ­è¿å°±æ remote é¡¹æ¼æï¼ä¸æ¬¡å¯å¨ä¼ç´æ¥ä¸¢å¤±âæå¨éè¿âçå¥å£ã
-      // å æ­¤åªè¦å½å tab å·æè¿ç«¯èº«ä»½ï¼å°±å¿é¡»ååå®æ´ remote æ¡ç®ã
+      // lastWorkspaceSession 现在是远端 workspace 的唯一持久化来源。
+      // 如果这里因为 tab 断连就把 remote 项漏掉，下次启动会直接丢失“手动重连”的入口。
+      // 因此只要当前 tab 具有远端身份，就必须写回完整 remote 条目。
       if (!remoteEntry) {
         return entries;
       }

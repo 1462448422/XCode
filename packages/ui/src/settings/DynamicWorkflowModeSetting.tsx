@@ -36,9 +36,9 @@ const MODE_ICONS: Record<DynamicWorkflowMode, ComponentType<SVGProps<SVGSVGEleme
 };
 
 /**
- * è®¾ç½®è¡è¦æ¾ç¤ºä»ä¹ï¼docs/dynamic-workflow/launch.mdãThe user's choiceãï¼ãå¿«ç§å è½½ä¸­ãè¯»åå¤±è´¥ã
- * æå¡ç«¯æªæä¾åè½æ¶é½è¿å nullï¼è¡ä¸æ¸²æï¼ç°åº¦å¯¹ç¨æ·ä¸å¯è§ãå¼ä¸ãé»è®¤ãé½å Host ç®å¥½çç»æï¼
- * renderer ä¸èªå·±å¥ç¨æ·éæ©ã
+ * 设置行要显示什么（docs/dynamic-workflow/launch.md「The user's choice」）。快照加载中、读取失败、
+ * 服务端未提供功能时都返回 null：行不渲染，灰度对用户不可见。值与「默认」都取 Host 算好的结果，
+ * renderer 不自己套用户选择。
  */
 export function resolveDynamicWorkflowModeSettingView(
   snapshot: DynamicWorkflowAvailabilitySnapshot,
@@ -48,7 +48,7 @@ export function resolveDynamicWorkflowModeSettingView(
   return { value: config.mode, offeredMode: config.offeredMode };
 }
 
-/** éåæå¡ç«¯æä¾çæ¨¡å¼ç­äºå é¤éæ©ï¼ç©ºä¸²å¨åµï¼æå¡å±å½ä¸æå é¤ï¼ï¼å®è£ç»§ç»­è·éæå¡ç«¯ç¿»è½¬ã */
+/** 选回服务端提供的模式等于删除选择（空串哨兵，服务层归一成删除），安装继续跟随服务端翻转。 */
 export function buildDynamicWorkflowModePatch(
   next: DynamicWorkflowMode,
   offeredMode: DynamicWorkflowMode,
@@ -62,8 +62,8 @@ export function DynamicWorkflowModeSetting() {
   const { intl } = useXCodeIntl();
   const { update } = useSettings();
   const view = resolveDynamicWorkflowModeSettingView(useDynamicWorkflowAvailability());
-  // éæ©è½ç â Root éç¥ Host éåç­ç¥ â å¿«ç§éè¯»ï¼æ´æ¡é¾è¦å ç¾æ¯«ç§ï¼æé´è§¦åå¨åæ¾ç¤ºç¨æ·åéçå¼ã
-  // è¡å¯è§å³åè½å·²æä¾ï¼æ­¤æ¶çææ¨¡å¼å¿ç¶ç­äºç¨æ·æéï¼æä»¥ä¹è§å¼ä¸æç»å¼ä¸è´ã
+  // 选择落盘 → Root 通知 Host 重发策略 → 快照重读，整条链要几百毫秒；期间触发器先显示用户刚选的值。
+  // 行可见即功能已提供，此时生效模式必然等于用户所选，所以乐观值与最终值一致。
   const [pending, setPending] = useState<DynamicWorkflowMode | null>(null);
   const settledValue = view?.value;
   useEffect(() => {
@@ -82,18 +82,18 @@ export function DynamicWorkflowModeSetting() {
       await update(buildDynamicWorkflowModePatch(next, view.offeredMode));
     } catch (error) {
       setPending(null);
-      logger.warn("[settings] ä¿å­å¨æå·¥ä½æµæ¨¡å¼å¤±è´¥", { error: String(error) });
+      logger.warn("[settings] 保存动态工作流模式失败", { error: String(error) });
       toast(intl.formatMessage({ id: "settings.dynamicWorkflow.saveError" }));
     }
   };
 
-  // ä¸åå¤å±åç´ ï¼SettingsRow é  first:border-t-0 ç»è¡é´åéçº¿ï¼åä¸å±ä¼è®©å®åæé¦è¡èä¸¢æä¸è¾¹æ¡ã
+  // 不包外层元素：SettingsRow 靠 first:border-t-0 画行间分隔线，包一层会让它变成首行而丢掉上边框。
   return (
     <SettingsRow
       label={label}
       description={intl.formatMessage({ id: "settings.dynamicWorkflowDescription" })}
-      // Bugfixï¼é»è®¤æ§ä»¶ååªæ 192pxï¼flex ä¼æ 260px çè§¦åå¨åå° 192pxï¼è·éè§¦åå¨å®½åº¦çåè¡¨ä¹éä¹è¿çªï¼
-      // wide å¸å±ç» 280px æ§ä»¶åï¼ææºå®½åº¦ä¸æ¢å°æ ç­¾ä¸æ¹ï¼ï¼è§¦åå¨ä¸åè¡¨é½æè®¾è®¡ç¨¿ç 260px æ¾ç¤ºã
+      // Bugfix：默认控件列只有 192px，flex 会把 260px 的触发器压到 192px，跟随触发器宽度的列表也随之过窄；
+      // wide 布局给 280px 控件列（手机宽度下换到标签下方），触发器与列表都按设计稿的 260px 显示。
       controlLayout="wide"
       control={
         <Select value={value} onValueChange={(next) => void handleValueChange(next)}>
@@ -105,9 +105,9 @@ export function DynamicWorkflowModeSetting() {
           >
             <SelectValue />
           </SelectTrigger>
-          {/* ä¸¤è¡éé¡¹ç¨ popper å±å¼å¨è§¦åå¨ä¸æ¹ï¼item-aligned ä¼çä½æ¬è¡çæ ç­¾ä¸è¯´æã
-              Bugfixï¼popper åªç»äº min-widthï¼åè¡¨å®½åº¦ä¼è¢«æé¿çä¸è¡è¯´ææå¼ï¼åºå®ä¸ºè§¦åå¨å®½åº¦ï¼260pxï¼ï¼
-              è¯´æå¨åè¡¨åæè¡ï¼ä¸è®¾è®¡ç¨¿ä¸è´ã */}
+          {/* 两行选项用 popper 展开在触发器下方，item-aligned 会盖住本行的标签与说明。
+              Bugfix：popper 只给了 min-width，列表宽度会被最长的一行说明撑开；固定为触发器宽度（260px），
+              说明在列表内折行，与设计稿一致。 */}
           <SelectContent
             position="popper"
             align="end"

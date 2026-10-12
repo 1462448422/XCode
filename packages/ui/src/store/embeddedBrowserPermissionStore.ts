@@ -2,19 +2,19 @@ import { create } from "zustand";
 import type { EmbeddedBrowserPermissionPromptEvent } from "@zcode/shared";
 
 /**
- * åç½®æµè§å¨æéå¼¹çªéåï¼main ç» IPC æ¨éè¯·æ±ï¼ç¨æ·æä½åç±ç»ä»¶åä¼ å³ç­å¹¶åºéã
- * main ä¾§å·²åå origin+æéå»éä¸ 10s è¶æ¶ï¼è¿éåªè´è´£æ¸²æææéã
+ * 内置浏览器权限弹窗队列：main 经 IPC 推送请求，用户操作后由组件回传决策并出队。
+ * main 侧已做同 origin+权限去重与 10s 超时，这里只负责渲染期排队。
  */
 interface EmbeddedBrowserPermissionState {
   prompts: EmbeddedBrowserPermissionPromptEvent[];
   receivePrompt: (event: EmbeddedBrowserPermissionPromptEvent) => void;
-  /** åä¸ requestId è¢« main è¶æ¶ç»ç®åï¼renderer ä¾§åæ­¥åºéï¼ä¸ä¸æ¬¡æ¨éä¸åå½±åï¼ã */
+  /** 同一 requestId 被 main 超时结算后，renderer 侧同步出队（下一次推送不受影响）。 */
   dropPrompt: (requestId: string) => void;
 }
 
 export const useEmbeddedBrowserPermissionStore = create<EmbeddedBrowserPermissionState>((set) => ({
   prompts: [],
-  // å requestId çæ¨éæ¯åè¡¨ç­æ´æ°ï¼èçæ«æ/USB æä¸¾è¿ç»­ fireï¼ï¼æ¿æ¢èéè¿½å ã
+  // 同 requestId 的推送是列表热更新（蓝牙扫描/USB 枚举连续 fire），替换而非追加。
   receivePrompt: (event) =>
     set((state) => ({
       prompts: state.prompts.some((prompt) => prompt.requestId === event.requestId)

@@ -6,44 +6,44 @@ import type { WorkflowCausalityGraphData } from "@/components/workflow-graph/typ
 import type { TimelineRail, TimelineStation, WorkflowTimelineModel } from "./timeline-model.js";
 
 /**
- * çç½å¨æ¶é´çº¿æ¨¡åä¸çæ´¾çï¼docs/dynamic-workflow/presentation.mdãHoles on the timelineãï¼ã
- * ä» timeline-model.ts æåºï¼max-lines é¨ï¼ï¼é£éåªå¨å»ºç«æ¶é®ä¸å¥ãè¿ä¸ç«æ¯çç½åããå¨æ¶å°¾æ¶
- * é®ä¸å¥ãå¤´å¨åªãå°¾å·´è¦ä¸è¦å¤ 40pxãï¼è§åå¨å¨è¿éãæ  Reactãæ  DOMãæ æ¶é´ã
+ * 留白在时间线模型上的派生（docs/dynamic-workflow/presentation.md「Holes on the timeline」）。
+ * 从 timeline-model.ts 拆出（max-lines 门）：那里只在建站时问一句「这一站是留白吗」、在收尾时
+ * 问一句「头在哪、尾巴要不要多 40px」，规则全在这里。无 React、无 DOM、无时间。
  *
- * ä¸ä¸ªçç½å°±æ¯ä¸ä¸ªé¶æ®µï¼id = ç«ç¹ idãname = å­é¢éï¼è§å 9012 ä¿è¯åå­å¯ä¸ï¼ï¼
- *   - **å¼ç**ï¼display ç `holes[]` ååºå®ï¼æ¯å¦å°¾å·´ï¼ï¼run åå¨å®ä¸æ¶ `run.holes` è¯´å® waitingã
- *   - **è¡¥å¨äº**ï¼display ç `holes[]` ä¸ååå®ï¼å®åä¸çé¶æ®µä¸ç«ç¹å¸¦ `fill: <å®ç id>`ãæé¶æ®µçè¡¥å¨ï¼
- *     ä½çç«ç«å¨çç½çä½ç½®ï¼çç½åªå©ä¸ä¸ª**å¤´**ï¼ç¬ Â· åï¼æ¬å¨å®ä»¬ä¹ä¸ï¼æ²¡æé¶æ®µçè¡¥å¨ï¼çç½èªå·±
- *     çé¶æ®µè£çä½ç askï¼ç«ä¿çåå­ãåå­æè¿ä¸æç¬æ ã
- * è¡¥å¨åçåå­å¨ display ä¸æ²¡æè½ç¹ï¼å®ä¸æ¯ç«ç¹äºï¼ï¼æä»¥ä» `run.holes` åï¼æ²¡æ run çéæå¾
- * ï¼ç¡®è®¤çªãè¡¥å¨è¡ï¼ç±è°ç¨æ¹é `holeLabels`ï¼ä¸¤å¤é½æ²¡ææ¶éåç«ç¹ idââæ»æ¯ç©ºçå¼ºã
- * çç½çç±»åï¼`hole<T>` ç Tï¼çº¿ä¸æãçé¢ä¸æ²¡æï¼å®æ¯ç¼è¯å¥çº¦ï¼ä¸æ¯ç»ç¨æ·è¯»çã
+ * 一个留白就是一个阶段（id = 站点 id、name = 字面量，规则 9012 保证名字唯一）：
+ *   - **开着**：display 的 `holes[]` 列出它（是否尾巴）；run 停在它上时 `run.holes` 说它 waiting。
+ *   - **补全了**：display 的 `holes[]` 不再列它；它写下的阶段与站点带 `fill: <它的 id>`。有阶段的补全，
+ *     体的站站在留白的位置，留白只剩一个**头**（笔 · 名）悬在它们之上；没有阶段的补全，留白自己
+ *     的阶段装着体的 ask，站保留名字、名字旁进一枚笔标。
+ * 补全后的名字在 display 上没有落点（它不是站点了），所以从 `run.holes` 取；没有 run 的静态图
+ * （确认窗、补全行）由调用方递 `holeLabels`；两处都没有时退回站点 id——总比空着强。
+ * 留白的类型（`hole<T>` 的 T）线上有、界面上没有：它是编译契约，不是给用户读的。
  *
- * **åµå¥**ï¼è¡¥å¨éå¯ä»¥åçç½ãçç½ id æ¯åå­é®ï¼`hole#<8 ä½åå­è¿å¶>`ï¼ï¼ä¸éæ·±åº¦å¢é¿ï¼æä»¥åµå¥
- * å³ç³»ä¸å¨ id éï¼ä¸ä¸ªçç½**èªå·±ç**é¶æ®µ / ç«å¸¦ `fill: <åçå®ççç½>`ï¼é¡¶å±çç½æ²¡æï¼ï¼ç±æ­¤å¾åº
- * ç¶è¡¨ {@link HoleTable.parents}ãå¤å±çå¤´è¦çã`fill` æ¯å®æå®éé¢ä»»ä¸å±çç½ãçå¨é¨ç«ï¼åå±çåºå
- * è½å¨å¤å±çéé¢ï¼å¤´æ `from` ååºãåèµ·ç¹å¤å±å¨åï¼åºååç»å¤å±ãåå±å å¨ä¸é¢ï¼ã
- * ä¿®å¤åå ï¼2026-09-29 ä¹å id éå±æ¼æ¥ï¼`hole#1/hole#1`ï¼ï¼æ¥é¾å«ä¹æ­¥å°±é¡¶å°åè®®ç 64 å­ç¬¦ä¸çã
+ * **嵌套**：补全里可以再留白。留白 id 是名字键（`hole#<8 位十六进制>`），不随深度增长，所以嵌套
+ * 关系不在 id 里：一个留白**自己的**阶段 / 站带 `fill: <包着它的留白>`（顶层留白没有），由此得出
+ * 父表 {@link HoleTable.parents}。外层的头覆盖「`fill` 是它或它里面任一层留白」的全部站，内层的区域
+ * 落在外层的里面；头按 `from` 升序、同起点外层在前（区域先画外层、内层叠在上面）。
+ * 修复原因：2026-09-29 之前 id 逐层拼接（`hole#1/hole#1`），接龙八九步就顶到协议的 64 字符上界。
  *
- * ç«ç `fill` åç­ãè¿ä¸ç«å±äºåªçè¡¥å¨åºåãï¼ä¸è¬å°±æ¯é¶æ®µç `fill`ï¼**å·²è¡¥å¨ççç½èªå·±çç«**å±äº
- * å®èªå·±çåºåï¼æ¬åå®äº®å®èªå·±ãå®åè¡¥å¨æ¶å®ä¸èµ·è½å°ï¼ï¼æä»¥åå®èªå·±ç idï¼è§ {@link stationFillOf}ã
+ * 站的 `fill` 回答「这一站属于哪片补全区域」：一般就是阶段的 `fill`；**已补全的留白自己的站**属于
+ * 它自己的区域（悬停它亮它自己、它刚补全时它一起落地），所以取它自己的 id，见 {@link stationFillOf}。
  */
 export type TimelineHoleState = "open" | "waiting" | "filled";
 
 export interface TimelineHole {
   siteId: string;
   state: TimelineHoleState;
-  /** ä¸»ä»£çæ¶å°çæç¤ºè¯­ï¼ç­å¾ä¸­ï¼æ¥èª `run.holes`ï¼ï¼ä¾§æ¿çç­å¾ä½ç»å®ã */
+  /** 主代理收到的提示语（等待中，来自 `run.holes`）；侧板的等待体画它。 */
   prompt?: string;
-  /** èæ¬çå°¾å·´ï¼è½¨éå¨å®ä¹åå¤è· 40pxã */
+  /** 脚本的尾巴：轨道在它之后多跑 40px。 */
   tail?: true;
-  /** å°è¾¾æ¶å»ï¼ç­å¾ä¸­ï¼ï¼è¡¥å¨æ¶å»ï¼è¡¥å¨åï¼ã */
+  /** 到达时刻（等待中）；补全时刻（补全后）。 */
   since?: number;
   filledAt?: number;
   filledBy?: string;
 }
 
-/** ä¸æ¬¡æé¶æ®µçè¡¥å¨çä¸çå¤´ï¼è¦ç `from..to` è¿å ç«ï¼ä¸æ æå `stations`ï¼ã */
+/** 一次有阶段的补全留下的头：覆盖 `from..to` 这几站（下标指向 `stations`）。 */
 export interface TimelineFill {
   holeId: string;
   name: string;
@@ -58,10 +58,10 @@ export function isHoleSiteId(id: string): boolean {
   return WORKFLOW_HOLE_SITE_ID_PATTERN.test(id);
 }
 
-/** çç½ id â åçå®ççç½ idï¼é¡¶å±çç½ä¸å¨è¡¨éï¼ã */
+/** 留白 id → 包着它的留白 id（顶层留白不在表里）。 */
 export type HoleParents = Readonly<Record<string, string>>;
 
-/** `id` èµ·ãæ²¿ç¶è¡¨ä¸è·¯åå¤çæ¯ä¸å±çç½ï¼èªå·±å¨æåï¼ï¼é²ç¯ï¼åä¸ä¸ª id ä¸èµ°ç¬¬äºæ¬¡ã */
+/** `id` 起、沿父表一路向外的每一层留白（自己在最前）；防环：同一个 id 不走第二次。 */
 function holeAncestors(id: string, parents: HoleParents): string[] {
   const out: string[] = [];
   for (
@@ -74,14 +74,14 @@ function holeAncestors(id: string, parents: HoleParents): string[] {
   return out;
 }
 
-/** `id` æ¯è¡¥å¨ `holeId` æ¬èº«ãè¿æ¯å®éé¢ï¼ä»»ææ·±åº¦ï¼ççç½ã */
+/** `id` 是补全 `holeId` 本身、还是它里面（任意深度）的留白。 */
 export function fillContains(holeId: string, id: string, parents: HoleParents): boolean {
   return holeAncestors(id, parents).includes(holeId);
 }
 
 /**
- * ç¶è¡¨ï¼æ¯ä¸ªçç½èªå·±çé¶æ®µä¸ç«ä¸ç `fill` å°±æ¯åçå®ççç½ï¼åæå¨ççº¦å®ï¼docs/analysis.mdãSitesãï¼ã
- * é¶æ®µä¼åï¼è¡¥å¨è¿ççç½åªå©é¶æ®µï¼ï¼ç«ååºï¼å¼çççç½å¨ display ä¸æ¯ä¸ä¸ª kind hole çç«ï¼ã
+ * 父表：每个留白自己的阶段与站上的 `fill` 就是包着它的留白（分析器的约定，docs/analysis.md「Sites」）。
+ * 阶段优先（补全过的留白只剩阶段），站兜底（开着的留白在 display 上是一个 kind hole 的站）。
  */
 export function holeParentsOf(
   graph: Pick<WorkflowCausalityGraphData, "steps">,
@@ -100,10 +100,10 @@ export function holeParentsOf(
 }
 
 /**
- * æãå¤´å·²ç»ä»£è¡¨äºå®ãççç½é¶æ®µä»æ¶é´çº¿ä¸æ¿æï¼å·²è¡¥å¨ãèªå·±æ²¡ææåãèå®çä½éå¦æç«ççç½ã
- * åæå¨æè¿ç§é¶æ®µçå¨è¡¨éï¼ä¾§æ ä¸ `phaseNames` é å®å¿µå¾åºæ¥é¾æ¯ä¸æ­¥çåå­ï¼docs/analysis.md
- * ãSitesãï¼ï¼ä½æ¶é´çº¿ä¸å®åªä¼æ¯ä½åé¢ä¸çç©ºç¯ââå¤´å·²ç»è¯´äºå®çåå­ãæ¿ææ¶æè¿å®çè¾¹æ¥å°åºå®ç
- * è¾¹ä¸ï¼`a â h â b` æ `a â b`ï¼ï¼è½¨éå æ­¤ä¸æ­ï¼æ²¡æä½ç«çè¡¥å¨ä¸æ¿ï¼å®çç«å¸¦ç¬æ ï¼æ¯å¯ä¸ççè¿¹ï¼ã
+ * 把「头已经代表了它」的留白阶段从时间线上拿掉：已补全、自己没有成员、而它的体里另有站的留白。
+ * 分析器把这种阶段留在表里（侧栏与 `phaseNames` 靠它念得出接龙每一步的名字，docs/analysis.md
+ * 「Sites」），但时间线上它只会是体前面一盏空灯——头已经说了它的名字。拿掉时把进它的边接到出它的
+ * 边上（`a → h → b` 成 `a → b`），轨道因此不断；没有体站的补全不拿（它的站带笔标，是唯一的痕迹）。
  */
 export function withoutHeadedHolePhases(
   graph: WorkflowCausalityGraphData,
@@ -130,7 +130,7 @@ export function withoutHeadedHolePhases(
       .map((phase) => phase.id),
   );
   if (hidden.size === 0) return graph;
-  // éä¸ªæ¶ç¼©ï¼æ¯æ¿æä¸ä¸ªå°±æç»è¿å®çè·¯å¾æ¥ä¸ï¼è¿ç»­çå ä¸ªè¢«æ¿æçé¶æ®µå æ­¤ä¹æ¥å¾éã
+  // 逐个收缩：每拿掉一个就把经过它的路径接上，连续的几个被拿掉的阶段因此也接得通。
   let edges = [...(graph.phaseEdges ?? [])];
   for (const id of hidden) {
     const into = edges.filter((edge) => edge.to === id && edge.from !== id);
@@ -161,8 +161,8 @@ export function withoutHeadedHolePhases(
 }
 
 /**
- * æ¶é´çº¿ä»åªå¼ å¾å»ºç«ï¼å¤´å·²ä»£è¡¨ççç½é¶æ®µæ¿æï¼{@link withoutHeadedHolePhases}ï¼ï¼ç¶è¡¨å´ä»**æ¿æ
- * ä¹å**çå¾ç®ââè¢«æ¿æççç½ä»æ¯å®ä½éçç½çç¶ï¼åµå¥æä¸æ­ã
+ * 时间线从哪张图建站：头已代表的留白阶段拿掉（{@link withoutHeadedHolePhases}），父表却从**拿掉
+ * 之前**的图算——被拿掉的留白仍是它体里留白的父，嵌套才不断。
  */
 export function timelineHoleGraph(full: WorkflowCausalityGraphData): {
   graph: WorkflowCausalityGraphData;
@@ -173,7 +173,7 @@ export function timelineHoleGraph(full: WorkflowCausalityGraphData): {
   return { graph, parents: holeParentsOf(full, full.phases ?? []), phases: graph.phases ?? [] };
 }
 
-/** ä¸ç«å±äºåªçè¡¥å¨åºåï¼æè¿ç«çå­æ®µï¼ï¼å·²è¡¥å¨ççç½èªå·±çç«å±äºå®èªå·±ï¼å¶ä½ç«å±äºé¶æ®µç `fill`ã */
+/** 一站属于哪片补全区域（摊进站的字段）：已补全的留白自己的站属于它自己，其余站属于阶段的 `fill`。 */
 export function stationFillOf(
   phase: { id: string; fill?: string },
   hole: TimelineHole | undefined,
@@ -183,23 +183,23 @@ export function stationFillOf(
 }
 
 export interface HoleTable {
-  /** é¶æ®µ id â è¿ä¸ç«æ¯çç½ï¼èªå·±çé¶æ®µè¿å¨è¡¨éçé£äºï¼ã */
+  /** 阶段 id → 这一站是留白（自己的阶段还在表里的那些）。 */
   byPhase: ReadonlyMap<string, TimelineHole>;
-  /** æé¶æ®µçè¡¥å¨çå¤´ï¼æ `from` ååºã */
+  /** 有阶段的补全的头，按 `from` 升序。 */
   fills: TimelineFill[];
-  /** çç½ä¹é´çåå«å³ç³»ï¼è§ {@link holeParentsOf}ï¼ã */
+  /** 留白之间的包含关系（见 {@link holeParentsOf}）。 */
   parents: HoleParents;
 }
 
 /**
- * ä» display ä¸ run è¯»åºçç½è¡¨ã`phases` æ¯æ¨¡åå»ºç«ç¨çé£å¼ é¶æ®µè¡¨ï¼éå¼é¶æ®µå·²åæï¼ï¼ä¸æ ä¸ç«ä¸è´ã
+ * 从 display 与 run 读出留白表。`phases` 是模型建站用的那张阶段表（隐式阶段已合成），下标与站一致。
  */
 export function holeTable(
   graph: WorkflowCausalityGraphData,
   phases: readonly NonNullable<WorkflowCausalityGraphData["phases"]>[number][],
   run: WorkflowRunState | undefined,
   labels: HoleLabels | undefined,
-  /** ä»**æ¶ç¼©ä¹å**çå¾ç®åºçç¶è¡¨ï¼è¢«æ¿æççç½é¶æ®µä»ç¶æ¯å®ä½éçç½çç¶ï¼ï¼ç¼ºå¸­æ¶å°±å°ç®ã */
+  /** 从**收缩之前**的图算出的父表（被拿掉的留白阶段仍然是它体里留白的父）；缺席时就地算。 */
   parents: HoleParents = holeParentsOf(graph, phases),
 ): HoleTable {
   const runHoles = new Map((run?.holes ?? []).map((hole) => [hole.siteId, hole]));
@@ -218,10 +218,10 @@ export function holeTable(
       ...(waiting && live.prompt !== undefined ? { prompt: live.prompt } : {}),
     });
   }
-  // è¡¥å¨è¿ççç½ï¼run è®°è¿ filled çãè¢«æä¸ªé¶æ®µ / ç«ç¹ç `fill` ç¹åçãé¶æ®µ id æ¬èº«å°±æ¯çç½ id çã
+  // 补全过的留白：run 记过 filled 的、被某个阶段 / 站点的 `fill` 点名的、阶段 id 本身就是留白 id 的。
   const filled = new Set<string>();
   for (const hole of runHoles.values()) if (hole.state === "filled") filled.add(hole.siteId);
-  // è¢«ç¹åççç½è¿åå®çæ¯ä¸å±å¤å±ï¼åå±è¡¥å¨åå¤å±å¯è½ä¸åè¢«ä»»ä½é¶æ®µç´æ¥ç¹åã
+  // 被点名的留白连同它的每一层外层：内层补全后外层可能不再被任何阶段直接点名。
   for (const phase of phases) {
     if (phase.fill !== undefined)
       for (const id of holeAncestors(phase.fill, parents)) filled.add(id);
@@ -238,8 +238,8 @@ export function holeTable(
     const live = runHoles.get(holeId);
     const label = labels?.get(holeId);
     const own = index.get(holeId);
-    // ä½ï¼`fill` æ¯å®ãææ¯å®éé¢ä»»ä¸å±çç½çç«ââå¤å±çè·¨åº¦çä½åå±çãå®èªå·±çç«ä¸å¨ä½é
-    // ï¼å®ç `fill` æ¯å¤å±ï¼ï¼ç´§æ¨å¨ä½ä¹åæ¶ä¸é¢æå®å½è¿å¤´ä¸ã
+    // 体：`fill` 是它、或是它里面任一层留白的站——外层的跨度盖住内层的。它自己的站不在体里
+    // （它的 `fill` 是外层），紧挨在体之前时下面把它归进头下。
     const body = phases.flatMap((phase, i) =>
       phase.fill !== undefined && fillContains(holeId, phase.fill, parents) ? [i] : [],
     );
@@ -247,14 +247,14 @@ export function holeTable(
       byPhase.set(holeId, {
         siteId: holeId,
         state: "filled",
-        // ç«å¨è¡¨æ«ççç½å°±æ¯èæ¬çå°¾å·´ï¼è¡¥å¨åä»ç 40pxï¼å¤´ææ¾å¾ä¸ã
+        // 站在表末的留白就是脚本的尾巴：补全后仍留 40px，头才放得下。
         ...(own === last && body.length === 0 ? { tail: true as const } : {}),
         ...(live?.filledAt === undefined ? {} : { filledAt: live.filledAt }),
         ...(live?.filledBy === undefined ? {} : { filledBy: live.filledBy }),
       });
     }
     if (body.length === 0) continue;
-    // çç½èªå·±çé¶æ®µç´§æ¨å¨ä½ä¹åæ¶ä¹å½è¿å¤´ä¸ï¼ä½å¨é¦ä¸ªæ è®°ä¹åçè¯­å¥è½å¨é£ä¸ç«ï¼ã
+    // 留白自己的阶段紧挨在体之前时也归进头下（体在首个标记之前的语句落在那一站）。
     const from = own !== undefined && own === Math.min(...body) - 1 ? own : Math.min(...body);
     fills.push({
       holeId,
@@ -264,8 +264,8 @@ export function holeTable(
       ...(live?.filledAt === undefined ? {} : { filledAt: live.filledAt }),
     });
   }
-  // åèµ·ç¹çå¤å±å¨åï¼è·¨åº¦é¿çå¨åï¼è·¨åº¦ä¹ç¸åæ¶æåµå¥æ·±åº¦ï¼å¤å±æµï¼ãä¿®å¤åå ï¼id ä¸åéå±
-  // æ¼æ¥åï¼æ²¿ç¶è¡¨æ¶éçæ¬¡åºæ¯ç±ååå¤çï¼é æå¥æ¬¡åºä¼æåå±çå¤´æå°å¤å±åé¢ã
+  // 同起点的外层在前：跨度长的在前，跨度也相同时按嵌套深度（外层浅）。修复原因：id 不再逐层
+  // 拼接后，沿父表收集的次序是由内向外的，靠插入次序会把内层的头排到外层前面。
   const depth = (id: string): number => holeAncestors(id, parents).length;
   fills.sort(
     (left, right) =>
@@ -274,14 +274,14 @@ export function holeTable(
   return { byPhase, fills, parents };
 }
 
-/** å°¾å·´çç½ï¼å¼ç / ç­ç â èçº¿æ®æ®µ 40px æ·¡åºï¼æ é¶æ®µè¡¥å¨å â åªç 40px çä½å°ï¼å¤´è¦è½ä¸ï¼ã */
+/** 尾巴留白：开着 / 等着 → 虚线残段 40px 淡出；无阶段补全后 → 只留 40px 的余地（头要落下）。 */
 export function tailStubOf(stations: readonly TimelineStation[]): "open" | "filled" | undefined {
   const hole = stations[stations.length - 1]?.hole;
   if (hole === undefined || hole.tail !== true) return undefined;
   return hole.state === "filled" ? "filled" : "open";
 }
 
-/** è§¦å°å¼ç / ç­çççç½çè½¨éæ®µæ¯èçº¿ï¼é£éè¿ä¸æ¯ä»£ç ã */
+/** 触到开着 / 等着的留白的轨道段是虚线：那里还不是代码。 */
 export function railTouchesHole(
   stations: readonly TimelineStation[],
   rail: Pick<TimelineRail, "from" | "to">,
@@ -294,9 +294,9 @@ export function railTouchesHole(
 }
 
 /**
- * è¡¥å¨è¡çèç¨¿é¶æ®µçº¿ï¼docs/dynamic-workflow/presentation.mdãThe fill rowãï¼ï¼ç¶è½¨éä¸è¡¥å¨æå¨çé£ä¸æª
- * ââè¡¥å¨çç«å¨å¢¨ãä¸¤ä¾§åä¸ä¸ªé»ç« ghostï¼40%ï¼ââå¶ä½ç«ä¸ç»ãå¼§ãå¸¦ãè¿è¡æä¸å¾ä¸å¸¦ï¼è¿æ¯ä¸å¼ è¯´
- * ãæ°çç«è½å¨åªä¸¤ç«ä¹é´ãçéæå¾ãçç½ä¸è®¤è¯æ¶ undefinedã
+ * 补全行的草稿阶段线（docs/dynamic-workflow/presentation.md「The fill row」）：父轨道上补全所在的那一截
+ * ——补全的站全墨、两侧各一个邻站 ghost（40%）——其余站不画。弧、带、运行态一律不带：这是一张说
+ * 「新的站落在哪两站之间」的静态图。留白不认识时 undefined。
  */
 export function narrowTimelineToFill(
   model: WorkflowTimelineModel,

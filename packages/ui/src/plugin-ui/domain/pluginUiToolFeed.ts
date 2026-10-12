@@ -4,7 +4,7 @@ import type { ConversationRow, ToolCallRow } from "@zcode/shared/zcode-protocol-
 import type { PluginUiPresentation } from "../contract.js";
 import { parseJsonText, readPluginUiPresentation } from "./readPluginUiPresentation.js";
 
-/** åèå¡çä¸ä¾§æ å±ç¨ç legacy ChatToolCall å­éï¼toolCallRowAdapter è¾åºï¼ã */
+/** 内联卡片与侧栏共用的 legacy ChatToolCall 子集（toolCallRowAdapter 输出）。 */
 export interface PluginUiLegacyToolCall {
   status: string;
   input: unknown;
@@ -22,14 +22,14 @@ export function readPluginUiToolInput(
     : undefined;
 }
 
-/** è¢«åæ­¢çå·¥å·ä¸åä¼ªè£ææ®éç»æï¼èæ¯èµ° ui/notifications/tool-cancelledã */
+/** 被停止的工具不再伪装成普通结果，而是走 ui/notifications/tool-cancelled。 */
 export function isPluginUiToolCancelled(toolCall: PluginUiLegacyToolCall | null): boolean {
   return toolCall?.status === "stopped";
 }
 
 /**
- * å·¥å·è¡ â MCP Apps tool-result éç¥è½½è·ãlegacy ç¶æè¯è¡¨ï¼pending / in_progress / completed / failed / stoppedï¼
- * æªå®æä¸äº§åºï¼stopped ä¸äº§åºï¼æ¹å cancelled éç¥ï¼ãstructuredContent / widgetMeta ä» display.ui ç JSON ææ¬æ¢å¤ã
+ * 工具行 → MCP Apps tool-result 通知载荷。legacy 状态词表：pending / in_progress / completed / failed / stopped；
+ * 未完成不产出；stopped 不产出（改发 cancelled 通知）。structuredContent / widgetMeta 从 display.ui 的 JSON 文本恢复。
  */
 export function buildPluginUiToolResult(
   toolCall: PluginUiLegacyToolCall | null,
@@ -40,7 +40,7 @@ export function buildPluginUiToolResult(
   if (isPluginUiToolCancelled(toolCall)) return undefined;
   const structured = parseJsonText(presentation.structuredContent);
   const meta = parseJsonText(presentation.widgetMeta);
-  // H12ï¼ä¼åç¨ agent æå½±çåå§ content æ°ç»ï¼å¾ç / èµæºåä¸ä¸¢ï¼ï¼æ²¡ææ¶éåçº¯ææ¬ã
+  // H12：优先用 agent 投影的原始 content 数组（图片 / 资源块不丢）；没有时退回纯文本。
   const rawContent = parseJsonText(presentation.content);
   const content = Array.isArray(rawContent)
     ? (rawContent.filter(
@@ -51,7 +51,7 @@ export function buildPluginUiToolResult(
       : [];
   const baseMeta =
     typeof meta === "object" && meta !== null ? (meta as Record<string, unknown>) : {};
-  // H12ï¼è¶éå­æ®µå·²è¢« agent çç¥ï¼é¡µé¢ä» _meta["zcode/truncated"].bytes å¾ç¥å¹¶å¯ç¨ tools/call éåã
+  // H12：超限字段已被 agent 省略；页面从 _meta["zcode/truncated"].bytes 得知并可用 tools/call 重取。
   const mergedMeta = presentation.truncated
     ? { ...baseMeta, [MCP_APPS_TRUNCATED_META_KEY]: { bytes: presentation.truncatedBytes ?? 0 } }
     : baseMeta;
@@ -73,7 +73,7 @@ export function findToolRowById(
   return row && row.kind === "toolCall" ? row : null;
 }
 
-/** é¢æ¿æåå¿«ç§éçä¸æ¡å·¥å·è¡æè¦ã */
+/** 面板投喂快照里的一条工具行摘要。 */
 export interface PluginUiSurfaceFeedEntry {
   rowId: number;
   toolCallId: string;
@@ -83,9 +83,9 @@ export interface PluginUiSurfaceFeedEntry {
 }
 
 /**
- * é¢æ¿ï¼surfaceï¼æåå¿«ç§ã`latest` æ¯è¯¥ surface ææ°ä¸æ¡å·¥å·è¡ï¼ä»»æç¶æï¼æå tool-inputã
- * å¤æ­ cancelledï¼ï¼`result` æ¯æåä¸æ¬¡æåç»æï¼running / failed / cancelled / MCP isError ä¸è¦çå®ââé¢æ¿å¨ä¸ä¸æ¬¡æåå
- * ä¸ç´æ¾ç¤ºä¸ä¸ä»½å¥½ç»æãä¸¤èåªæ rowId åè°åè¿ï¼æå½±çªå£è¢«è£ææ§è¡æ¶å¿«ç§ä»å¨ã
+ * 面板（surface）投喂快照。`latest` 是该 surface 最新一条工具行（任意状态，投喂 tool-input、
+ * 判断 cancelled）；`result` 是最后一次成功结果，running / failed / cancelled / MCP isError 不覆盖它——面板在下一次成功前
+ * 一直显示上一份好结果。两者只按 rowId 单调前进，投影窗口被裁掉旧行时快照仍在。
  */
 export interface PluginUiSurfaceFeed {
   latest: PluginUiSurfaceFeedEntry | null;
@@ -94,8 +94,8 @@ export interface PluginUiSurfaceFeed {
 
 export const EMPTY_PLUGIN_UI_SURFACE_FEED: PluginUiSurfaceFeed = { latest: null, result: null };
 
-// v4 status â buildPluginUiToolResult ç¨ç legacy è¯è¡¨ï¼ä¸ v4/toolCallRowAdapter ç STATUS_MAP åä¹ï¼
-// è¿éä¸å¼ adapterï¼domain åªä¾èµåè®®è¡ç±»åï¼ã
+// v4 status → buildPluginUiToolResult 用的 legacy 词表（与 v4/toolCallRowAdapter 的 STATUS_MAP 同义，
+// 这里不引 adapter：domain 只依赖协议行类型）。
 const LEGACY_STATUS: Record<ToolCallRow["status"], string> = {
   inputStreaming: "pending",
   pendingApproval: "pending",
@@ -134,8 +134,8 @@ function toSurfaceFeedEntry(
 }
 
 /**
- * çº¯å½çº¦ï¼æä¸æ¹æå½±è¡å¹¶è¿å¿«ç§ãåä¸ rowId åªå¨ç¶æååæ¶æ´æ° `latest`ï¼`result` å¨æåè¡é¦æ¬¡åºç°æ¶æé ä¸æ¬¡ï¼
- * ä¹åå rowId ä¸éå»ºï¼ä¿æå¼ç¨ç¨³å®ï¼å®¿ä¸»æ®å¼ç¨å¤æ­æ¯å¦éå tool-resultï¼ãæ ååæ¶è¿ååå¯¹è±¡ã
+ * 纯归约：把一批投影行并进快照。同一 rowId 只在状态变化时更新 `latest`；`result` 在成功行首次出现时构造一次，
+ * 之后同 rowId 不重建（保持引用稳定，宿主据引用判断是否重发 tool-result）。无变化时返回原对象。
  */
 export function reducePluginUiSurfaceFeed(
   previous: PluginUiSurfaceFeed,
@@ -163,7 +163,7 @@ export function reducePluginUiSurfaceFeed(
     ) {
       latest = toSurfaceFeedEntry(row, presentation);
     }
-    // MCP isError çè°ç¨å¨ v4 è¡ä¸æ¯ successï¼æ¨¡åè§è§å·²å®æï¼ï¼å¯¹é¢æ¿æ¥è¯´æ¯å¤±è´¥ï¼ä¸è¦çä¸ä¸ä»½å¥½ç»æã
+    // MCP isError 的调用在 v4 行上是 success（模型视角已完成），对面板来说是失败：不覆盖上一份好结果。
     if (
       row.status === "success" &&
       !presentation.isError &&
@@ -179,7 +179,7 @@ export function reducePluginUiSurfaceFeed(
   return latest === previous.latest && result === previous.result ? previous : { latest, result };
 }
 
-/** ä¸¤ä»½å¿«ç§æ rowId åæ°ï¼store åå¹¶ç¨ï¼ï¼è°çè¡æ´æ°ç¨è°çã */
+/** 两份快照按 rowId 取新（store 合并用）：谁的行更新用谁的。 */
 export function mergePluginUiSurfaceFeed(
   current: PluginUiSurfaceFeed,
   candidate: PluginUiSurfaceFeed,

@@ -3,10 +3,10 @@ import { workflowRunOverlay } from "@/components/workflow-graph/run-status.js";
 import type { WorkflowCausalityGraphData } from "@/components/workflow-graph/types.js";
 import type { TimelinePill } from "./timeline-model.js";
 
-// åå¨ timeline-model.tsï¼dwf-recursive ä¸ dwf-pipeline-display åå¹¶åé£ä¸ªæä»¶å°äº 430 è¡ï¼oxlint
-// max-lines ä¸é 400ï¼ãè¯ä¸¸çæ´»å¨æ ç­¾åªè¯» display ä¸ runï¼ä¸åä¸æ¨¡åæå ï¼æä»¥åç¬ææä»¶ã
+// 原在 timeline-model.ts；dwf-recursive 与 dwf-pipeline-display 合并后那个文件到了 430 行（oxlint
+// max-lines 上限 400）。药丸的活动标签只读 display 与 run，不参与模型折叠，所以单独成文件。
 
-/** ä¸æè¯ä¸¸ãæ­£å¨åä»ä¹ãï¼ä¼åæ­£å¨è·ç step ç labelï¼å¶æ¬¡æåä¸ä¸ªå·²ç»ç®çï¼åæ¬¡ç¬¬ä¸ä¸ªã */
+/** 一枚药丸「正在做什么」：优先正在跑的 step 的 label，其次最后一个已结算的，再次第一个。 */
 export function pillActivity(
   graph: WorkflowCausalityGraphData,
   run: WorkflowRunState | undefined,
@@ -21,7 +21,7 @@ export function pillActivity(
   let first: string | undefined;
   for (const id of pill.stepIds) {
     const step = stepsById.get(id);
-    // çç½èªå·±çç«ç¹ï¼kind `hole`ï¼ä¸æ¯ askï¼ä¹ä¸ç»è¯ä¸¸æ ç­¾ã
+    // 留白自己的站点（kind `hole`）不是 ask，也不给药丸标签。
     if (step === undefined || step.kind === "hole") continue;
     if (step.kind === "world-read") reads += 1;
     else asks += 1;

@@ -4,7 +4,7 @@ import { ConversationUserInputEpilogue } from "@/v4/ConversationUserInputEpilogu
 import { ConversationUserInputBody } from "@/v4/ConversationUserInputBody.js";
 import { ConversationUserInputContent } from "@/v4/ConversationUserInputContent.js";
 
-/** æ­£å¼æ¶æ¯ååå¤æå±ç¨å®æ´æ­£ææ¸²æï¼ç¶æç±æ¶æ¯æ¥æºè¡å±ç¤ºã */
+/** 正式消息和准备态共用完整正文渲染；状态由消息来源行展示。 */
 export function ConversationUserInputBubble({
   text,
   contentParts,

@@ -21,13 +21,13 @@ import {
 } from "@/components/workflow-timeline/WorkflowTimelineFills.js";
 
 /**
- * ä¾§æ¿ä¸è¡¥å¨çæ¡ï¼docs/dynamic-workflow/presentation.mdãThe paneãï¼ï¼ä¸å¡ä¸åä¸ä¸ªæ¡ç«çç»ââåå¢¨ãååè§ã
- * åä¸ç¬ãå¡ä¸çæ¡æåå ä½ç®å¾åºï¼è¿éèçé«éå±å¼ / æå ãååå¼åèåï¼æä»¥çºµåä½ç½®ä» DOM éï¼
- * æ é¢è¡ï¼`data-fill-heading`ï¼çé¡¶ä¸è¡¥å¨æåä¸èï¼`data-phase-id`ï¼çåºï¼ç¸å¯¹åè¡¨åå®¹ï¼ç®ä¸æ»å¨ï¼ã
- * æ¯æ¬¡æäº¤åéä¸éï¼åè¡¨å°ºå¯¸åäºç± ResizeObserver è¡¥éï¼éå°çä¸ä¸æ¬¡ç¸åå°±ä¸å¨ stateã
+ * 侧板上补全的框（docs/dynamic-workflow/presentation.md「The pane」）：与卡上同一个框竖着画——同墨、同圆角、
+ * 同一笔。卡上的框按列几何算得出；这里节的高随展开 / 折叠、名单开合而变，所以纵向位置从 DOM 量：
+ * 标题行（`data-fill-heading`）的顶与补全最后一节（`data-phase-id`）的底，相对列表内容（算上滚动）。
+ * 每次提交后量一遍，列表尺寸变了由 ResizeObserver 补量；量到的与上次相同就不动 state。
  *
- * ç¹äº®åªè®¤å¤´ï¼`useFillHeadTarget`ï¼ä¸å¡å±ç¨ï¼ï¼æ é¢è¡ä¸ç¬æ å¸¦ `data-fill-head`ã
- * ä¾§æ¿ä¸ç¼©è¿ï¼ç¨æ·ä¿®è®¢ï¼åµå¥ç±æ¡å¥æ¡è¯´åºï¼ï¼åµå¥çæ¡æ¯å±åæ¶ 4pxã
+ * 点亮只认头（`useFillHeadTarget`，与卡共用）：标题行与笔标带 `data-fill-head`。
+ * 侧板不缩进（用户修订：嵌套由框套框说出），嵌套的框每层各收 4px。
  */
 interface SpineFrameGeometry {
   width: number;
@@ -47,9 +47,9 @@ export function useSpineFillFrames(
   rootRef: RefObject<HTMLDivElement | null>,
   model: WorkflowTimelineModel,
 ): {
-  /** æå¨åè¡¨æ ¹ä¸çå§æï¼æ²¡æè¡¥å¨æ¶ä¸ºç©ºå¯¹è±¡ï¼ã */
+  /** 挂在列表根上的委托（没有补全时为空对象）。 */
   handlers: ReturnType<typeof useFillHeadTarget>["handlers"];
-  /** æ­¤å»ç»åºçæ¡ï¼æéæç¦ç¹æå¨çå¤´ï¼ã */
+  /** 此刻画出的框（指针或焦点所在的头）。 */
   active: string | undefined;
   fresh: ReadonlySet<string>;
   frames: ReactNode;
@@ -100,7 +100,7 @@ export function useSpineFillFrames(
       JSON.stringify(previous) === JSON.stringify(next) ? previous : next,
     );
   };
-  // è§å¯èåªå»ºä¸æ¬¡ï¼å´æ»è¦è°å°ææ°çä¸çéæ³ï¼å®é­åéæè¿ä¸å¸§ç fills ä¸ç«ï¼ã
+  // 观察者只建一次，却总要调到最新的一版量法（它闭包里有这一帧的 fills 与站）。
   const measureRef = useRef(measure);
   measureRef.current = measure;
   useLayoutEffect(() => measureRef.current());
@@ -109,7 +109,7 @@ export function useSpineFillFrames(
     if (root === null || !any || typeof ResizeObserver === "undefined") return undefined;
     const observer = new ResizeObserver(() => measureRef.current());
     observer.observe(root);
-    // èå±å¼ / æå æ¶åè¡¨èªå·±ççå­ä¸åãåå®¹é«åº¦åï¼è¿åæ¯ä¸èä¸èµ·è§å¯ãæ¡èªå·±ç svg ä¸è§å¯ã
+    // 节展开 / 折叠时列表自己的盒子不变、内容高度变：连同每一节一起观察。框自己的 svg 不观察。
     for (const child of root.children) if (!(child instanceof SVGElement)) observer.observe(child);
     return () => observer.disconnect();
   }, [any, rootRef]);

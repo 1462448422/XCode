@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- åç½® Agent CLI çå®è£/å¸è½½ç¶æãéæºè¿åº¦æ¨¡æ¿ä¸è®¾ç½®åæ­¥ç®åéä¸­å¨åä¸ hookï¼åä¿ææ¶å£ï¼é¿åæåä¸æ¡äº¤äºé¾ææ£ã */
+/* eslint-disable max-lines -- 内置 Agent CLI 的安装/卸载状态、随机进度模板与设置同步目前集中在同一 hook，先保持收口，避免把同一条交互链拆散。 */
 import { useCallback, useMemo, useState } from "react";
 import type { XCodeProvider } from "@zcode/shared";
 import { useSettings } from "@/hooks/useSettingService.js";
@@ -253,8 +253,8 @@ function createInstallProgressPlan(): InstallProgressPlan {
   }
 
   pauses.push({
-    // Bugfix: ä¹åå°¾æ®µçåé¡¿é æ¦çè§¦åï¼å¶åä¼å®å¨éè¿âå¿«å®æä½è¿è¦æ¶å°¾âçéåæã
-    // è¿éæ¹æå¨é¶æ®µ 3 -> 4 äº¤çåé¢æä¸ä¸ªå¿å®è§¦åçéåç¹ï¼è®©å°¾æ®µèå¥ç¨³å®å¯å¤ç°ã
+    // Bugfix: 之前尾段的停顿靠概率触发，偶发会完全错过“快完成但还要收尾”的重停感。
+    // 这里改成在阶段 3 -> 4 交界前预排一个必定触发的重停点，让尾段节奏稳定可复现。
     triggerProgress: clamp(stage3End - randomInt(1, 2), stage2End + 1, 99),
     durationMs: randomInt(
       template.stage3To4PauseDurationRange[0],
@@ -313,9 +313,9 @@ async function simulateInstallProgress(
 
     const nextProgressTarget = getInstallTargetProgressAtElapsed(plan, elapsed);
     if (progress < nextProgressTarget) {
-      // Bugfix: ä¹åçç¾åæ¯æ¨è¿æ··æäºâç®æ æ²çº¿âåâéæºåé¡¿âä¸¤ç±»èè´£ï¼
-      // è¶è°è¶é¾é¢æµãè¿éææâè®¡åç®æ  + 1% è¿½èµ¶âæ¨¡åï¼æ¢è½ä¿è¯ 0-100 ä¸è·³å·ï¼
-      // åè½è®©åé¶æ®µèå¥åªç±é¶æ®µæ²çº¿æ¬èº«å³å®ã
+      // Bugfix: 之前的百分比推进混杂了“目标曲线”和“随机停顿”两类职责，
+      // 越调越难预测。这里拆成“计划目标 + 1% 追赶”模型，既能保证 0-100 不跳号，
+      // 又能让四阶段节奏只由阶段曲线本身决定。
       progress += 1;
       setProgress(provider, progress);
 
@@ -466,9 +466,9 @@ export function useBuiltinAgentCli() {
           enabledBuiltinAgentCliProviders: nextEnabledProviders,
         });
 
-        // Bugfix: å¸è½½åç½® CLI åå¦æä»ä¿ç localStorage éçâæè¿ä¸æ¬¡éä¸­ç providerâï¼
-        // æ°å»º workspace / æ°å»ºèç¨¿æ¶é»è®¤ provider è¿æ¯ä¼åå°è¿ä¸ªå·²å¸è½½çå¼ï¼
-        // èåè§¦åå¨çèµ·æ¥å°±åâå®ä¾ç¶å¯ç¨âãè¿éåæ­¥ææä¹ååå¥½åéå°å§ç»å¯ç¨ç glmã
+        // Bugfix: 卸载内置 CLI 后如果仍保留 localStorage 里的“最近一次选中的 provider”，
+        // 新建 workspace / 新建草稿时默认 provider 还是会回到这个已卸载的值，
+        // 菜单触发器看起来就像“它依然可用”。这里同步把持久化偏好回退到始终可用的 glm。
         if (readLastSelectedAgentProvider() === provider) {
           persistLastSelectedAgentProvider("glm");
         }

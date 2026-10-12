@@ -3,7 +3,7 @@ import { toolProgressSchema } from "@zcode/shared/zcode-protocol-v4";
 
 export const TID_TOOL_CALL_PROGRESS = "tool-call-progress";
 
-/** ä» legacy raw è¯»åºæå½±çè¿è¡ä¸­è¿åº¦ï¼toolCallRowAdapter éä¼  ToolCallRow.progressï¼ã */
+/** 从 legacy raw 读出投影的运行中进度（toolCallRowAdapter 透传 ToolCallRow.progress）。 */
 export function readToolCallProgress(raw: unknown): ToolProgress | null {
   if (typeof raw !== "object" || raw === null) return null;
   const parsed = toolProgressSchema.safeParse((raw as { progress?: unknown }).progress);
@@ -11,8 +11,8 @@ export function readToolCallProgress(raw: unknown): ToolProgress | null {
 }
 
 /**
- * å·¥å·æè¦è¡éçç»è¿åº¦æ¡ï¼ï¼ï¼æ fraction ç¨ determinateï¼å¦å indeterminate æ«åï¼
- * message è·å¨åé¢ãé¢è²åªç¨ brand / surface tokenï¼éµå® DESIGN.mdã
+ * 工具摘要行里的细进度条（）：有 fraction 用 determinate，否则 indeterminate 扫光；
+ * message 跟在后面。颜色只用 brand / surface token，遵守 DESIGN.md。
  */
 export function ToolCallProgressIndicator({ progress }: { progress: ToolProgress }) {
   const fraction = progress.fraction;
@@ -26,7 +26,7 @@ export function ToolCallProgressIndicator({ progress }: { progress: ToolProgress
       aria-valuemax={1}
       {...(fraction !== undefined ? { "aria-valuenow": fraction } : {})}
     >
-      <span className="text-foreground-subtlest">Â·</span>
+      <span className="text-foreground-subtlest">·</span>
       <span className="relative inline-block h-1 w-16 shrink-0 overflow-hidden rounded-full bg-surface-hover">
         {fraction !== undefined ? (
           <span

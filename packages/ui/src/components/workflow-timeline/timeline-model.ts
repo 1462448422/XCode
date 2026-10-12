@@ -53,50 +53,50 @@ import {
 } from "./timeline-bands.js";
 
 /**
- * æ¶é´çº¿æ¨¡åã
+ * 时间线模型。
  *
- * ä¸ä¸ªçº¯å½æ°ææç display ä¸ `workflowRuns` æå½±ææä¸æ ·ä¸è¥¿ï¼ç«ï¼é¶æ®µï¼ãè½¨éæ®µï¼ç¸é»ä¸
- * æè¾¹çä¸¤ç«ä¹é´ï¼ãå¼§ï¼éç¸é»çè¾¹ï¼ãèå¤©å¡ãç¡®è®¤çªä¸ä¾§æ æ¸åé½ä»è¿éåºåââä¸åå¼ 1
- * ãä¸ä¸ªæ¨¡åï¼ä¸å¤æ¶è´¹ããæ  Reactãæ  DOMãæ æ¶é´ã
+ * 一个纯函数把有界 display 与 `workflowRuns` 投影折成三样东西：站（阶段）、轨道段（相邻且
+ * 有边的两站之间）、弧（非相邻的边）。聊天卡、确认窗与侧栏清单都从这里出发——不变式 1
+ * 「一个模型，三处消费」。无 React、无 DOM、无时间。
  *
- * é¡ºåºæ¯**å£°æåº**ï¼è½½è· `phases[]` = é¦ä¸ª `phase()` æ è®°çé¡ºåºï¼ï¼ä¸ååç§©ï¼ä¸¤ä¸ªåªå±äº«åé©±ç
- * åå¼é¶æ®µç§å£°æåºææä¸åï¼å®ä»¬ä¹é´çè¾¹æä¸ºå¼§ãåè¾¹æ**æ¹å**å¤å®ï¼ç®æ ç«å¨å·¦ï¼ï¼ä¸è¯»è½½è·
- * ç `back`ââåæå¨æåå¥ï¼ç¬¬äºä¸ª `phase("plan")` æ è®°ï¼æ æååè¾¹ï¼ç»é¢ä¸å®ä»ç¶åå·¦ã
+ * 顺序是**声明序**（载荷 `phases[]` = 首个 `phase()` 标记的顺序），不再分秩：两个只共享前驱的
+ * 兄弟阶段照声明序排成一列，它们之间的边成为弧。回边按**方向**判定（目标站在左），不读载荷
+ * 的 `back`——分析器把再入（第二个 `phase("plan")` 标记）标成前向边，画面上它仍然向左。
  */
 
 export type TimelineInk = "faint" | "strong" | "march";
 export type { TimelineRailKind } from "./timeline-bands.js";
-// å¼§çåéæ¯çº¯ä¸æ çç»åå­¦ï¼ä¸å¸¦çæå åä½ timeline-bands.tsï¼è¿éè½¬åºå»ï¼æ¸²æå±çå¥å£ä¸åã
+// 弧的分道是纯下标的组合学，与带的折叠同住 timeline-bands.ts；这里转出去，渲染层的入口不变。
 export { arcLaneCount, assignArcLanes } from "./timeline-bands.js";
 
 export interface TimelinePill {
-  /** æååçåä¸è idï¼å®ä¾å¡ `${participant}@${ordinal}`ï¼ï¼React key ä¸æå¼å®ä¾çææã */
+  /** 拆分后的参与者 id（实例卡 `${participant}@${ordinal}`）；React key 与打开实例的抓手。 */
   key: string;
   lane: LaneRef;
   laneClass: LaneClass;
-  /** å¼æååºçè¿è¡æ¶åï¼persona å¯è½æ¹åèæ¬éçåå­ï¼ï¼ç¼ºå¸­æ¶æ¸²æè½¦éæ¾ç¤ºåã */
+  /** 引擎发出的运行时名（persona 可能改写脚本里的名字）；缺席时渲染车道显示名。 */
   runtimeName?: string;
-  /** workflow åæä»£çèº«ä»½åéçå¤´åç¼å·ï¼è·¨é¶æ®µå¤ç¨ã */
+  /** workflow 内按代理身份分配的头像编号，跨阶段复用。 */
   avatarIndex?: number;
-  /** æ  run æ¶ undefinedï¼éæè¯ä¸¸ï¼ä¸ pending éåç´ ç¸åï¼ã */
+  /** 无 run 时 undefined（静态药丸，与 pending 逐像素相同）。 */
   status: StepRunStatus | undefined;
-  /** è¯¥è¯ä¸¸å¨æå½±éå¯¹åºçå®ä¾ï¼åæè½¦éï¼workspace / unknownï¼æ²¡æã */
+  /** 该药丸在投影里对应的实例；合成车道（workspace / unknown）没有。 */
   instance?: { siteId: string; ordinal: number; sessionId?: string };
   /**
-   * è¯ä¸¸äº¤åºçæ§½ä½èº«ä»½ï¼æå®ä¾å°±æ¯å®ä¾çåºå·ï¼æ²¡æå®ä¾å°±æ¯å®**å°æ¥**
-   * çåºå·ââæåå¡ `member.index + 1`ï¼åå¡ä¸ `many` å¡ 1ï¼å¼ææç«ç¹é¡ºåºåå·ï¼ãåªææ´»ç run
-   * éç agent è½¦éææï¼æäºå®ï¼è¿æ²¡å¯å¨çå­ä»£çä¹è½å¼ä¸ä¸ªå ä½ç transcript tabã
+   * 药丸交出的槽位身份：有实例就是实例的序号；没有实例就是它**将来**
+   * 的序号——成员卡 `member.index + 1`，单卡与 `many` 卡 1（引擎按站点顺序发号）。只有活的 run
+   * 里的 agent 车道才有；有了它，还没启动的子代理也能开一个占位的 transcript tab。
    */
   slot?: { siteId: string; ordinal: number };
   /**
-   * èæ¬è¯ä¸¸äº¤åºçææï¼
-   * å®æ²¡æå®ä¾ãæ²¡æä¼è¯ï¼è½å¼çæ¯**æ´ä¸ª run çèæ¬ transcript**ï¼è½å°è¿ä¸ç«çç¬¬ä¸å¼ å¡ã
-   * ä¸ `slot` äºæ¥ï¼åªææ´»ç run éç workspace è½¦éææï¼æ²¡æ run å°±æ²¡æå¯å¼çä¸è¥¿ã
+   * 脚本药丸交出的抓手：
+   * 它没有实例、没有会话，能开的是**整个 run 的脚本 transcript**，落到这一站的第一张卡。
+   * 与 `slot` 互斥：只有活的 run 里的 workspace 车道才有；没有 run 就没有可开的东西。
    */
   workspace?: { phaseId: string };
-  /** è¯¥åä¸èå¨æ¬é¶æ®µç step idï¼ä¾§æ è¡çæ´»å¨ä¸è®¡æ°ç´ æï¼ã */
+  /** 该参与者在本阶段的 step id（侧栏行的活动与计数素材）。 */
   stepIds: string[];
-  /** è¯¥å®ä¾æå¾ç­çåçº§é®é¢ï¼`run.pendingQuestions`ï¼ï¼ååçéä½è§åè¯»å®ã */
+  /** 该实例有待答的升级问题（`run.pendingQuestions`）；名册的钉位规则读它。 */
   asking?: true;
 }
 
@@ -104,75 +104,75 @@ export interface TimelineStation {
   id: string;
   naming: PhaseNaming;
   pills: TimelinePill[];
-  /** æå step ç¶æçæå ï¼æ  run æ¶ undefinedã */
+  /** 成员 step 状态的折叠；无 run 时 undefined。 */
   status: StepRunStatus | undefined;
-  /** æå½±éå­å¨ä»»ä¸èç¹è½å¨è¯¥ç«çç«ç¹ä¸ã */
+  /** 投影里存在任一节点落在该站的站点上。 */
   visited: boolean;
-  /** è¯¥ç«ç«ç¹ä¸èç¹çæå¤§ ordinalï¼0 = æªå°ã */
+  /** 该站站点上节点的最大 ordinal；0 = 未到。 */
   rounds: number;
-  /** æ¯ä»»ä¸åè¾¹ï¼åå·¦çå¼§ï¼çæºæç®æ ââåªæè¿æ ·çç«ææ¾ç¤º `â³ n`ã */
+  /** 是任一回边（向左的弧）的源或目标——只有这样的站才显示 `⟳ n`。 */
   onLoop: boolean;
-  /** æå¨çè½¨éï¼`timeline-bands.ts`ï¼ï¼å¸¦å¤ä¸å¾ 0ï¼ä¹å°±æ¯ä¸»çº¿ã */
+  /** 所在的轨道（`timeline-bands.ts`）；带外一律 0，也就是主线。 */
   track: number;
-  /** `settled / observed`ï¼ä¸ä¸ªèç¹é½æ²¡è§å¯å°æ¶ç¼ºå¸­ãè¡¨å¤å·²ç»ç®çå®ä¾ä¹å¨è¿ä¸¤ä¸ªæ°éã */
+  /** `settled / observed`；一个节点都没观察到时缺席。表外已结算的实例也在这两个数里。 */
   fraction?: { settled: number; observed: number };
-  /** çå¨è¿ä¸ç«è±æçè¡¨å¤æ¡ç®ï¼`station-observation.ts`ï¼ï¼ä¸æ¡é½æ²¡å°æ¶ç¼ºå¸­ã */
+  /** 界在这一站花掉的表外条目（`station-observation.ts`）；一条都没少时缺席。 */
   unlisted?: StationUnlisted;
-  /** æµå¼èç¨¿éå°æªé­åçæåä¸ç«ã */
+  /** 流式草稿里尚未闭合的最后一站。 */
   typing?: true;
-  /** è¿ä¸ç«æ¯ä¸å¤çç½ï¼`timeline-holes.ts`ï¼ï¼èçº¿ç¯ãç±»åå¾½æ ï¼ç­å¾æ¶æ¯å½åç«ã */
+  /** 这一站是一处留白（`timeline-holes.ts`）：虚线灯、类型徽标；等待时是当前站。 */
   hole?: TimelineHole;
-  /** è¿ä¸ç«æ¯ææ¬¡è¡¥å¨åè¿æ¥çï¼display é¶æ®µä¸ç `fill`ï¼ï¼æ¬åæ¶å®æå¨çè¡¥å¨åºåäº®èµ·ã */
+  /** 这一站是某次补全写进来的（display 阶段上的 `fill`）：悬停时它所在的补全区域亮起。 */
   fill?: string;
-  /** è¡¥å¨è¡çèç¨¿é¶æ®µçº¿éçé»ç«ï¼åªä½ä¸ä¸æï¼40% å¢¨ã */
+  /** 补全行的草稿阶段线里的邻站：只作上下文，40% 墨。 */
   ghost?: true;
 }
 
-/** ä¸æ¡è½¨éä¸ååç¸æ¥çä¸¤ç«ä¹é´çä¸æ®µè½¨éï¼ä¸æ æå `stations`ã */
+/** 一条轨道上前后相接的两站之间的一段轨道；下标指向 `stations`。 */
 export interface TimelineRail {
   from: number;
   to: number;
   ink: TimelineInk;
   /**
-   * ç¼ºå¸­ = ä¸æ¡è½¨éä¸çæ®éæ®µï¼å¸¦çä¸¤ç«¯æ¯ `fork` / `merge`ï¼å¸¦åè·¨è½¨éçç¸é»ä¸¤ç«æ¯ `twin`ï¼åä¸æ¡
-   * è½¨éä¸ç¸é»ä¸¤ç«ä¹é´çé¶æ®µæµæ¯ `stream`ï¼å¢¨ï¼ä¸¤ç«¯é½å¨è· `march`ï¼æä¸è¥¿è¿å»è¿ `strong`ï¼ã
+   * 缺席 = 一条轨道上的普通段；带的两端是 `fork` / `merge`，带内跨轨道的相邻两站是 `twin`，同一条
+   * 轨道上相邻两站之间的阶段流是 `stream`（墨：两端都在跑 `march`，有东西过去过 `strong`）。
    */
   kind?: TimelineRailKind;
-  /** è§¦å°å¼ç / ç­çççç½ï¼ç»æèçº¿ï¼é£éè¿ä¸æ¯ä»£ç ï¼ã */
+  /** 触到开着 / 等着的留白：画成虚线（那里还不是代码）。 */
   dashed?: true;
 }
 
 /**
- * éç¸é»çè¾¹ï¼`to < from` æ¯åè¾¹ã`lane` ä» 0 èµ·ï¼è´´è¿è½¨éçæ¯ 0ï¼åªæå¨ x ä¸**ç¸äº¤**çå¼§æåé
- * ï¼è§ {@link assignArcLanes}ï¼ï¼äºä¸ç¸å¹²çå¼§åé«ã
+ * 非相邻的边：`to < from` 是回边。`lane` 从 0 起，贴近轨道的是 0；只有在 x 上**相交**的弧才分道
+ * （见 {@link assignArcLanes}），互不相干的弧同高。
  */
 export interface TimelineArc {
   from: number;
   to: number;
   lane: number;
   ink: TimelineInk;
-  /** ç»å¨åªæ¡è½¨éçç©ºä¸­ï¼åéæç©ºåç®åçï¼æä»¥ `arcLaneCount` è¦åæ `air` ç­ã */
+  /** 画在哪条轨道的空中；分道按空各算各的，所以 `arcLaneCount` 要先按 `air` 筛。 */
   air: number;
-  /** ä¸ç¸é»çé¶æ®µæµï¼å¢¨ææµçè§åï¼ä¸è¡è¿ï¼ä¸è®©ç«ä¸ç¯ã */
+  /** 不相邻的阶段流：墨按流的规则，不行进，不让站上环。 */
   stream?: true;
 }
 
-/** å¸¦åçä¸æ¡è½¨éï¼`stations` æ¯å®çæåï¼å£°æåºã */
+/** 带内的一条轨道；`stations` 是它的成员，声明序。 */
 export interface TimelineTrack {
   stations: number[];
-  /** ååè¿å¥è¿æ¡è½¨éçå¢¨ï¼æ²¡æåé©±æ¶æé¦ç«å°æ²¡å°è¿ã */
+  /** 分叉进入这条轨道的墨；没有前驱时按首站到没到过。 */
   entry: TimelineInk;
-  /** è¿æ¡è½¨éæ±ååºå»çå¢¨ï¼æ²¡ææ±åç«æ¶ææ«ç«å°æ²¡å°è¿ã */
+  /** 这条轨道汇合出去的墨；没有汇合站时按末站到没到过。 */
   exit: TimelineInk;
 }
 
-/** ä¸æ¡å¸¦ï¼å£°æåºä¸è¿ç»­çä¸æ®µç«ï¼æå°è¥å¹²è½¨éä¸ï¼å¼§æå®å½ä¸ä¸ªèç¹ï¼`timeline-bands.ts`ï¼ã */
+/** 一条带：声明序上连续的一段站，拆到若干轨道上；弧把它当一个节点（`timeline-bands.ts`）。 */
 export interface TimelineBand {
   from: number;
   to: number;
-  /** ååæå¨çåé©±ç«ï¼ç¼ºå¸­æ¶ç»é¢ä¸åªæä¸å°æªå°¾å·´ã */
+  /** 分叉所在的前驱站；缺席时画面上只有一小截尾巴。 */
   pred?: number;
-  /** æ±åæå¨çåç»§ç«ï¼ç¼ºå¸­æ¶ç»é¢ä¸åªæä¸å°æªæ®æ®µã */
+  /** 汇合所在的后继站；缺席时画面上只有一小截残段。 */
   join?: number;
   tracks: TimelineTrack[];
 }
@@ -181,33 +181,33 @@ export interface WorkflowTimelineModel {
   stations: TimelineStation[];
   rails: TimelineRail[];
   arcs: TimelineArc[];
-  /** å¹¶è¡é¶æ®µææçå¸¦ï¼æ `from` ååºï¼æ²¡æ `alongside` çæ¶é´çº¿æ¯ç©ºçã */
+  /** 并行阶段折成的带，按 `from` 升序；没有 `alongside` 的时间线是空的。 */
   bands: TimelineBand[];
-  /** æ­£å¨è¿è¡çç«ï¼å¤ä¸ªæ¶åæå³ï¼ï¼æ å undefinedã */
+  /** 正在运行的站（多个时取最右）；无则 undefined。 */
   runningIndex: number | undefined;
-  /** æ¯å¦æ run æå½±åä¸ï¼å³å®ç¯ / å¢¨è¿¹æ¯å¦æè¯è¯´ï¼ã */
+  /** 是否有 run 投影参与（决定灯 / 墨迹是否有话说）。 */
   live: boolean;
-  /** æµå¼èç¨¿ï¼ç«ç±ç¬éå­ååºï¼å­ä»£çåªè®¡æ°ä¸ç»ï¼`draft-scan.ts`ï¼ãåæå¨çæ¨¡åæ²¡æå®ã */
+  /** 流式草稿：站由笔逐字写出，子代理只计数不画（`draft-scan.ts`）。分析器的模型没有它。 */
   draft?: { agents: number };
-  /** æé¶æ®µçè¡¥å¨çä¸çå¤´ï¼`timeline-holes.ts`ï¼ï¼æ `from` ååºï¼æ²¡æè¡¥å¨æ¶ä¸ºç©ºã */
+  /** 有阶段的补全留下的头（`timeline-holes.ts`），按 `from` 升序；没有补全时为空。 */
   fills?: TimelineFill[];
-  /** çç½ id â åçå®ççç½ idï¼`timeline-holes.ts` ç holeParentsOfï¼ï¼æ¬åæ¶å¤å±åºåæ®æ­¤äº®èµ·ã */
+  /** 留白 id → 包着它的留白 id（`timeline-holes.ts` 的 holeParentsOf）；悬停时外层区域据此亮起。 */
   holeParents?: Readonly<Record<string, string>>;
-  /** æ«ç«æ¯å°¾å·´çç½ï¼`open` ç» 40px æ·¡åºçèçº¿æ®æ®µï¼`filled` åªç 40px ä½å°ã */
+  /** 末站是尾巴留白：`open` 画 40px 淡出的虚线残段，`filled` 只留 40px 余地。 */
   tailStub?: "open" | "filled";
 }
 
 /**
- * ä¸ä¸ªæ¨¡åï¼ä¸å¤æ¶è´¹ï¼ä¸åå¼ 1ï¼ï¼å¡ãè¯¦æé¡µä¸ä¾§æ æ¸åå¨åä¸å¸§éæ¿å°**åä¸ä¸ª**æ¨¡åå¯¹è±¡ï¼
- * æ (graph, run) çå¯¹è±¡èº«ä»½è®°å¿ââä¸ºä»ä¹èº«ä»½æ¯æ­£ç¡®çé®è§ `timeline-cache.ts`ãæ¨¡åæ¯åªè¯»çï¼
- * æ²¡ææ¶è´¹èæ¹å®ï¼æä»¥å±äº«é¡ºå¸¦ä¹æ¯å¼ç¨ç¨³å®æ§çæ¥æºã
+ * 一个模型，三处消费（不变式 1）：卡、详情页与侧栏清单在同一帧里拿到**同一个**模型对象，
+ * 按 (graph, run) 的对象身份记忆——为什么身份是正确的键见 `timeline-cache.ts`。模型是只读的，
+ * 没有消费者改它，所以共享顺带也是引用稳定性的来源。
  */
 export function buildWorkflowTimeline(
   input: WorkflowCausalityGraphData,
   run: WorkflowRunState | undefined,
   /**
-   * è¡¥å¨è¿ççç½çåä¸ç±»åï¼docs/dynamic-workflow/presentation.mdãHoles on the timelineãï¼ï¼æ²¡æ run ç
-   * éæå¾ï¼ç¡®è®¤çªãè¡¥å¨è¡ï¼ä»å·¥å·å¥åéè¿æ¥ãç»äºå®å°±ä¸èµ°å±äº«ç¼å­ââé£å¼ è¡¨æ¯æ (graph, run) é®çã
+   * 补全过的留白的名与类型（docs/dynamic-workflow/presentation.md「Holes on the timeline」）：没有 run 的
+   * 静态图（确认窗、补全行）从工具入参递进来。给了它就不走共享缓存——那张表是按 (graph, run) 键的。
    */
   holeLabels?: HoleLabels,
 ): WorkflowTimelineModel {
@@ -220,7 +220,7 @@ function computeWorkflowTimeline(
   run: WorkflowRunState | undefined,
   holeLabels: HoleLabels | undefined,
 ): WorkflowTimelineModel {
-  // å¤´å·²ä»£è¡¨ççç½é¶æ®µä¸æç«ï¼ç¶è¡¨ä»æ¶ç¼©ä¹åçå¾ç®ï¼åµå¥æä¸æ­ï¼timeline-holes.tsï¼ã
+  // 头已代表的留白阶段不成站；父表从收缩之前的图算，嵌套才不断（timeline-holes.ts）。
   const { graph, parents, phases } = timelineHoleGraph(withImplicitPhase(input));
   const index = new Map(phases.map((phase, i) => [phase.id, i]));
   const members = phaseMembers(graph);
@@ -240,8 +240,8 @@ function computeWorkflowTimeline(
       .map((question) => `${question.actorSiteId}@${question.actorOrdinal}`),
   );
 
-  // è¾¹ï¼åæä¸æ å»éï¼èªç¯ä¸æåæªååºé¶æ®µçè¾¹å¨è¿ä¸ç²åº¦ä¸æ²¡æè¯è¯´ï¼ï¼åäº¤ç»å¸¦çæå ââ
-  // ç¸é»çæè½¨éæ®µï¼å¶ä½æå¼§ï¼å¸¦æååä¸æ±åé£å æ¡åæï¼`timeline-bands.ts`ï¼ã
+  // 边：先按下标去重（自环与指向未列出阶段的边在这一粒度上没有话说），再交给带的折叠——
+  // 相邻的成轨道段，其余成弧，带把分叉与汇合那几条吃掉（`timeline-bands.ts`）。
   const edges: { from: number; to: number }[] = [];
   const seen = new Set<string>();
   for (const edge of graph.phaseEdges ?? []) {
@@ -253,7 +253,7 @@ function computeWorkflowTimeline(
     seen.add(key);
     edges.push({ from, to });
   }
-  // é¶æ®µæµï¼specãStreamsãï¼ï¼åæ ·æä¸æ å»éï¼å®ä»¬æä¸æ¡çº¿ä¸ç stage ä»å¸¦éæ¿åºæ¥ã
+  // 阶段流（spec「Streams」）：同样按下标去重；它们把一条线上的 stage 从带里拿出来。
   const streams = phaseStreamIndexes(graph.phaseStreams, index);
   const alongsideIndexes = phases.map((phase) =>
     (phase.alongside ?? []).flatMap((id) => {
@@ -266,7 +266,7 @@ function computeWorkflowTimeline(
   const arcPairs = [...fold.arcs].sort(
     (left, right) => Math.abs(left.from - left.to) - Math.abs(right.from - right.to),
   );
-  // åè¾¹çä¸¤ç«¯ä¸ç¯ï¼ç«¯ç¹å¨å¸¦éæ¶æ´æ¡å¸¦é½ä¸ç¯ââå¸¦æ¯ä¸ä¸ªèç¹ï¼åå¥çæ¯æ´æ¡å¸¦ã
+  // 回边的两端上环；端点在带里时整条带都上环——带是一个节点，再入的是整条带。
   const onLoop = new Set<number>();
   for (const arc of arcPairs) {
     if (arc.to >= arc.from || arc.stream) continue;
@@ -277,7 +277,7 @@ function computeWorkflowTimeline(
     }
   }
 
-  // åç§°åå¸ä¼ç¢°æï¼ä»¥å®ä¾èº«ä»½åéè¿ç»­ç¼å·ï¼åä¸ä»£çè·¨é¶æ®µä¿æåä¸å¤´åã
+  // 名称哈希会碰撞；以实例身份分配连续编号，同一代理跨阶段保持同一头像。
   const avatarIndexes = new Map<string, number>();
   const nodeStatuses: (StepRunStatus | undefined)[] = [];
   const entered: boolean[] = [];
@@ -298,8 +298,8 @@ function computeWorkflowTimeline(
         id: participant.lane,
         laneClass: laneClassOf(participant.lane),
       };
-      // æå ä¸ºç©º = è¿ä¸ªå­ä»£çå¨è¿ä¸ç«ãè¿ä¸æ¬¡ run éä»ä¹é½æ²¡åï¼ç©ºå¿æ¯è¯å®çãundefined åªçç»
-      // æ  run çéæè¯ä¸¸ã
+      // 折叠为空 = 这个子代理在这一站、这一次 run 里什么都没做：空心是诚实的。undefined 只留给
+      // 无 run 的静态药丸。
       const status =
         run === undefined
           ? undefined
@@ -353,7 +353,7 @@ function computeWorkflowTimeline(
     nodeStatuses.push(nodeStatus);
     entered.push(observed.entered);
     hasMembers.push(memberSteps.length > 0);
-    // åå¨çç½ä¸ç runï¼é£ä¸ç«å°±æ¯å½åç«ï¼è¿å¥å®çæ®µè¡è¿ãéå¤´å¯¹åå®ï¼ï¼ç¯çç»æ³ç± `hole` è¯´ã
+    // 停在留白上的 run：那一站就是当前站（进入它的段行进、镜头对准它），灯的画法由 `hole` 说。
     const hole = holes.byPhase.get(phase.id);
     const waiting = hole?.state === "waiting";
     return {
@@ -376,7 +376,7 @@ function computeWorkflowTimeline(
     };
   });
 
-  // stage çç¯ï¼specãStation statusãï¼ï¼å¹¶è¡æææµãä¸ææå step çç«åªçèªå·±çèç¹ä¸åå®çç«ã
+  // stage 的灯（spec「Station status」）：并行或有流、且有成员 step 的站只看自己的节点与喂它的站。
   const staged = stageStatuses({
     alongside: alongsideIndexes,
     entered,
@@ -386,8 +386,8 @@ function computeWorkflowTimeline(
     sequential: stations.map((station) => station.status),
     streams,
   });
-  // ç­çè¡¥å¨ççç½ç§æ§æ¯ runningï¼run åå¨å®ä¸é¢ï¼ï¼å®å¨ future éæ¶ä¹æ¯å¹¶è¡ç«ï¼ä¸è®© stage è§å
-  // æãæ²¡æèç¹ â pendingãæå®æ¹æï¼dwf-recursive ä¸ dwf-pipeline-display åå¹¶æ¶å¯¹é½çä¸¤æ¡è§åï¼ã
+  // 等着补全的留白照旧是 running（run 停在它上面）：它在 future 里时也是并行站，不让 stage 规则
+  // 按「没有节点 → pending」把它改掉（dwf-recursive 与 dwf-pipeline-display 合并时对齐的两条规则）。
   stations.forEach((station, i) => {
     if (station.hole?.state !== "waiting") station.status = staged[i];
   });
@@ -433,13 +433,13 @@ function computeWorkflowTimeline(
     };
   });
 
-  // è¡è¿è¾¹ï¼ä»ä¸ä¸ä¸ªå·²ç»ç®çé¶æ®µè¿å¥æ­£å¨è¿è¡çé¶æ®µçé£ä¸æ¡ãæå½±æ²¡ææ¶é´æ³ï¼æä»¥æä¸æ¡è§å
-  // åæè¯å®çä¸æ¡ï¼åå¥çåè¾¹ > è¿å¥è¯¥ç«çè½¨éæ®µ > ä»»ä¸è½å¨è¯¥ç«çå¼§ã
-  // æ¯ä¸ªæ­£å¨è¿è¡çç«åèµ°ä¸éââå¸¦éä¸¤æ¡è½¨éå¯ä»¥åæ¶å¨è·ï¼å®ä»¬åèªçååé½è¯¥äº®ã
+  // 行进边：从上一个已结算的阶段进入正在运行的阶段的那一条。投影没有时间戳，所以按三条规则
+  // 取最诚实的一条：再入的回边 > 进入该站的轨道段 > 任一落在该站的弧。
+  // 每个正在运行的站各走一遍——带里两条轨道可以同时在跑，它们各自的分叉都该亮。
   for (let r = 0; r < stations.length; r += 1) {
     if (stations[r]?.status !== "running") continue;
     const entry = bandOf(folded, r)?.from ?? r;
-    // æµè½¨ä¸æµå¼§ä¸åä¸ï¼specãMarchãæ«æ®µï¼ï¼å®ä»¬çå¢¨å·²ç»è¯´äºææ²¡æä¸è¥¿å¨è¿ã
+    // 流轨与流弧不参与（spec「March」末段）：它们的墨已经说了有没有东西在过。
     const reentry = arcs.find(
       (arc) =>
         !arc.stream &&
@@ -452,7 +452,7 @@ function computeWorkflowTimeline(
       reentry.ink = "march";
       continue;
     }
-    // åçº¿æ®µä¸æ¯æ§å¶æµèµ°çè·¯ï¼å®åªè¯´ãè¿ä¸¤ç«å¹¶è¡ãï¼æ°¸ä¸è¡è¿ã
+    // 双线段不是控制流走的路，它只说「这两站并行」，永不行进。
     const inbound = rails.filter(
       (rail) =>
         rail.to === r && rail.kind !== "twin" && rail.kind !== "stream" && visited(rail.from),

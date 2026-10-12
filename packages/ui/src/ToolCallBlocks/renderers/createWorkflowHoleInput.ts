@@ -5,11 +5,11 @@ import {
 import { isPlainRecord } from "@/ToolCallBlocks/renderers/createWorkflowInput.js";
 
 /**
- * FillWorkflowHole è¡çç®æ çç½ï¼docs/dynamic-workflow/presentation.mdãThe fill rowãï¼ï¼`run_id` /
- * `hole_id` æ¥èªè¡çå¥åï¼æ¨¡ååçï¼ï¼**åå­ãèç¨¿è·¯å¾ä¸è¡å·æ¥èª display ç `fill` å**ï¼å·¥å·ä»è§£æ
- * åºççç½åè¿è¾åºãæå½±åæ ·å¸¦ä¸ãå¥åéç `hole` åæ¯ resolveInput ç»æéè§ååå¡«çï¼transcript
- * ä¸å­å®ï¼2026-09-28 é¦æ¬¡æ¥é¾å®æµï¼åªè¯»å¥åçè¡æ é¢æäº `hole#1`ï¼ââè¿éä»è¯»å®ï¼åªä¸ºç¡®è®¤çªé£æ¡
- * æ¿å¾å°è§£æå¥åçè·¯ï¼display å¨åºæ¶ä»¥ display ä¸ºåãä» createWorkflowInput.ts æåºï¼max-lines é¨ï¼ã
+ * FillWorkflowHole 行的目标留白（docs/dynamic-workflow/presentation.md「The fill row」）：`run_id` /
+ * `hole_id` 来自行的入参（模型写的）；**名字、草稿路径与行号来自 display 的 `fill` 块**，工具从解析
+ * 出的留白写进输出、投影原样带上。入参里的 `hole` 块是 resolveInput 给权限规则回填的，transcript
+ * 不存它（2026-09-28 首次接龙实测：只读入参的行标题成了 `hole#1`）——这里仍读它，只为确认窗那条
+ * 拿得到解析入参的路，display 在场时以 display 为准。从 createWorkflowInput.ts 拆出（max-lines 门）。
  */
 export interface WorkflowHoleTarget {
   runId: string | undefined;
@@ -19,7 +19,7 @@ export interface WorkflowHoleTarget {
   line: number | undefined;
 }
 
-/** display ç `fill` åï¼ä¸ shared ç toolCallCreateWorkflowDisplaySchema.fill åå½¢ï¼ï¼æªè§£æçåæ ·ã */
+/** display 的 `fill` 块（与 shared 的 toolCallCreateWorkflowDisplaySchema.fill 同形），未解析的原样。 */
 export interface WorkflowDisplayFill {
   siteId: string;
   name: string;
@@ -49,14 +49,14 @@ export function readWorkflowHoleTarget(
   };
 }
 
-/** è¡¥å¨çä½ï¼`script`ï¼ï¼ä¸ CreateWorkflow çèæ¬åä¸ééï¼æµå¼èç¨¿çç¬ä»å®éæ«é¶æ®µã */
+/** 补全的体（`script`）：与 CreateWorkflow 的脚本同一通道，流式草稿的笔从它里扫阶段。 */
 export function readWorkflowHoleBody(input: unknown): string | undefined {
   return isPlainRecord(input) && typeof input.script === "string" ? input.script : undefined;
 }
 
 /**
- * ä¸æ¬¡è¡¥å¨åä¸äºå ä¸ªé¶æ®µãå ä¸ªå­ä»£çï¼ãçç½å·²è¡¥å¨ Â· {name} Â· {k} ä¸ªé¶æ®µ Â· {m} ä¸ªå­ä»£çãï¼ï¼
- * ææèæ¬çå¾ä¸å¸¦ `fill === holeId` çé¶æ®µä¸ç«ç¹ãçç½èªå·±çé¶æ®µï¼æ é¶æ®µçè¡¥å¨ï¼ä¸ç®é¶æ®µã
+ * 一次补全写下了几个阶段、几个子代理（「留白已补全 · {name} · {k} 个阶段 · {m} 个子代理」）：
+ * 有效脚本的图上带 `fill === holeId` 的阶段与站点。留白自己的阶段（无阶段的补全）不算阶段。
  */
 export function workflowFillCounts(
   graph: WorkflowCausalityGraphData | undefined,
@@ -66,7 +66,7 @@ export function workflowFillCounts(
   const phases = (graph.phases ?? []).filter((phase) => phase.fill === holeId).length;
   const lanes = new Set<string>();
   for (const step of graph.steps) {
-    // è¡¥å¨åè¿æ¥çå¼ççåå±çç½ï¼kind `hole`ãè½¦é `main`ï¼ä¸æ¯å­ä»£çã
+    // 补全写进来的开着的内层留白（kind `hole`、车道 `main`）不是子代理。
     if (step.fill === holeId && step.kind !== "hole" && !isSyntheticLaneId(step.lane)) {
       lanes.add(step.lane);
     }

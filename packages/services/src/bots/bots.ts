@@ -51,7 +51,7 @@ export interface BotUserConfigOptionsParams {
 }
 
 export interface BotAutomationRunWatchParams {
-  /** ä¸è¯¥æ¬¡ sendPrompt.traceId ä¸è´ï¼é¿åæéæé´æ±¡æå¶ä»è½®æ¬¡ã */
+  /** 与该次 sendPrompt.traceId 一致，避免排队期间污染其他轮次。 */
   runId?: string;
   target: XCodeAutomationBotDeliveryTarget;
   taskId: string;
@@ -137,7 +137,7 @@ export interface IBotsService {
     params: import("#src/bots/topicResource.js").TopicResourceRequest,
   ): Promise<import("@zcode/shared").XCodePromptAttachment>;
   /**
-   * å° App å¨å±äº¤äºåå¥½åæ­¥ç» Bot å·²ææçè¿ç«¯ runtimeï¼ä¸å¾ä¸ºæ­¤å»ºç«æ°çè¿ç«¯è¿æ¥ã
+   * 将 App 全局交互偏好同步给 Bot 已持有的远端 runtime；不得为此建立新的远端连接。
    */
   syncAppRuntimePreferences(preferences: XCodeAgentAppRuntimePreferences): Promise<void>;
   getStatus(): Promise<BotServiceStatus>;
@@ -202,7 +202,7 @@ export interface IBotsService {
   }): Promise<import("@zcode/shared").BotGroupDelivery>;
   retryPrivateDelivery?(params: { botId: string; deliveryId: string }): Promise<void>;
   resetBotState(contextKey: string): Promise<void>;
-  /** å¨ automation prompt æ´¾ååè®¢éç»æï¼å¹¶æç»æåæ¨å°åå»ºå®ç Bot ä¼è¯ã */
+  /** 在 automation prompt 派发前订阅终态，并把结果回推到创建它的 Bot 会话。 */
   watchAutomationRun(params: BotAutomationRunWatchParams): Promise<void>;
   handleInboundMessage(message: BotInboundMessage): Promise<BotOutboundMessage[]>;
   handleProviderCallback(provider: BotProvider, payload: unknown): Promise<BotOutboundMessage[]>;

@@ -44,7 +44,7 @@ const host_resourceShowInline = (handle: PluginSandboxHandle | null) =>
   handle?.resourceMeta?.showInline === true;
 const INLINE_ONLY: readonly McpAppsDisplayMode[] = ["inline"];
 
-/** å·¥å·è¡å°æä»¶ UI çééï¼React çå½å¨æä¸å®¿ä¸»å¨ä½éä¸­äºæ­¤ï¼è§å¾åªæ¥æ¶å±ç¤ºæ¨¡åã */
+/** 工具行到插件 UI 的适配；React 生命周期与宿主动作集中于此，视图只接收展示模型。 */
 export function usePluginUiToolCallModel(
   context: ToolCallBlockRenderContext,
 ): Omit<PluginUiToolCallViewProps, "fallback"> {
@@ -58,7 +58,7 @@ export function usePluginUiToolCallModel(
   const toolCall = context.toolCallNode.toolCall;
   const [width, setWidth] = useState(0);
   const [displayMode, setDisplayMode] = useState<McpAppsDisplayMode>("inline");
-  // èµæºçº§ showInline åªéå¥æå°è¾¾ï¼ç» ref è¯»é¿åæ host ç»æå·è¿æ¸²ææçæ´¾çã
+  // 资源级 showInline 只随句柄到达；经 ref 读避免把 host 结果卷进渲染期的派生。
   const hostHandleRef = useRef<PluginSandboxHandle | null>(null);
   const sessionId = scope?.sessionId ?? "";
   const toolScope = useMemo<PluginUiScopeRef>(
@@ -80,7 +80,7 @@ export function usePluginUiToolCallModel(
     surfaceTarget,
     resolvePluginUiLogicalScope(presentation ?? {}, toolScope),
   );
-  // é¢æ¿è·¯ç±ç®æ ï¼å·¥å·å£°æäº surface æ¶ï¼"ä¾§æ æ¯å¦å·²æ¥ç®¡"çé¢æ¿ tab èä¸æ¯å·¥å·å¡ç tabã
+  // 面板路由目标：工具声明了 surface 时，"侧栏是否已接管"看面板 tab 而不是工具卡片 tab。
   const routedSurfaceKey = presentation?.surface
     ? buildPluginUiSurfaceKey(surfaceTarget, { kind: "surface", surfaceId: presentation.surface })
     : null;
@@ -97,7 +97,7 @@ export function usePluginUiToolCallModel(
     () => buildPluginUiToolResult(toolCall, presentation),
     [presentation, toolCall],
   );
-  // 4b-1ï¼æ¶é´çº¿æ¨å¯¼çå±ç¤ºè£å³ï¼è¢«æ¿ä»£ / å¼ºå¶å¸¸é©»ï¼ä¸ç¨æ·æå¨åºå®ç¶æã
+  // 4b-1：时间线推导的展示裁决（被替代 / 强制常驻）与用户手动固定状态。
   const disposition = useSyncExternalStore(
     subscribePluginUiInstances,
     () => getPluginUiRowDisposition(sessionId, toolCall.toolId),
@@ -120,7 +120,7 @@ export function usePluginUiToolCallModel(
     if (!presentation) return;
 
     onOpenSidePane?.({
-      // surface å·¥å·æå¼çæ¯é¢æ¿ tabï¼ç»æéåè·¯ç±è¿é¢æ¿ï¼ï¼æ®éå·¥å·æå¼å·¥å·å¡ç tabã
+      // surface 工具打开的是面板 tab（结果随后路由进面板），普通工具打开工具卡片 tab。
       ...(presentation.surface
         ? { surfaceId: presentation.surface, serverName: presentation.serverName }
         : { toolCallId: toolCall.toolId, serverName: presentation.serverName }),
@@ -153,15 +153,15 @@ export function usePluginUiToolCallModel(
     [context.onOpenBrowserUrl],
   );
 
-  // MCP çä¸å¡å¤±è´¥ä»å¯è½æ¯ completed ä¸å¸¦ UI åæ°æ®ï¼åªæ£æ¥æç»æä¼è®©éè¯¯è¡äºæ¢åä¸é¡µé¢å¹¶çä¸ç©ºç½å¡çã
-  // å±ç¤ºæ¡ä»¶ï¼å¤±è´¥/åæ¶åªçæ®éè®°å½ï¼ä¸è½å»ºéç¹æèªå¨å¼ä¾§æ ï¼åå§ tool-result ä¸æ¹åã
+  // MCP 的业务失败仍可能是 completed 且带 UI 元数据；只检查有结果会让错误行争抢同一页面并留下空白卡片。
+  // 展示条件：失败/取消只留普通记录，不能建锚点或自动开侧栏；原始 tool-result 不改写。
   const supportedScope =
     Boolean(presentation && scope?.sessionId) &&
     toolCall.status !== "failed" &&
     !isPluginUiToolCancelled(toolCall) &&
     presentation?.isError !== true;
-  // é¡µé¢æ¡æå£°æç availableDisplayModes æ¯ç¡¬çº¦æï¼è§è MUST NOTï¼ï¼ä¸å« fullscreen æ¶ä¸ç»ä¾§æ å¥å£ãä¸èªå¨æå¼ã
-  // è½åå¨ initialized åæå°ï¼åæ"é½æ¯æ"èµ·æ­¥ï¼å°è¾¾åç» availableDisplayModes ååæ¨ host-context-changedã
+  // 页面握手声明的 availableDisplayModes 是硬约束（规范 MUST NOT）：不含 fullscreen 时不给侧栏入口、不自动打开。
+  // 能力在 initialized 后才到，先按"都支持"起步；到达后经 availableDisplayModes 变化推 host-context-changed。
   const [appAllowsFullscreen, setAppAllowsFullscreen] = useState(true);
   const canOpenSidePane = Boolean(onOpenSidePane) && appAllowsFullscreen;
   const interactions = useMemo(
@@ -176,8 +176,8 @@ export function usePluginUiToolCallModel(
         : undefined,
     [presentation, scope, toolScope],
   );
-  // ä¾§æ æ¥ç®¡æ¶åèæ¤æå±ç¤ºéç¹ï¼ç®¡çå¨ç»§ç»­ææåä¸ä¸ªæ´»é¡µé¢ã
-  // è¢«æ¿ä»£çè¡åªçæ®éè®°å½ï¼ç»ææªå°±ç»ªï¼pending / runningï¼æ¶åªå ä½ï¼æ²ç®±å¨ç»æå°è¾¾åæå»ºã
+  // 侧栏接管时内联撤掉展示锚点，管理器继续持有同一个活页面。
+  // 被替代的行只留普通记录；结果未就绪（pending / running）时只占位，沙箱在结果到达后才建。
   const resultReady = toolResult !== undefined;
   const inlineActive = supportedScope && !sidePaneActive && !superseded && resultReady;
   const host = usePluginUiHost({
@@ -196,7 +196,7 @@ export function usePluginUiToolCallModel(
     toolResult,
     toolCancelled: isPluginUiToolCancelled(toolCall),
     hostVersion: "zcode",
-    // æ²¡æä¾§æ å¥å£ï¼å¦åªè¯» / éæ¡é¢å£³ï¼æé¡µé¢ä¸æ¯æ fullscreen æ¶åªå£°æ inlineã
+    // 没有侧栏入口（如只读 / 非桌面壳）或页面不支持 fullscreen 时只声明 inline。
     availableDisplayModes: canOpenSidePane ? INLINE_AND_FULLSCREEN : INLINE_ONLY,
     onDisplayModeRequest: handleDisplayModeRequest,
     onOpenExternal: handleOpenExternal,
@@ -208,7 +208,7 @@ export function usePluginUiToolCallModel(
   useEffect(() => {
     setAppAllowsFullscreen(appAllowsDisplayMode(host.appCapabilities, "fullscreen"));
   }, [host.appCapabilities]);
-  // èµæºçº§ showInlineï¼éå¥æå°è¾¾ï¼ï¼æ²¡ææå¨è®°å½æ¶åæåºå®ï¼ä¹åæå è¾¹çæ®æ­¤éç®ã
+  // 资源级 showInline（随句柄到达）：没有手动记录时写成固定，之后折叠边界据此重算。
   useEffect(() => {
     if (!supportedScope || host.handle?.resourceMeta?.showInline !== true || !sessionId) return;
     if (getPluginUiManualPin(sessionId, toolCall.toolId) === undefined) {
@@ -221,9 +221,9 @@ export function usePluginUiToolCallModel(
     return claimPluginUiSurface(toolSurfaceKey, "inline");
   }, [inlineActive, host.supported, toolSurfaceKey]);
 
-  // preferredDisplayMode: fullscreen â å·¥å·å¡çä¸åºç°å°±èªå¨æå¼ä¾§æ ä¸æ¬¡ã
-  // ä¸ç­ç»æï¼replay / æå¿«æ¨¡åä¸ç»æå°è¾¾ä¸ååæ¶èµ·å¯è½å¨åä¸æ¹æäº¤ï¼ç­ç»æä¼è®© effect æ°¸è¿æ²¡æºä¼è·ã
-  // ç»æç¨åç±ä¾§æ ä»å®æ¶æå½±æ toolCallId / surfaceId èªè¡è¯»åã
+  // preferredDisplayMode: fullscreen → 工具卡片一出现就自动打开侧栏一次。
+  // 不等结果：replay / 极快模型下结果到达与回合收起可能在同一批提交，等结果会让 effect 永远没机会跑。
+  // 结果稍后由侧栏从实时投影按 toolCallId / surfaceId 自行读取。
   const autoOpenKey =
     presentation?.preferredDisplayMode === "fullscreen"
       ? buildPluginUiSurfaceKey(surfaceTarget, { kind: "toolCall", toolCallId: toolCall.toolId })
@@ -236,14 +236,14 @@ export function usePluginUiToolCallModel(
   useEffect(() => {
     if (
       !supportedScope ||
-      // åå²å±å¼ä¼éæ°æè½½æ§ fullscreen è¡ï¼å¿é¡»åæ­¥ç¦æ­¢èªå¨æå¼ï¼å¦åæ§å¡çä¼æ¢åä¾§æ ã
+      // 历史展开会重新挂载旧 fullscreen 行；必须同步禁止自动打开，否则旧卡片会抢回侧栏。
       superseded ||
       !host.supported ||
       !autoOpenKey ||
       !canOpenSidePane
     )
       return;
-    // å·²ç»å¨ä¾§æ çè°ç¨ä¹è¦æ¶è´¹ï¼å¦åå³é­åéæ°æè½½ä¼è¡¥è§¦åï¼è¦çç¨æ·å³é­ç¶æã
+    // 已经在侧栏的调用也要消费；否则关闭后重新挂载会补触发，覆盖用户关闭状态。
     if (!claimPluginUiSidePaneAutoOpen(sidePaneMemoryKey, autoOpenKey)) return;
     if (getPluginUiSurface(routedSurfaceKey ?? toolSurfaceKey) === "side-pane") return;
     openInSidePane();
@@ -265,7 +265,7 @@ export function usePluginUiToolCallModel(
     preferredDisplayMode: presentation?.preferredDisplayMode ?? "inline",
     sidePaneActive,
     host,
-    // èµæºçº§å£°æä¼åï¼å·¥å·çº§ååºï¼é½æ²¡æé»è®¤ç»è¾¹æ¡ã
+    // 资源级声明优先，工具级兜底，都没有默认画边框。
     prefersBorder: host.handle?.resourceMeta?.prefersBorder ?? presentation?.prefersBorder ?? true,
     superseded,
     ...(supportedScope && !superseded ? { pinned, onTogglePin: togglePin } : {}),

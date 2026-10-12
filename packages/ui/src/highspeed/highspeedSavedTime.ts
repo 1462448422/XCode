@@ -44,20 +44,20 @@ export function calculateHighspeedSavedDurationMs(params: {
       params.otherDurationMs >= 0
         ? params.otherDurationMs
         : Math.max(0, params.durationMs - modelDurationMs - toolDurationMs);
-    // CLI å·²æçå®æ¨¡å/å·¥å·åºé´æä¹åï¼å·¥å·ä¸å¶å®ç­å¾ä¸å æ¨¡åæ¢éèç¼©ç­ã
+    // CLI 已把真实模型/工具区间持久化；工具与其它等待不因模型换速而缩短。
     const regularDurationMs = toolDurationMs + otherDurationMs + modelDurationMs * modelSpeedup;
     const actualDurationMs = modelDurationMs + toolDurationMs + otherDurationMs;
     return Math.max(0, Math.round(regularDurationMs - actualDurationMs));
   }
-  // Bug æ ¹å ï¼æ­¤åæå¡çº§ TPS ç´æ¥å½ææ´è½®èæ¶ï¼å·¥å·è°ç¨æ¶é´ä¹è¢«éè¯¯å°ææ¨¡åéåº¦ç¼©ç­ã
-  // å·¥å·å  20% ä¸ä¸åï¼åªææ¨¡åæ¨çç 80% æ Highspeed åçç¼©ç­ã
+  // Bug 根因：此前把卡级 TPS 直接当成整轮耗时，工具调用时间也被错误地按模型速度缩短。
+  // 工具占 20% 且不变，只有模型推理的 80% 按 Highspeed 倍率缩短。
   const highspeedShare = 0.2 + 0.8 / modelSpeedup;
   const estimatedRegularDurationMs = params.durationMs / highspeedShare;
   return Math.max(0, Math.round(estimatedRegularDurationMs - params.durationMs));
 }
 
 /**
- * ç»ä¸æå®ææççå®èæ¶æåä¼ å¥è®¡ç®å¨ï¼é¿åæä¹ååæ¼ä¼ æåå­æ®µåéé»åéå° 20/80 ä¼°ç®ã
+ * 统一把完成态的真实耗时拆分传入计算器，避免持久化前漏传拆分字段后静默回退到 20/80 估算。
  */
 export function calculateHighspeedSavedDurationFromMetrics(
   metrics: HighspeedTimingMetricsForSavedTime,
@@ -75,8 +75,8 @@ export async function readHighspeedRegularTpsFromHealth(params: {
   usageStatsService: IUsageStatsService;
   preferredProviderId: string;
   /**
-   * å½å Coding Plan çè´¦å·è®¿é®ä¸ä¸æãProvider éæåè¯·æ±æé´æåªè½ç±å®è§£æï¼
-   * ç¼ºå¤±æ¶ host æ æ³ç¡®å®ç¨åªä¸ªè´¦å·/å¢éé¡¹ç®æ¥è¯¢ï¼å¿å®æéã
+   * 当前 Coding Plan 的账号访问上下文。Provider 重构后请求期鉴权只能由它解析，
+   * 缺失时 host 无法确定用哪个账号/团队项目查询，必定抛错。
    */
   accountAccess: CodingPlanRegularTpsRequest["accountAccess"];
   timeZone?: string;

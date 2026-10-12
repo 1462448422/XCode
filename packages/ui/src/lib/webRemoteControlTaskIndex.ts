@@ -40,9 +40,9 @@ export interface WebRemoteControlTaskMembership {
   archived: boolean;
 }
 
-// è¿è¡å±æå = å¾æ å¨è½¬ï¼displayStatus runningï¼ææçåå°å·¥ä½ï¼ä¸æ¡é¢ isTaskListRowActive åä¹ã
-// Bugfixï¼åå° workflow run åªæ¨è¿ updatedAtãä¸æ¹ displayStatusï¼åªçå¾æ ä¼è®©ä¸¤ä¸ªè· run ç
-// ä¼è¯å¨ææºåè¡¨ééè¿åº¦äºä»¶äºæ¢ä½ç½®ã
+// 运行层成员 = 图标在转（displayStatus running）或挂着后台工作；与桌面 isTaskListRowActive 同义。
+// Bugfix：后台 workflow run 只推进 updatedAt、不改 displayStatus，只看图标会让两个跑 run 的
+// 会话在手机列表里随进度事件互换位置。
 const isWebRemoteControlTaskRunning = (task: WebRemoteControlTaskTarget): boolean =>
   task.displayStatus === "running" || task.hasBackgroundWork === true;
 
@@ -71,8 +71,8 @@ export function getWebRemoteControlTaskMutationWorkspaceTargets({
     return workspaces;
   }
 
-  // Bugfix: Web remote ç baseServices ä»£è¡¨å½å bridge hostï¼å½å bridge æ¯è¿ç«¯æ¶ï¼
-  // ä¸è½ææ¬å° workspace æ å°å°è¿ä¸ªè¿ç«¯ hostï¼å¦å hover æä½ä¼ææ¬å° task mutation åå°è¿ç«¯ sqliteã
+  // Bugfix: Web remote 的 baseServices 代表当前 bridge host；当前 bridge 是远端时，
+  // 不能把本地 workspace 映射到这个远端 host，否则 hover 操作会把本地 task mutation 发到远端 sqlite。
   return workspaces.filter(isRemoteWebRemoteControlWorkspaceTarget);
 }
 
@@ -115,8 +115,8 @@ export function buildWebRemoteControlTaskRuntimeByWorkspaceKey(
 function resolveWebRemoteControlActivityDisplayStatus(
   phase: TaskListRowActivity["phase"],
 ): WebRemoteControlTaskDisplayStatus | undefined {
-  // Bugfixï¼sessions-index activity æ¯å½å phase çæå¨ï¼æ§ renderer runtime cache å¯è½å¨
-  // ä»»æç¶æè¿ç§»åæ»çï¼å æ­¤ runningãcompletedãerror é½å¿é¡»åç±åä¸å®æ¶æ¥æºè£å³ã
+  // Bugfix：sessions-index activity 是当前 phase 的权威；旧 renderer runtime cache 可能在
+  // 任意状态迁移后滞留，因此 running、completed、error 都必须先由同一实时来源裁决。
   switch (phase) {
     case "prewarming":
     case "running":
@@ -161,8 +161,8 @@ function resolveWebRemoteControlTaskDisplayStatus({
     return "completed";
   }
 
-  // Bugfix: persisted status=running åªæ¯ä¸æ¬¡è½çæ¶æªæ¶å°¾ï¼ä¸è½è¯æå½å desktop host ä»å¨æ§è¡ã
-  // ææºè¿æ§é¦é¡µåªéä¿¡æç¡® runtime è¿è¡æï¼é¿åæ° attach åæåå²æªå®æ task è¯¯æ¾ç¤ºä¸º runningã
+  // Bugfix: persisted status=running 只是上次落盘时未收尾，不能证明当前 desktop host 仍在执行。
+  // 手机远控首页只采信明确 runtime 运行态，避免新 attach 后把历史未完成 task 误显示为 running。
   return "idle";
 }
 
@@ -278,8 +278,8 @@ export function applyWebRemoteControlTaskMembershipUpdate({
       const nextTask = { ...task };
       delete nextTask.pinned;
       delete nextTask.archived;
-      // Bugfix: å®½å±è¿æ§ hover å¨ä½åªæ´æ° membership æ è®°ï¼ä¸è½ä¸¢æ workspace identity / remoteSessionIdï¼
-      // å¦åä¸ä¸æ¬¡è·¨ workspace æå¼ task ä¼å¤±å» shared-host bridge çèº«ä»½éç¦»ä¿¡æ¯ã
+      // Bugfix: 宽屏远控 hover 动作只更新 membership 标记，不能丢掉 workspace identity / remoteSessionId，
+      // 否则下一次跨 workspace 打开 task 会失去 shared-host bridge 的身份隔离信息。
       return {
         ...nextTask,
         ...(membership.pinned ? { pinned: true } : {}),
@@ -369,8 +369,8 @@ export function buildWebRemoteControlTaskIndexModel({
   collapsedWorkspaceKeys?: ReadonlySet<string>;
 }): WebRemoteControlTaskIndexModel {
   const allTasks = result.tasks ?? [];
-  // Bugfix: å®½å± Web è¿æ§å·¦æ ä¹åæ pinned / archived æ··è¿æ®é workspace åè¡¨ï¼
-  // ä½çªå±è¿æ§å·²ç»æè¿äºæåææç¬ç«ååºãè¿éå¨åä¸äºå®æºä¸æåï¼é¿åå®½å±éå¤å±ç¤ºæè§å¾åæ¢ä¸¢æ°æ®ã
+  // Bugfix: 宽屏 Web 远控左栏之前把 pinned / archived 混进普通 workspace 列表，
+  // 但窄屏远控已经把这些成员拆成独立分区。这里在同一事实源上拆分，避免宽屏重复展示或视图切换丢数据。
   const pinnedTasks = sortWebRemoteControlTasksByTime(
     filterWebRemoteControlTasks(
       allTasks.filter((task) => task.pinned && !task.archived),

@@ -25,12 +25,12 @@ import { logger } from "@/logger.js";
 import { useEmbeddedBrowserPermissionStore } from "@/store/embeddedBrowserPermissionStore.js";
 
 /**
- * åç½®æµè§å¨æéå¼¹çªå±ï¼specï¼docs/browser-use/2026-10-08-embedded-browser-permission-governance-spec.mdï¼ã
- * permission â Chrome å¼éå®æ°æ³¡ï¼å°åæ ä¸æ¹å·¦ä¾§ï¼èªå¨å¼¹åºï¼å¡çä¸º origin æ é¢ + â å³é­ +
- * è½åå¾æ åè¡¨ + ç«æä¸è¶åï¼è®¿é®æ­¤ç½ç«æ¶åè®¸ï¼æä¹ï¼/ ä»æ¬æ¬¡åè®¸ / ä¸åè®¸ï¼æ¬æ¬¡æç»ä¸è®°å¿ï¼ï¼
- * ä¸åãæ°¸ä¹é»æ­¢ãââè¯¯ç¹åç«ç¹å¼å¸¸é¾ä»¥èªæï¼æä¹ deny åªä¿çå¨ç«ç¹æéè®¾ç½®éç®¡çï¼ï¼
- * screen-share / device â Dialog éæ©å¨ï¼æºæãæ´ä¸ªå±å¹ / çªå£ãåç»ï¼ã
- * åæ¶ä¸è¶æ¶ç»ä¸ç± main ç»ç®ï¼renderer åªåä¼ å³ç­ã
+ * 内置浏览器权限弹窗层（spec：docs/browser-use/2026-10-08-embedded-browser-permission-governance-spec.md）。
+ * permission → Chrome 式锚定气泡（地址栏下方左侧，自动弹出；卡片为 origin 标题 + ✕ 关闭 +
+ * 能力图标列表 + 竖排三胶囊：访问此网站时允许（持久）/ 仅本次允许 / 不允许（本次拒绝不记忆）；
+ * 不做「永久阻止」——误点后站点异常难以自愈，持久 deny 只保留在站点权限设置里管理）；
+ * screen-share / device → Dialog 选择器（源按「整个屏幕 / 窗口」分组）。
+ * 取消与超时统一由 main 结算，renderer 只回传决策。
  */
 
 const MEDIA_LABEL: Record<string, string> = {
@@ -67,7 +67,7 @@ function permissionLabelId(permission: string, mediaTypes?: string[]): string {
   return PERMISSION_LABEL[permission] ?? "browser.permission.unknownCapability";
 }
 
-/** æ°æ³¡è½ååè¡¨ï¼media æ mediaTypes æææåå¤´/éº¦åé£ç¬ç«è¡ï¼å¶ä½ä¸ç±»ä¸è¡ã */
+/** 气泡能力列表：media 按 mediaTypes 拆成摄像头/麦克风独立行，其余一类一行。 */
 function promptCapabilities(
   prompt: Extract<EmbeddedBrowserPermissionPromptEvent, { kind: "permission" }>,
 ): { key: string; labelId: string }[] {
@@ -89,11 +89,11 @@ function promptIcon(event: EmbeddedBrowserPermissionPromptEvent) {
 }
 
 /**
- * guestWebContentsId æ¯å½å tab ç guest èº«ä»½ï¼permission è¯·æ±å¸¦å½å± id ä¸ä¸å¹é
- * å½å tab æ¶ä¸å¨æ¬ tab æ¸²æï¼åå° tab çè¯·æ±ä¸æ¾ç¤ºå¨å½å tabï¼é¿åè¯¯æ¹åï¼ã
- * å½å tab æ  guestï¼ç©º tabï¼æ¶ä»»ä½å¸¦å½å±çè¯·æ±é½ä¸å±äºå®ï¼åæ ·ä¸æ¸²æï¼
- * è¯·æ±ç¼ºå½å± idï¼device/screen-share ç­æ  tab éå®è¯­ä¹çå¼¹çªï¼ååºæ¸²æï¼
- * æ°æ³¡æ­£æå§ç»å±ç¤º origin ä¾ç¨æ·ç¡®è®¤æ¥æºã
+ * guestWebContentsId 是当前 tab 的 guest 身份：permission 请求带归属 id 且不匹配
+ * 当前 tab 时不在本 tab 渲染（后台 tab 的请求不显示在当前 tab，避免误批准）。
+ * 当前 tab 无 guest（空 tab）时任何带归属的请求都不属于它，同样不渲染；
+ * 请求缺归属 id（device/screen-share 等无 tab 锚定语义的弹窗）兜底渲染，
+ * 气泡正文始终展示 origin 供用户确认来源。
  */
 export function EmbeddedBrowserPermissionPrompts({
   guestWebContentsId,
@@ -110,8 +110,8 @@ export function EmbeddedBrowserPermissionPrompts({
   const [selection, setSelection] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // main ä¾§è¶æ¶ç»ç®åä¸ä¼ä¸»å¨éç¥ rendererï¼æ¸²æå±å¯¹è¶æ¶åæ ·æ 20s åºéååºï¼
-    // é¿åæ¡ç®æ®çï¼ä¸æ¬¡åè¯·æ±æ¯æ°ç requestIdï¼ä¸åå½±åï¼ã
+    // main 侧超时结算后不会主动通知 renderer；渲染层对超时同样按 20s 出队兜底，
+    // 避免条目残留（下次同请求是新的 requestId，不受影响）。
     const disposers = prompts.map((prompt) => {
       const timer = setTimeout(() => dropPrompt(prompt.requestId), 20_000);
       return () => clearTimeout(timer);
@@ -143,8 +143,8 @@ export function EmbeddedBrowserPermissionPrompts({
       ),
     [prompts, guestWebContentsId],
   );
-  // device å¼¹çªä¸ permission åæ ·æ guest å½å±è¿æ»¤ï¼serial/èçå¯åå°å½å±ï¼
-  // hid/usb ä¸å±å¹å±äº«ç¼ºçå½å± id æ¶ååºæ¸²æï¼æ­£æ origin æ ææ¥æºï¼ã
+  // device 弹窗与 permission 同样按 guest 归属过滤（serial/蓝牙可取到归属；
+  // hid/usb 与屏幕共享缺省归属 id 时兜底渲染，正文 origin 标明来源）。
   const selectorPrompts = useMemo(
     () =>
       prompts.filter(
@@ -202,8 +202,8 @@ export function EmbeddedBrowserPermissionPrompts({
                   </li>
                 ))}
               </ul>
-              {/* ç«æä¸è¶åï¼fix/missing_tool è§è§ï¼ï¼æä¹åè®¸ / ä»æ¬æ¬¡åè®¸ / ä¸åè®¸ï¼ä¸è®°å¿ï¼ã
-                  ä¸æä¾ãæ°¸ä¹é»æ­¢ãï¼è¯¯ç¹åç«ç¹å¼å¸¸é¾èªæï¼æä¹ deny åªå¨ç«ç¹æéè®¾ç½®ç®¡çã */}
+              {/* 竖排三胶囊（fix/missing_tool 视觉）：持久允许 / 仅本次允许 / 不允许（不记忆）。
+                  不提供「永久阻止」：误点后站点异常难自愈，持久 deny 只在站点权限设置管理。 */}
               <div className="mt-3 flex flex-col gap-2">
                 <Button
                   type="button"
@@ -336,7 +336,7 @@ export function EmbeddedBrowserPermissionPrompts({
                             device.serialNumber,
                           ]
                             .filter(Boolean)
-                            .join(" Â· ")}
+                            .join(" · ")}
                         </span>
                       ) : null}
                     </span>

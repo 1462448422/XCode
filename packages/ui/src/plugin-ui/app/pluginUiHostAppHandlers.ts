@@ -6,19 +6,19 @@ import { resolveRequestedDisplayMode } from "../domain/buildPluginUiHostContext.
 import type { PluginUiHostBridge } from "./pluginUiHostBridge.js";
 
 /**
- * é¡µé¢åèµ·çè§èè¯·æ± / éç¥æ¥å°å®æ¹ AppBridgeï¼`ui/request-display-mode`ã`tools/call`ã`ui/open-link`ã
- * `ui/notifications/size-changed`ã`ui/notifications/request-teardown`ã`notifications/message`ã
- * ä¼è¯äº¤äºï¼ui/message ç­ï¼å¨ pluginUiInteractionPortsï¼èµæºè¯·æ±å¨ pluginUiResourceSubscriptionsã
+ * 页面发起的规范请求 / 通知接到官方 AppBridge：`ui/request-display-mode`、`tools/call`、`ui/open-link`、
+ * `ui/notifications/size-changed`、`ui/notifications/request-teardown`、`notifications/message`。
+ * 会话交互（ui/message 等）在 pluginUiInteractionPorts，资源请求在 pluginUiResourceSubscriptions。
  */
 export interface PluginUiHostAppHandlerDeps {
   currentContext(): McpUiHostContext;
-  /** å®¿ä¸»è£å³åçæ¨¡å¼åå hostContext å¹¶ï¼å·²æ¡ææ¶ï¼æ¨ host-context-changedã */
+  /** 宿主裁决后的模式写回 hostContext 并（已握手时）推 host-context-changed。 */
   applyDisplayMode(mode: McpUiDisplayMode): void;
   onDisplayModeRequest(mode: McpUiDisplayMode): McpUiDisplayMode;
   pluginScope(): PluginUiPluginScope;
   bridge: Pick<IPluginUiBridgeService, "callTool" | "cancelToolCall">;
   createCallId(): string;
-  /** è¿è¡ä¸­çé¡µé¢å·¥å·è°ç¨ idï¼controller dispose æ¶éä¸ªåæ¶å° agentã */
+  /** 进行中的页面工具调用 id；controller dispose 时逐个取消到 agent。 */
   activeCalls: Set<string>;
   onBusyChange?(): void;
   onOpenExternal(url: string): void;
@@ -47,7 +47,7 @@ export function installPluginUiHostAppHandlers(
     const callId = deps.createCallId();
     deps.activeCalls.add(callId);
     deps.onBusyChange?.();
-    // é¡µé¢ä¸­æ­¢è¯·æ±ï¼SDK ç cancelled éç¥è½å° ctx.mcpReq.signalï¼â åæ¶å° agent ç MCP clientã
+    // 页面中止请求（SDK 的 cancelled 通知落到 ctx.mcpReq.signal）→ 取消到 agent 的 MCP client。
     const onAbort = () => {
       void deps.bridge.cancelToolCall({ ...scope, callId }).catch(() => undefined);
     };
@@ -73,7 +73,7 @@ export function installPluginUiHostAppHandlers(
     } catch {
       throw new ProtocolError(INVALID_PARAMS, `invalid link ${params.url}`);
     }
-    // åªæ¾è¡ http(s)ï¼file: / èªå®ä¹ scheme äº¤ç»ç³»ç»ä¼æå¼æ¬å°ç¨åºã
+    // 只放行 http(s)：file: / 自定义 scheme 交给系统会打开本地程序。
     if (!OPEN_LINK_PROTOCOLS.has(url.protocol)) {
       throw new ProtocolError(INVALID_PARAMS, `only http(s) links can be opened (${url.protocol})`);
     }
@@ -90,7 +90,7 @@ export function installPluginUiHostNotificationHandlers(
     log?: (message: string, detail?: Record<string, unknown>) => void;
   },
 ): void {
-  // é¡µé¢è¯·æ±å®¿ä¸»ææèªå·±ï¼æ¬å®¿ä¸»çå®ä¾çå½å¨æè·éå¡ç / é¢æ¿ï¼åªè®°å½ï¼ä¸ä¸»å¨éæ¯ã
+  // 页面请求宿主拆掉自己：本宿主的实例生命周期跟随卡片 / 面板，只记录，不主动销毁。
   bridge.onrequestteardown = () => {
     deps.log?.("[plugin-ui] app requested teardown", { pluginId: deps.pluginId });
   };

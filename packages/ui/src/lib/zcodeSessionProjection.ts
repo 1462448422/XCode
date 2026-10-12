@@ -1,4 +1,4 @@
-/* oxlint-disable eslint(max-lines) -- XCode session å°å½åèå¤© projection çè¿ç§»æ¡¥éè¦åæ¶ä¿æ snapshot å event æ å°ä¸è´ã */
+/* oxlint-disable eslint(max-lines) -- XCode session 到当前聊天 projection 的迁移桥需要同时保持 snapshot 和 event 映射一致。 */
 import {
   getXCodeAgentAvailableModes as getSharedAgentAvailableModes,
   normalizeAvailableXCodeMode,
@@ -139,17 +139,17 @@ function resolveLatestMessageModelSelection(
 function resolveTaskMetaModelSelectionFromSnapshot(
   snapshot: XCodeSessionStateSnapshot,
 ): ModelSelection | undefined {
-  // åå² resume è¢«éè¯¯ runtimeModel è¦çæ¶ï¼settings.current ä¼åæ app å½åé»è®¤æ¨¡åï¼
-  // ä½æ¶æ¯ info.model ä»è®°å½çå®ä½¿ç¨çæ¨¡åãtask meta ä¼ä½ä¸ºä¸æ¬¡å·æ¢å¤ hintï¼
-  // å æ­¤ä¼åç¨æè¿æ¶æ¯æ¨¡åè®©å·²æ±¡æçåå²è®°å½èªæã
+  // 历史 resume 被错误 runtimeModel 覆盖时，settings.current 会变成 app 当前默认模型，
+  // 但消息 info.model 仍记录真实使用的模型。task meta 会作为下次冷恢复 hint，
+  // 因此优先用最近消息模型让已污染的历史记录自愈。
   return resolveLatestMessageModelSelection(snapshot.messages) ?? snapshot.settings.model.current;
 }
 
 export function parseModelPickerValue(value: string): ModelSelection {
   const customModel = decodeCustomModelValue(value);
   if (customModel?.providerId && customModel.modelName) {
-    // UI èªå®ä¹æ¨¡åå¼æ¯å±ç¤ºæ custom:provider:modelï¼
-    // XCode Protocol å¿é¡»æ¶å°ä¸¥æ ¼ç providerId/modelId ç»æã
+    // UI 自定义模型值是展示态 custom:provider:model，
+    // XCode Protocol 必须收到严格的 providerId/modelId 结构。
     return {
       providerId: customModel.providerId,
       modelId: customModel.modelName,
@@ -264,8 +264,8 @@ function resolveSettingsThoughtLevelCurrentValue(
     thoughtLevel.defaultLevel && thoughtLevelValues.has(thoughtLevel.defaultLevel)
       ? thoughtLevel.defaultLevel
       : undefined;
-  // XCode Protocol ç defaultLevel æ¯æ¨¡åäºå®ï¼current ä¸ºç©ºæ¶è¡¨ç¤ºç¨æ·å°æªæ¾å¼ä¿®æ¹ã
-  // å®æ¶æ¨¡åç¶æäºä»¶ä¹è¦æå½±é»è®¤å¼ï¼å¦åå·¥å·æ ä¼æ¿å°ç©º currentValueï¼åºç°æ²¡ææ¡£ä½è¢«éä¸­ç UIã
+  // XCode Protocol 的 defaultLevel 是模型事实，current 为空时表示用户尚未显式修改。
+  // 实时模型状态事件也要投影默认值，否则工具栏会拿到空 currentValue，出现没有档位被选中的 UI。
   return currentThoughtLevel ?? defaultThoughtLevel ?? thoughtLevel.available[0]?.value;
 }
 
@@ -344,8 +344,8 @@ export function zcodeSessionSnapshotToZCodeTaskSnapshot(
     messages,
     fileChanges: [],
     configOptions: zcodeSessionSettingsToConfigOptions(snapshot.settings),
-    // Bugfix: session/read å·²ç»éè¿åè®®è¿å `/compact` ç­ slashCommandsã
-    // åå² task restore ä¼æ¶è´¹è¿éæå½±åºç task snapshotï¼å¦æä¸éä¼ ï¼UI åå¡« store æ¶åªè½æ¿å°ç©ºåè¡¨ã
+    // Bugfix: session/read 已经通过协议返回 `/compact` 等 slashCommands。
+    // 历史 task restore 会消费这里投影出的 task snapshot；如果不透传，UI 回填 store 时只能拿到空列表。
     slashCommands: snapshot.slashCommands ?? [],
     runtime: {
       activeTurnKind: snapshot.runtime.activeTurnKind,
@@ -368,8 +368,8 @@ export function zcodeSessionSnapshotToZCodeTaskSnapshot(
           (event): event is Extract<XCodeStreamEvent, { type: "elicitation_request" }> =>
             event !== null,
         ),
-      // Bugfix: agent æ¢å¤åå² session æ¶ä¼ä» DB è¯»å todoï¼UI ç todo é¢æ¿ä¸è½ååªä¾èµ
-      // å½å renderer åå­éç plan äºä»¶ï¼å¦åä»åå²æå¼ä¼ä¸¢å¤±æä¹ todoã
+      // Bugfix: agent 恢复历史 session 时会从 DB 读取 todo；UI 的 todo 面板不能再只依赖
+      // 当前 renderer 内存里的 plan 事件，否则从历史打开会丢失持久 todo。
       plan: sessionTodosToPlanSteps(snapshot.todos),
       goalStats: sessionGoalStatsToRuntime(snapshot.goalStats),
       goalVerifications: snapshot.runtime.goalVerifications ?? null,
@@ -495,8 +495,8 @@ function logCompactionProjectionDiagnostic(
     return;
   }
 
-  // ä¿®å¤ææ¥ï¼auto compact ä¹åæ¾åºç° DB æ assistant ä½ GUI ä¸æ¾ç¤ºã
-  // è¿éåªè®°å½æ¶æ¯èº«ä»½ãé¿åº¦å timeline åæ°æ®ï¼é¿åæç¨æ·æ­£æè½è¿ UI æ¥å¿ã
+  // 修复排查：auto compact 之后曾出现 DB 有 assistant 但 GUI 不显示。
+  // 这里只记录消息身份、长度和 timeline 元数据，避免把用户正文落进 UI 日志。
   logger.info("[conversationSessionTimelineDiag] projection compact snapshot", {
     sessionId: snapshot.session.sessionId,
     status: snapshot.session.status,
@@ -536,8 +536,8 @@ function restoreGoalCommandUserMessages(
     changed = true;
     return {
       ...message,
-      // Bugfix: /goal set ç agent snapshot å·²ç»æä¹åäºä¸æ¡å¯è§ user messageï¼
-      // ä½æ­£æåªä¿ç objectiveãè¿éæ target åå»ºæ¶é´æ¢å¤å½ä»¤åç¼ï¼é¿åé¦è½® query ä¸¢å¤± "/goal"ã
+      // Bugfix: /goal set 的 agent snapshot 已经持久化了一条可见 user message，
+      // 但正文只保留 objective。这里按 target 创建时间恢复命令前缀，避免首轮 query 丢失 "/goal"。
       content: `/goal ${objective}`,
     };
   });
@@ -571,9 +571,9 @@ function addGoalObjectiveSnapshotFallback(
   }
 
   const continuationMessage = snapshot.messages.find(isXCodeGoalContinuationReminderMessage);
-  // Bugfix: /goal ç»­è·ä¼æç®æ åè¿ model-only system-reminderï¼shared å¯è§è¿æ»¤ä¼æ­£ç¡®éèåé¨ XMLã
-  // ä½åå²æ¢å¤å¦ææ²¡æåå§ç¨æ· turnï¼èå¤©åºä¼åªå© assistant åå¤ï¼è¿éè¡¥åç¨æ·å®éè¾å¥çå½ä»¤å½¢æï¼
-  // é¿åé¦è½® query è¢«ç¦èº«æ objective åä¸¢å¤± "/goal" ä¸ä¸æã
+  // Bugfix: /goal 续跑会把目标包进 model-only system-reminder，shared 可见过滤会正确隐藏内部 XML。
+  // 但历史恢复如果没有原始用户 turn，聊天区会只剩 assistant 回复；这里补回用户实际输入的命令形态，
+  // 避免首轮 query 被瘦身成 objective 后丢失 "/goal" 上下文。
   return [
     {
       role: "user",
@@ -607,8 +607,8 @@ function addSessionForkSnapshotFallback(
       role: "user",
       content: "",
       timestamp: snapshot.session.createdAt,
-      // Bugfix: æ§ççº¯å¯¹è¯ fork æ²¡æè½åº synthetic noticeï¼åªè½ä» session.parentSessionId
-      // æ¢å¤ä¸ä¸ªä¸å¯è·³è½¬çåå²çº¿ï¼é¿ååå² fork ä¼è¯å®å¨çä¸å°æ¥æºè¾¹çã
+      // Bugfix: 旧的纯对话 fork 没有落库 synthetic notice，只能从 session.parentSessionId
+      // 恢复一个不可跳转的分割线，避免历史 fork 会话完全看不到来源边界。
       syntheticTimeline: {
         version: 1,
         kind: "synthetic",
@@ -646,8 +646,8 @@ function addGoalVerificationTimelineSnapshotFallback(
       role: "assistant",
       content: "",
       timestamp: item.startedAt ?? item.updatedAt,
-      // ä¿®å¤åå ï¼goal verifier lifecycle æ¯ agent event-store æä¹äºå®ï¼ä¸å¨ message history åï¼
-      // snapshot æ¢å¤æ¶å¿é¡»æ target+iteration å anchor è¡¥æè¾¹ç dividerï¼é¿ååä¸è½®æ ¡éªéå¤è¿½å ææ¼å°ä¸ä¸è½®ã
+      // 修复原因：goal verifier lifecycle 是 agent event-store 持久事实，不在 message history 内；
+      // snapshot 恢复时必须按 target+iteration 和 anchor 补成边界 divider，避免同一轮校验重复追加或漂到下一轮。
       syntheticTimeline: item,
     }));
   if (timelineMessages.length === 0) {
@@ -705,8 +705,8 @@ function normalizeGoalVerificationTimelineMessageOrder(
   if (timelineMessages.length === 0) {
     return messages;
   }
-  // ä¿®å¤åå ï¼agent history éå·²ç»æä¹åç goal verifier divider å¯è½æäºä¸ä¸æ¡
-  // user query æå°è¾¾ï¼snapshot projection å¿é¡»éæ°æ anchor å½ä½ï¼ä¸è½åªä¿® fallback dividerã
+  // 修复原因：agent history 里已经持久化的 goal verifier divider 可能晚于下一条
+  // user query 才到达；snapshot projection 必须重新按 anchor 归位，不能只修 fallback divider。
   return insertGoalVerificationTimelineMessages(
     messages.filter((message) => message.syntheticTimeline?.type !== "goal_verification"),
     timelineMessages,
@@ -830,8 +830,8 @@ export function zcodeSessionEventToZCodeStreamEvents(params: {
   const activePromptInputId = getActivePromptInputId(state, event.sessionId);
   const toolProjectionMemory = ensureProjectionToolMemory(state);
   const toolNameById = toolProjectionMemory?.toolNameById;
-  // ä¿®å¤åå ï¼UI æ¶è´¹ç traceId è¡¨ç¤ºä¸æ¬¡ç¨æ·è¾å¥å°æ¬è½®åå¤ç»æçè½®æ¬¡æ è¯ã
-  // runtime trace åªå¨æ²¡æ inputId æ¶ååºï¼ä¿è¯åä¸è½® chunkãå·¥å·è°ç¨å complete å½å°åä¸ç»ã
+  // 修复原因：UI 消费的 traceId 表示一次用户输入到本轮回复结束的轮次标识。
+  // runtime trace 只在没有 inputId 时兜底，保证同一轮 chunk、工具调用和 complete 归到同一组。
   const eventInputId = inputId ?? activePromptInputId;
   const traceId = eventInputId ?? protocolTraceId;
   const turnKey = `${event.sessionId}:${event.turnId ?? eventInputId ?? traceId}`;
@@ -940,8 +940,8 @@ export function zcodeSessionEventToZCodeStreamEvents(params: {
         );
       }
       if (isUserInputBackedPermissionToolName(stringValue(payload.toolName))) {
-        // ä¿®å¤åå ï¼AskUserQuestion/ExitPlanMode ç permission.requested åªæ¯ runtime ç­å¾æï¼
-        // çæ­£çé®é¢ä¼ä» interaction/requestUserInput æ å°æ elicitation_requestã
+        // 修复原因：AskUserQuestion/ExitPlanMode 的 permission.requested 只是 runtime 等待态；
+        // 真正的问题会从 interaction/requestUserInput 映射成 elicitation_request。
         return [];
       }
       return [permissionPayloadToStreamEvent(taskId, traceId, eventInputId, payload)];
@@ -954,8 +954,8 @@ export function zcodeSessionEventToZCodeStreamEvents(params: {
         toolNameById,
       );
     case "turn.steerQueued": {
-      // ä¿®å¤åå ï¼desktop continuous ç raw session event ä¸ç»è¿ service adapterï¼
-      // è¿éæ¼ä¼  source ä¼æ ExitPlanMode å®¡æ¹åé¦è¯¯æå½±ææ®éæå¨ steerã
+      // 修复原因：desktop continuous 的 raw session event 不经过 service adapter；
+      // 这里漏传 source 会把 ExitPlanMode 审批反馈误投影成普通手动 steer。
       const source = turnSteerSourceValue(payload.source);
       return [
         {
@@ -1043,8 +1043,8 @@ export function zcodeSessionEventToZCodeStreamEvents(params: {
           ),
         ];
       }
-      // ä¿®å¤åå ï¼æ§ turn.failed â task_error æå½±åªä¿çææ¡/code/detailï¼live telemetry
-      // æ æ³çå° adapter å·²ç¡®è®¤ç provider/network äºå®ï¼æ ¡éªåéä¼ å®å¨å½å å­æ®µã
+      // 修复原因：旧 turn.failed → task_error 投影只保留文案/code/detail，live telemetry
+      // 无法看到 adapter 已确认的 provider/network 事实；校验后透传安全归因字段。
       const attribution = errorAttributionSchema.safeParse(errorPayload.attribution);
       return [
         {
@@ -1080,8 +1080,8 @@ export function zcodeSessionEventToZCodeStreamEvents(params: {
         mapSessionInfoLikePayload(taskId, traceId, eventInputId, event.eventId, payload, state),
       );
     case "streamRecovery.updated":
-      // ä¿®å¤åå ï¼SSE æ­æµæ¢å¤çæå¨è¿åº¦åéè¿ streamRecovery.updated å°è¾¾ã
-      // åªä¾èµåç»­ model_request_started ä¼è®©é¨åä¼è¯çä¸å°è¾å¥æ éè¯æ¬¡æ°ã
+      // 修复原因：SSE 断流恢复的权威进度先通过 streamRecovery.updated 到达。
+      // 只依赖后续 model_request_started 会让部分会话看不到输入栏重试次数。
       return trackProjectionApiRetryEvents(
         state,
         event.sessionId,
@@ -1098,8 +1098,8 @@ function ensureProjectionToolMemory(
   if (!state) {
     return undefined;
   }
-  // ä¿®å¤åå ï¼åå° useTaskStreamEvents æ¾æ¼åå§åè¿ä¸ª Mapï¼å¯¼è´ Write è¾å¥ delta
-  // æ¯æ¬¡é½ä»ç©ºå­ç¬¦ä¸²éæ°è§£æï¼çé¢åªè½çå°é¦æ®µåæç»å®æ´ tool_callï¼æ æ³å®æ¶éå¢è¡æ°ã
+  // 修复原因：前台 useTaskStreamEvents 曾漏初始化这个 Map，导致 Write 输入 delta
+  // 每次都从空字符串重新解析，界面只能看到首段和最终完整 tool_call，无法实时递增行数。
   return ensureXCodeToolProjectionMemory(state);
 }
 
@@ -1155,8 +1155,8 @@ function takeProjectionApiRetryClearOnModelProgress(
   ) {
     return null;
   }
-  // ä¿®å¤åå ï¼æ®é adapter retry ç request_started åªæ¯å¼å§éè¯ï¼ç«å³æ¸çä¼è®©è¾å¥æ éªçï¼
-  // ç­å° retry attempt çæ­£äº§åºæ¨¡ååå®¹æ¶åæ¸çï¼æè¡¨ç¤ºç¨æ·å¯è§çè¿æ¥å·²ç»æ¢å¤ã
+  // 修复原因：普通 adapter retry 的 request_started 只是开始重试，立即清理会让输入栏闪烁；
+  // 等到 retry attempt 真正产出模型内容时再清理，才表示用户可见的连接已经恢复。
   state.activeApiRetrySessionIds.delete(sessionId);
   return {
     type: "session_info_update",
@@ -1302,8 +1302,8 @@ function backgroundTaskNotificationToolUpdateFromInput(params: {
     toolId: parsed.toolUseId,
     status,
     content: parsed.notification.result ?? parsed.notification.summary,
-    // ä¿®å¤åå ï¼ToolLayout çæ¢æå¤±è´¥ hover åªè¯»å toolCall.errorï¼notification
-    // åååªæ´æ° status/rawï¼å¯¼è´âæ§è¡å¤±è´¥âæ²¡æå¯å±ç¤ºçè¯¦æã
+    // 修复原因：ToolLayout 的既有失败 hover 只读取 toolCall.error；notification
+    // 原先只更新 status/raw，导致“执行失败”没有可展示的详情。
     ...(status === "failed" && parsed.notification.error
       ? { error: parsed.notification.error }
       : {}),
@@ -1359,7 +1359,7 @@ function zcodeMessageToZCodePersistedMessage(
     role: message.info.role,
     content: projectionPolicy === "timelineOnly" ? "" : textFromParts(message.parts),
     timestamp: message.info.time.created,
-    // æªç»å®æ¢å¤çåå²æ¶æ¯å¯ä»¥æ²¡ææ¨¡åæ¥æºï¼å±ç¤ºæ¶æ¯ä¸è½ä¾èµå¯æ§è¡éåã
+    // 未绑定恢复的历史消息可以没有模型来源；展示消息不能依赖可执行选型。
     model: message.info.model ? formatModelPickerValue(message.info.model) : undefined,
     ...(syntheticTimeline ? { syntheticTimeline } : {}),
     ...(attachments ? { attachments } : {}),
@@ -1397,8 +1397,8 @@ function mapPromptAttachmentFromFilePart(
   const dataBase64 = dataBase64FromDataUrl(part.url);
   const localPath = localPathFromAttachmentPart(part.url, metadata);
 
-  // Bugfix: desktop-continuous åå²æ¢å¤èµ° session projectionï¼ä¸ç»è¿ legacy task adapterã
-  // file part è¥ä¸åæå½±æ attachmentsï¼ç¨æ·åéè¿çå¾ç/æä»¶ä¼å¨æ¢å¤ UI éæ¶å¤±ã
+  // Bugfix: desktop-continuous 历史恢复走 session projection，不经过 legacy task adapter。
+  // file part 若不反投影成 attachments，用户发送过的图片/文件会在恢复 UI 里消失。
   if (mimeType.startsWith("image/")) {
     return {
       kind: "image",
@@ -1550,8 +1550,8 @@ function synthesizeCompactionTimeline(
   const operationId = stringValue(metadata.operationId) ?? part.partId;
   const status = timelineStatusValue(metadata.timelineStatus);
   if (!status && !part.summaryMessageId) {
-    // ä¿®å¤åå ï¼compact æåå summary user message ä¹ä¼æºå¸¦ compaction åæ°æ®ï¼
-    // ä½å®åªæ¯æ¨¡åä¸ä¸æè¾¹çï¼ä¸æ¯ UI timelineãåªæ lifecycle part ææ¸²ææ¨ªçº¿ã
+    // 修复原因：compact 成功后 summary user message 也会携带 compaction 元数据，
+    // 但它只是模型上下文边界，不是 UI timeline。只有 lifecycle part 才渲染横线。
     return undefined;
   }
   const trigger = timelineTriggerValue(metadata.trigger) ?? (part.auto ? "auto" : "manual");
@@ -1607,8 +1607,8 @@ function mapCompactTimelinePayload(
     traceId,
     ...(inputId ? { inputId } : {}),
     ...(messageId ? { messageId } : {}),
-    // Bugfix: compact lifecycle æ¯ç»æåç¶æäºä»¶ï¼ä¸æ¯ assistant æ­£æã
-    // å³ä½¿ä¸æ¸¸è¯¯å¸¦ textï¼ä¹ä¸è½æåé¨ summary/prompt æå½±å°èå¤©åºã
+    // Bugfix: compact lifecycle 是结构化状态事件，不是 assistant 正文。
+    // 即使上游误带 text，也不能把内部 summary/prompt 投影到聊天区。
     content: "",
     zcodeTimeline: timeline,
   };
@@ -1638,8 +1638,8 @@ function mapSyntheticTimelinePartPayload(
     ...(inputId ? { inputId } : {}),
     ...(messageId ? { messageId } : {}),
     content: "",
-    // Bugfix: fork notice æ¯ part.upserted éçç»æå synthetic textï¼ä¸æ¯æ¨¡åæ­£æ deltaã
-    // è¿éæåææ timeline dividerï¼é¿å UI ææ®éæ¶æ¯æ¸²æåä¸¢ææ¨ªçº¿ã
+    // Bugfix: fork notice 是 part.upserted 里的结构化 synthetic text，不是模型正文 delta。
+    // 这里提前投成 timeline divider，避免 UI 按普通消息渲染后丢掉横线。
     zcodeTimeline: timeline,
   };
 }
@@ -1770,15 +1770,15 @@ function mapToolPart(
 ): XCodePersistedToolCall {
   const state = part.state;
   const taskNotification = backgroundTaskNotifications?.get(part.callId);
-  // ä¿®å¤åå ï¼XCode Protocol ç part.callId æ¯å®æ¶æµåç»æ snapshot å±åçå·¥å·èº«ä»½ã
-  // ä»¥ååªä¿å­ metadata ä¼ä¸¢æ toolCallIdï¼ææº replayable é result-only ä¸´æ¶å·¥å·å°±æ æ³è¢«ç»æå¿«ç§è¦çã
+  // 修复原因：XCode Protocol 的 part.callId 是实时流和终态 snapshot 共同的工具身份。
+  // 以前只保存 metadata 会丢掉 toolCallId，手机 replayable 里 result-only 临时工具就无法被终态快照覆盖。
   const raw = attachXCodeBackgroundTaskNotificationToRaw(
     attachToolCallIdToRaw("metadata" in state ? (state.metadata ?? state) : state, part.callId),
     taskNotification,
   );
   if (state.status === "completed") {
-    // ä¿®å¤åå ï¼background Agent ç completed åªä»£è¡¨ launch ACKï¼å¹éç failed
-    // notification æè½å¨æ¬æ¬¡éè¯¯ä¿®å¤ä¸­è¦çå®ï¼ä¸è½é¡ºå¸¦æ¹å stopped ç­æ¢ææ¢å¤è¯­ä¹ã
+    // 修复原因：background Agent 的 completed 只代表 launch ACK；匹配的 failed
+    // notification 才能在本次错误修复中覆盖它，不能顺带改变 stopped 等既有恢复语义。
     const notificationStatus = taskNotification?.status
       ? zcodeBackgroundTaskNotificationToolUpdateStatus(taskNotification.status)
       : undefined;
@@ -1938,8 +1938,8 @@ function mapToolInputStreaming(
         toolName,
       })
     ) {
-      // æ§è½ä¼åï¼åå°ä»»å¡åé«é¢ active delta åªæ´æ° tombstone bufferã
-      // å®æ´åæ°ä¼å¨é¢ç®ç¹ãtool_input_endãæç» tool_call æåå active ååè½å°æ¶æ¯æ ã
+      // 性能优化：后台任务和高频 active delta 只更新 tombstone buffer。
+      // 完整参数会在预算点、tool_input_end、最终 tool_call 或切回 active 后再落到消息树。
       return null;
     }
     const preview = buildXCodeStreamingToolInputPreview(state.rawInput);
@@ -2020,8 +2020,8 @@ function mapToolInputStreaming(
       title: previewTitle,
       toolName: previewToolName,
       kind: previewTitle,
-      // æ§è½ä¿®å¤ï¼tool_input_end åç´§éå¶åç tool_call è¿å»ä¼è¿ç»­è§£æåä¸ä»½å¤§ JSONã
-      // end åªè¡¨è¾¾æµå¼åæ°ç»æï¼å®æ´ input ç±æç» tool_call ä¸æ¬¡æ§ materializeã
+      // 性能修复：tool_input_end 和紧随其后的 tool_call 过去会连续解析同一份大 JSON。
+      // end 只表达流式参数结束，完整 input 由最终 tool_call 一次性 materialize。
       raw: buildRaw(undefined, state.rawInput),
     };
   }
@@ -2041,8 +2041,8 @@ function mapToolInputStreaming(
       finalizeXCodeToolProjectionInput(toolId, preview.input, toolProjectionMemory);
     }
     streamingToolInputById?.set(toolId, {
-      // æ§è½ä¿®å¤ï¼æç» tool_call åï¼æ¶æ¯æ å·²ç»ææå®æ´ inputï¼projection tombstone ä¸åä¿ç
-      // å¤§ raw JSONï¼é¿åé¿ä»»å¡å¹¶åæ¶åå° state æç»­å ç¨ renderer åå­ã
+      // 性能修复：最终 tool_call 后，消息树已经持有完整 input；projection tombstone 不再保留
+      // 大 raw JSON，避免长任务并发时后台 state 持续占用 renderer 内存。
       rawInput: "",
       deltaCount: state?.deltaCount,
       lastPreviewAt: Date.now(),
@@ -2148,8 +2148,8 @@ function logStreamingToolInputProjectionSample(details: {
     streamingToolInputProjectionLogBuckets.delete(key);
   }
 
-  // æ§è½ä¼åï¼å·¥å·è¾å¥æå½±è·å·¥å·è°ç¨æ°éåçº§ï¼çäº§ info è½çä¼æ¾å¤§æ·±åº¦æ£ç´¢ç renderer å¼éã
-  // è¿éä¿ç debug éæ ·ï¼ææ¥æ¶ä»è½æå¼ç»èã
+  // 性能优化：工具输入投影跟工具调用数量同级，生产 info 落盘会放大深度检索的 renderer 开销。
+  // 这里保留 debug 采样，排查时仍能打开细节。
   logger.debug("[streamingToolInput] projection sampled", {
     ...details,
     event: "ui.zcode_session.streaming_tool_input.projection_sampled",
@@ -2401,8 +2401,8 @@ function toolResultStatus(
     return "failed";
   }
   if (isBackgroundAgentLaunchResult(toolName, result)) {
-    // ä¿®å¤åå ï¼Agent åå°å¯å¨ ACK åªè¯´æå­ agent å·²ç»å¼å§è¿è¡ï¼
-    // replay/snapshot æå½±ä¸è½æå®å½ææç»å®æï¼å¦åè¿è¡ä¸­ä¼è¢«åç«¯æ¾ç¤ºä¸º completedã
+    // 修复原因：Agent 后台启动 ACK 只说明子 agent 已经开始运行；
+    // replay/snapshot 投影不能把它当成最终完成，否则运行中会被前端显示为 completed。
     return "in_progress";
   }
   return "completed";
@@ -2435,8 +2435,8 @@ function isBackgroundAgentLaunchResult(
 }
 
 function isBackgroundAgentLaunchAcknowledgement(content: string): boolean {
-  // ä¿®å¤åå ï¼session projection å¯è½ç´æ¥æ¶è´¹ replay/snapshot ç»æï¼ä¸è½åªä¾èµæ¶æ¯å±ååºï¼
-  // æ°ç async_launched ACK å¯¹é½ provider-visible output_file ææ¡ï¼æ§ session ä»ä¿ç outputFile/backgroundTaskId ææ¡ã
+  // 修复原因：session projection 可能直接消费 replay/snapshot 结果，不能只依赖消息层兜底；
+  // 新的 async_launched ACK 对齐 provider-visible output_file 文案，旧 session 仍保留 outputFile/backgroundTaskId 文案。
   return (
     isLegacyBackgroundAgentLaunchAcknowledgement(content) ||
     isPreviousBackgroundAgentLaunchAcknowledgement(content) ||
@@ -2500,8 +2500,8 @@ function omitRepeatedToolInputFromRaw(payload: Record<string, unknown>): Record<
 }
 
 function parentToolUseIdFromToolPayload(payload: Record<string, unknown>): string | null {
-  // ä¿®å¤åå ï¼åç«¯ replay/snapshot projection å¯è½ç»è¿ services adapterï¼
-  // è¿éåæå¡å±ä¿æåä¸å¥ parentToolCallId -> parentToolUseId å½ä¸è§åã
+  // 修复原因：前端 replay/snapshot projection 可能绕过 services adapter；
+  // 这里和服务层保持同一套 parentToolCallId -> parentToolUseId 归一规则。
   return (
     stringValue(payload.parentToolUseId) ??
     stringValue(payload.parentToolCallId) ??
@@ -2641,8 +2641,8 @@ function permissionResolvedPayloadToStreamEvents(
     return [permissionResponse];
   }
 
-  // ä¿®å¤åå ï¼Plan mode ç­è¿è¡æ¶æç»ä¼åå permission.resolvedï¼
-  // ä½ä¸ä¸å®æå¯¹åº tool.updated(error) å®æ¶äºä»¶ï¼åªæ¸æéè¯·æ±ä¼è®©å·² started çå·¥å·å¡ä¸ç´è½¬ã
+  // 修复原因：Plan mode 等运行时拒绝会先发 permission.resolved，
+  // 但不一定有对应 tool.updated(error) 实时事件；只清权限请求会让已 started 的工具卡一直转。
   return [
     permissionResponse,
     {
@@ -2778,8 +2778,8 @@ export function syncZCodeSessionBackgroundTaskProjectionFromSnapshot(
   state: ZCodeSessionEventProjectionState | undefined,
   snapshot: XCodeSessionStateSnapshot,
 ) {
-  // Bugfix: å task completion æ¯å¢é payloadï¼å¿é¡»ä»¥åä¸è®¢éæ¶å°çå®æ´ snapshot
-  // ä½ä¸º merge åºçº¿ï¼å¦ååèµ°/åååæ° projection state ä¼æ peer running task æ¸æã
+  // Bugfix: 单 task completion 是增量 payload，必须以同一订阅收到的完整 snapshot
+  // 作为 merge 基线；否则切走/切回后新 projection state 会把 peer running task 清掉。
   syncZCodeSessionBackgroundTaskProjection(
     state,
     snapshot.session.sessionId,
@@ -2943,8 +2943,8 @@ function mapSessionInfoLikePayload(
       taskId,
       traceId,
       ...(inputId ? { inputId } : {}),
-      // Bugfix: EnterPlanMode åå¥ç SessionModeChanged ä¼ç» bootstrap æå½±æ session.updatedï¼
-      // è¿éæ mode payload è½¬æ UI ç°æäºä»¶ï¼é¿åèåä»æ¾ç¤ºè¿å¥ plan åçæ¨¡å¼ã
+      // Bugfix: EnterPlanMode 写入的 SessionModeChanged 会经 bootstrap 投影成 session.updated；
+      // 这里把 mode payload 转成 UI 现有事件，避免菜单仍显示进入 plan 前的模式。
       currentModeId: normalizeAvailableXCodeMode(mode as XCodeSessionMode),
       availableModes: getXCodeAgentAvailableModes(),
     });
@@ -3022,8 +3022,8 @@ function goalVerificationFromPayload(
   }
   const parsed = parseJsonObjectFromText(content);
   if (!parsed) {
-    // ä¿®å¤åå ï¼åå²/å®æ¶æå½±å¯è½åªæ¿å° verifier çåå§æ¨¡åææ¬ï¼æ ¼å¼éè¯¯å±äºè£å¤é¾è·¯æéï¼
-    // ä¸ contracts å±ä¿æ fail-openï¼é¿åæ¢å¤ååæå·²å®æ goal æ¾ç¤ºææªå®æã
+    // 修复原因：历史/实时投影可能只拿到 verifier 的原始模型文本；格式错误属于裁判链路故障，
+    // 与 contracts 层保持 fail-open，避免恢复后又把已完成 goal 显示成未完成。
     return {
       passed: true,
       reason: "The completion verifier did not return valid JSON.",
@@ -3077,8 +3077,8 @@ function taskTokenUsageDeltaFromPayload(
   }
   const querySource = stringValue(payload.querySource);
   const queryId = stringValue(payload.queryId);
-  // ä¿®å¤åå ï¼ç´¯è®¡ Token è¦è·éæ¯æ¬¡æ¨¡åå®æå®æ¶æ´æ°ï¼èä¸æ¯ç­ task_complete çæ´è½®æ±æ»ï¼
-  // eventId æ¯ protocol æµçç¨³å®åäºä»¶æ è¯ï¼ç¨å®å»éå¯é¿åååå° monitor éå¤è®°è´¦ã
+  // 修复原因：累计 Token 要跟随每次模型完成实时更新，而不是等 task_complete 的整轮汇总；
+  // eventId 是 protocol 流的稳定单事件标识，用它去重可避免前后台 monitor 重复记账。
   const eventKey =
     eventId ??
     `${traceId}:${inputId ?? "no-input"}:${queryId ?? "no-query"}:${querySource ?? "unknown"}:${usage.inputTokens}:` +
@@ -3154,8 +3154,8 @@ function contextUsageFromRuntime(
   if (!runtimeUsage || runtimeUsage.size <= 0 || runtimeUsage.used <= 0) {
     return null;
   }
-  // Bugfix: session resume æ¶ protocol projection å¯è½è¿æ²¡éæ¾ä¸»è½®æ¬¡ usageã
-  // runtime.contextUsage æ¥èªæä¹å assistant token è®°å½ï¼åºä¼åç¨äºæ¢å¤æ§ task UIã
+  // Bugfix: session resume 时 protocol projection 可能还没重放主轮次 usage。
+  // runtime.contextUsage 来自持久化 assistant token 记录，应优先用于恢复旧 task UI。
   return {
     used: runtimeUsage.used,
     size: runtimeUsage.size,
@@ -3174,16 +3174,16 @@ function contextUsageFromPayload(payload: Record<string, unknown>): ContextUsage
   const modelUsageUsed = useModelUsageForContext ? contextUsageTokensFromPayload(usage) : undefined;
   const used =
     modelUsageUsed ??
-    // ä¿®å¤åå ï¼ä¸»è½®æ¬¡æ¨¡åè¿å usage æ¶å¿é¡»ä»¥çå®ç½ç» token ç»è®¡ä¸ºåï¼
-    // context window æ¯ input + output å±äº«çªå£ï¼ä¸è½ååªç¨ inputTokens æ¸²æ meterã
-    // projection.contextUsed æ¯ runtime ä¼°ç®/æ¢å¤äºå®æºï¼åªå¨ç¼ºå° usage æ¶ååºã
+    // 修复原因：主轮次模型返回 usage 时必须以真实网络 token 统计为准；
+    // context window 是 input + output 共享窗口，不能再只用 inputTokens 渲染 meter。
+    // projection.contextUsed 是 runtime 估算/恢复事实源，只在缺少 usage 时兜底。
     explicitUsed;
   if (size === undefined || size <= 0) {
     return null;
   }
-  // Bugfix: XCode Protocol session.updated æ¿è½½çæ¯ projection äºå®æºï¼
-  // æ§ task UI åªè®¤è¯ usage_updateï¼å¿é¡»å¨è¿ç§»æ¡¥éæ contextUsed/contextWindow æ¾å¼è½¬åºæ¥ã
-  // used=0 åªè¡¨ç¤ºåå§åæå¼å¸¸ååºï¼ä¸è½æ¸²ææå¯ç¨ç context meterã
+  // Bugfix: XCode Protocol session.updated 承载的是 projection 事实源；
+  // 旧 task UI 只认识 usage_update，必须在迁移桥里把 contextUsed/contextWindow 显式转出来。
+  // used=0 只表示初始化或异常兜底，不能渲染成可用的 context meter。
   if (used === undefined || used <= 0) {
     return null;
   }
@@ -3206,8 +3206,8 @@ function optionalContextUsageBreakdownFromPayload(
 function contextUsageTokensFromPayload(usage: Record<string, unknown>): number | undefined {
   const inputTokens = positiveIntegerValue(usage.inputTokens ?? usage.input);
   if (inputTokens !== undefined) {
-    // ä¿®å¤åå ï¼AI SDK v6 å·²æ Anthropic cache read/write å¹¶å¥ inputTokensã
-    // projection å¼å®¹å±åªå  outputï¼é¿å replayable æ¢å¤æ¶æ cache read éå¤è®¡å¥ context meterã
+    // 修复原因：AI SDK v6 已把 Anthropic cache read/write 并入 inputTokens。
+    // projection 兼容层只加 output，避免 replayable 恢复时把 cache read 重复计入 context meter。
     return inputTokens + (nonNegativeIntegerValue(usage.outputTokens ?? usage.output) ?? 0);
   }
 
@@ -3234,8 +3234,8 @@ function optionalContextCacheUsageFromPayload(
 
 function shouldUseModelUsageForContext(payload: Record<string, unknown>): boolean {
   const querySource = stringValue(payload.querySource);
-  // ä¿®å¤åå ï¼åªæä¸»ä¼è¯æ¨¡åè¯·æ±ç inputTokens æä»£è¡¨å½åå¯è§ä¸ä¸æã
-  // æ é¢ãåç¼©ãprompt enhance ç­ sidecar è¯·æ±å³ä½¿å¸¦ contextWindowï¼ä¹ä¸è½è¦çè¾å¥æ  context meterã
+  // 修复原因：只有主会话模型请求的 inputTokens 才代表当前可见上下文。
+  // 标题、压缩、prompt enhance 等 sidecar 请求即使带 contextWindow，也不能覆盖输入栏 context meter。
   return querySource === undefined || querySource === "main_turn";
 }
 
@@ -3289,8 +3289,8 @@ function contextCacheUsageFromPayload(
         : inputTokens > 0
           ? cacheReadTokens / inputTokens
           : null,
-    // ä¿®å¤åå ï¼context usage çç¼å­å½ä¸­çæ¯ agent/app åè®®å­æ®µï¼
-    // projection å¼å®¹å±åªåä¸æ¬¡å½ä¸åï¼é¿å UI ç»ä»¶åèªéå¤æ¨å¯¼ã
+    // 修复原因：context usage 的缓存命中率是 agent/app 协议字段；
+    // projection 兼容层只做一次归一化，避免 UI 组件各自重复推导。
     hitRate:
       explicitHitRate !== undefined
         ? Math.max(0, explicitHitRate)
@@ -3433,8 +3433,8 @@ function rememberRewindControlTurn(
     return;
   }
   const rewindControlTurnKeys = state.rewindControlTurnKeys ?? new Set<string>();
-  // ä¿®å¤åå ï¼ç¼è¾/éè¯ä¼éè¿åé¨ `/rewind conversation <messageId>` æ§å¶å½ä»¤åæ»ä¸ä¸æã
-  // è¯¥å½ä»¤ç TurnComplete.response åªæ¯åè®® ACKï¼ä¸æ¯ assistant åå¤ï¼ä¸è½åæèå¤©æ°æ³¡ã
+  // 修复原因：编辑/重试会通过内部 `/rewind conversation <messageId>` 控制命令回滚上下文。
+  // 该命令的 TurnComplete.response 只是协议 ACK，不是 assistant 回复；不能合成聊天气泡。
   if (isConversationRewindControlInput(input)) {
     rewindControlTurnKeys.add(turnKey);
   } else {

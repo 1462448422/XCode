@@ -3,10 +3,10 @@ import type { ToolCallCreateWorkflowCausalityGraph } from "@zcode/shared/zcode-p
 import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
 /**
- * ç¡®è®¤çªççç½è¡ï¼docs/dynamic-workflow/presentation.mdãHoles on the timelineãçãThe hole stationãï¼ï¼
- * è¿å¼çççç½ææºç åºææä¸è¡è¯çï¼ç¬ãåå­ï¼ç±»åä¸ä¸çé¢ï¼ï¼åé¢ä¸å¥ãè¿è¡å°çç½å¤ä¼æåï¼ç­ä¸»ä»£ç
- * è¡¥å¨åç»§ç»­ããââç¨æ·æ¹åçæ¯ä¸ä¸ªä¼åä¸æ¥ç­ä»£ç ç runï¼è¿ä¸å¥è¦å¨æä¸åè®¸ä¹åè¯»å°ãæ²¡æçç½æ¶æ´è¡ç¼ºå¸­ã
- * ä» WorkflowPermissionBlock.tsx æåºï¼max-lines é¨ï¼ã
+ * 确认窗的留白行（docs/dynamic-workflow/presentation.md「Holes on the timeline」的「The hole station」）：
+ * 还开着的留白按源码序排成一行芯片（笔、名字；类型不上界面），后面一句「运行到留白处会暂停，等主代理
+ * 补全后继续。」——用户批准的是一个会停下来等代码的 run，这一句要在按下允许之前读到。没有留白时整行缺席。
+ * 从 WorkflowPermissionBlock.tsx 拆出（max-lines 门）。
  */
 export function WorkflowPermissionHoles({
   holes,

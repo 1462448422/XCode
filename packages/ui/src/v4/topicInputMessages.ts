@@ -1,6 +1,6 @@
 import type { UserInputRow } from "@zcode/shared/zcode-protocol-v4";
 
-/** åæ¹æ¯æ§è¡è¾¹çï¼ä¸è½æå¤äººæ¶æ¯å±ç¤ºæä¸ä¸ªäººçæ­£æã */
+/** 合批是执行边界，不能把多人消息展示成一个人的正文。 */
 export function expandTopicInputMessages(row: UserInputRow): UserInputRow[] {
   const source = row.botGroupSource;
   if (!source?.messages?.length) return [row];

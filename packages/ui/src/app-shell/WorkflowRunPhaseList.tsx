@@ -39,33 +39,33 @@ import type { WorkflowActorInstance } from "@/app-shell/workflowRunPanel.js";
 import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 
 /**
- * è¿è¡è¯¦æé¡µçèçº¿ï¼å¡ä¸çæ¨ªåæ¶é´çº¿å¨
- * è¿éç«çè¯»ãä¸æ ¹è½¨éä»ä¸å°ä¸è´´çå·¦ç¼ï¼é¶æ®µæ¯è½¨éä¸çç¯ï¼è½¨éçå¢¨è¿¹éæ§å¶æµç»è¿èåæ·±ãå¨è¿å¥
- * æ­£å¨è¿è¡çé¶æ®µé£ä¸æ®µè¡è¿ï¼å­ä»£çæ¯æå¨ç¯å³ä¾§ãææ»¡æ¬åçè¯ä¸¸ï¼ä¸å¡ä¸åä¸æï¼ï¼åçº§é®é¢æå¨
- * æé®èé£ä¸è¡ä¸é¢ï¼åéä¸æ­¥ã**ä¸ç»åè¾¹**ï¼é£æ¯å¡çäºï¼èå¤´ä¸ç `â³ n` å·²ç»è¯´äºè¿ç«è·è¿å è½®ã
+ * 运行详情页的脊线：卡上的横向时间线在
+ * 这里竖着读。一根轨道从上到下贴着左缘，阶段是轨道上的灯，轨道的墨迹随控制流经过而变深、在进入
+ * 正在运行的阶段那一段行进；子代理是挂在灯右侧、拉满本列的药丸（与卡上同一枚），升级问题挂在
+ * 提问者那一行下面，再退一步。**不画回边**：那是卡的事，节头上的 `⟳ n` 已经说了这站跑过几轮。
  *
- * è½¨éæ®µä¸ç¯çå¢¨è¿¹ãç¶æé½è¯» `buildWorkflowTimeline` çåä¸ä¸ªæ¨¡åï¼ä¸åå¼ 1ï¼ä¸ä¸ªæ¨¡åï¼ä¸å¤
- * æ¶è´¹ï¼ãè½¨éæ®µåªå¨æ¨¡åæ `rails` çç¸é»ä¸¤ç«ä¹é´ç»ââä¸å¡åä¸æ¡è§åï¼ç¸é»æ è¾¹çç©ºã
+ * 轨道段与灯的墨迹、状态都读 `buildWorkflowTimeline` 的同一个模型（不变式 1：一个模型，三处
+ * 消费）。轨道段只在模型有 `rails` 的相邻两站之间画——与卡同一条规则，相邻无边留空。
  *
- * å¹¶è¡çé¶æ®µï¼æ¨¡åç**å¸¦**ï¼å¨è¿éè¯»ä½æäº¤å¾ï¼åæ¯è½¨éå¨ä¸»è½¨å³è¾¹ï¼ç¯è½å¨èªå·±çè½¨éä¸ï¼èèå¤´ã
- * è¯ä¸¸ä¸é®é¢ä¸å¾ä»åä¸æ¡æå­åèµ·ï¼`39 + gutter`ï¼ââè½¨éä¸æå­ä¸å±ç¨ä¸åãååä¸æ±ååå ä¸¤è
- * ä¹é´çä¸è¡æ¥å¤´ï¼åªå¨åé©± / æ±åç«å­å¨æ¶ææãæ¯ä¸èè¦ç»åªäºç«è½¨ãåªéææ¥å¤´ç±
- * `workflowRunSpine.ts` ç®å¥½ï¼è¿éåªç§çæã**ä¸ç»åè¾¹**ï¼åä¸ï¼ã
+ * 并行的阶段（模型的**带**）在这里读作提交图：分支轨道在主轨右边，灯落在自己的轨道上，而节头、
+ * 药丸与问题一律从同一条文字列起（`39 + gutter`）——轨道与文字不共用一列。分叉与汇合各占两节
+ * 之间的一行接头，只在前驱 / 汇合站存在时才有。每一节要画哪些竖轨、哪里挂接头由
+ * `workflowRunSpine.ts` 算好，这里只照着摆。**不画回边**（同上）。
  *
- * æèµ·çé¶æ®µå¨èå¤´å¸¦ä¸ä¸²å¤´åï¼è³å¤ 3 æ + `+n`ï¼ï¼æå ä¸è½è®©ãè°å¨è¿ä¸ç«ãä¸å¯è§ã
- * æ­£å¨è¿è¡çé¶æ®µèªå·±å±å¼ï¼**æ¯ä¸ä¸ª**æ­£å¨è·çç«é½å¼ï¼å¸¦éä¸¤æ¡è½¨éå¯ä»¥åæ¶å¨è·ï¼ï¼å·²å±å¼çä¸å¨ã
+ * 折起的阶段在节头带一串头像（至多 3 枚 + `+n`）：折叠不能让「谁在这一站」不可见。
+ * 正在运行的阶段自己展开：**每一个**正在跑的站都开（带里两条轨道可以同时在跑），已展开的不动。
  *
- * åä¸èè¿äºéå¼çç«æ¯ååï¼è¿½è®°ãé¶æ®µååãããä¸æé¨ä¸ä¸å·ååãï¼ï¼é 5 æè¯ä¸¸ï¼asking â running â
- * failed â è¡¥ä½ï¼ï¼ç¬¬å­ææ¯é¨ï¼å³çå¸¦å¶ä½äººçè®¡æ°è¡ï¼ï¼é¨åæ¯å¶ä½äººçååââæ¯äººä¸æ¬¡ãæç¶æåç»ã
- * ä¸¤å `row` è¯ä¸¸ï¼æå èå¤´ä¸å¤´åä¸²æ¢æè¿·ä½ éæ¡ãçä¸åä¸åºæ¥çå­ä»£çï¼`station.unlisted`ï¼è¿é¨ç
- * äººæ°ãè®¡æ°è¡ä¸éæ¡ï¼å´æ²¡æè¡å¯è½ï¼æä»¥ååæ«å°¾ç¨ä¸è¡æ·¡å­äº¤ä»£è¿ä¸ªå·®é¢ã
+ * 参与者过了阈值的站是名册（追记「阶段名册」、「一扇门与一卷名单」）：钉 5 枚药丸（asking → running →
+ * failed → 补位），第六枚是门（关着带其余人的计数行），门后是其余人的名单——每人一次、按状态分组、
+ * 两列 `row` 药丸；折叠节头上头像串换成迷你量条。界上列不出来的子代理（`station.unlisted`）进门的
+ * 人数、计数行与量条，却没有行可落，所以名单末尾用一行淡字交代这个差额。
  *
- * è½ç¹ï¼å¡ä¸ãè¿æ n ä¸ªãé£ä¸è¡æç«å¤´æç« id äº¤ç»å®¿ä¸»ï¼tab å¸¦ç
- * `focusPhaseId` å°è¿éââå±å¼è¿ä¸ç«ãæé¨æå¼ãèå¤´æ»å°é¡¶ãåºè²äº®ä¸ä¸åéåãä¸æ¬¡æå¼åªè½ä¸æ¬¡
- * ï¼é®å« openedAtï¼åä¸ç«åç¹ä¸æ¬¡ä¼åè½ï¼ï¼ä¹åç¨æ·æ»èµ°ä¸è¿½ã
+ * 落点：卡上「还有 n 个」那一行或站头把站 id 交给宿主，tab 带着
+ * `focusPhaseId` 到这里——展开这一站、把门打开、节头滚到顶、底色亮一下再退回。一次打开只落一次
+ * （键含 openedAt，同一站再点一次会再落）；之后用户滚走不追。
  */
 const QUESTION_TICK_MS = 30_000;
-/** è½ç¹äº®ä¸ä¸çæ¶é¿ï¼æ 400 ms åç¨ 800 ms éåï¼`.wf-landed`ï¼ã */
+/** 落点亮一下的时长：持 400 ms 再用 800 ms 退回（`.wf-landed`）。 */
 const LANDING_MS = 1200;
 
 function questionKey(question: WorkflowRunPendingQuestion): string | undefined {
@@ -90,21 +90,21 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
   model: WorkflowTimelineModel;
   run: WorkflowRunState | undefined;
   pendingQuestions: readonly WorkflowRunPendingQuestion[];
-  /** å¼ actor transcript tabï¼æ²¡æä¼è¯çæ§½ä½å¼å ä½ï¼ãç¼ºå¸­å³è¡ä¸å¯ç¹ââåè°çå­å¨æ¬èº«å°±æ¯é¨æ§ã */
+  /** 开 actor transcript tab（没有会话的槽位开占位）。缺席即行不可点——回调的存在本身就是门控。 */
   onOpenActor?: (instance: WorkflowActorInstance) => void;
-  /** å¼èæ¬ transcript tabãè½å°è¿ä¸ç«ï¼ç¼ºå¸­å³èæ¬è¡ä¸å¯ç¹ã */
+  /** 开脚本 transcript tab、落到这一站；缺席即脚本行不可点。 */
   onOpenWorkspace?: (phaseId: string) => void;
-  /** è½ç¹ï¼`key` æ¯æ¬¡æå¼é½ä¸åï¼`phaseId@openedAt`ï¼ï¼åä¸ç«åç¹ä¸æ¬¡ä¹åè½ã */
+  /** 落点：`key` 每次打开都不同（`phaseId@openedAt`），同一站再点一次也再落。 */
   landing?: { phaseId: string; key: string };
-  /** providerId â æ¨¡åæ¸åéç provider åï¼å­ä»£çèªå·±çæ¨¡åååç¨ï¼ä¸æè¦è¡åä¸ä¸ªæ¥æºï¼ã */
+  /** providerId → 模型清单里的 provider 名（子代理自己的模型取名用，与摘要行同一个来源）。 */
   subagentModelProviderName?: (providerId: string) => string | undefined;
 }) {
   const { intl } = useXCodeIntl();
   const format = intl.formatMessage.bind(intl);
-  // persona ç¹åäºæ¨¡åçå­ä»£çï¼è¡å°¾è¯´æ¨¡ååï¼tooltip å¸¦è§èä¸²ï¼presentation.mdãThe spineãï¼ã
+  // persona 点名了模型的子代理：行尾说模型名，tooltip 带规范串（presentation.md「The spine」）。
   const actorModels = useWorkflowActorModelLabels(run?.actors, subagentModelProviderName);
-  // æ­£å¨è¿è¡çç«èªå·±å±å¼ââå¸¦éä¸¤æ¡è½¨éå¯ä»¥åæ¶å¨è·ï¼**æ¯ä¸ä¸ª**é½è¦å¼ï¼ä¸åªæå³é£ä¸ªã
-  // ç¨ä¸ä¸ªç¨³å®çé®è®°ä½è¿ä¸ç» idï¼æå½±æ¯å¨ä¸æ¬¡æ¨¡åé½æ¢èº«ä»½ï¼ä½è¿ä¸ç»éå¸¸ä¸åã
+  // 正在运行的站自己展开——带里两条轨道可以同时在跑，**每一个**都要开，不只最右那个。
+  // 用一个稳定的键记住这一组 id：投影每动一次模型都换身份，但这一组通常不变。
   const runningKey = model.stations
     .filter((station) => station.status === "running")
     .map((station) => station.id)
@@ -127,7 +127,7 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
       return next;
     });
   }, []);
-  // ååç«çé¨ï¼å¼çå³ååºååï¼æ¸åçå±é¨ç¶æï¼æç«è®°ã
+  // 名册站的门：开着即列出名单，清单的局部状态，按站记。
   const [listed, setListed] = useState<ReadonlySet<string>>(() => new Set());
   const toggleListed = useCallback((id: string) => {
     setListed((previous) => {
@@ -138,8 +138,8 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
     });
   }, []);
 
-  // è½ç¹ï¼å±å¼ + å¼é¨ + äº®ä¸ä¸ï¼æ»å¨å¨ä¸ä¸æ¬¡æäº¤ä¹åï¼é£ä¸èå¾åå±å¼ææèå¤´å¯æ»ï¼ã
-  // `landed` æè½ç¹çé®è®°ï¼ä¸æ¯æç«ï¼ï¼åä¸ç«åè½ä¸æ¬¡ï¼é®åäºãæ»å¨ä¸äº®ä¸ä¸å°±é½åæ¥ä¸éã
+  // 落点：展开 + 开门 + 亮一下；滚动在下一次提交之后（那一节得先展开才有节头可滚）。
+  // `landed` 按落点的键记（不是按站）：同一站再落一次，键变了、滚动与亮一下就都再来一遍。
   const rootRef = useRef<HTMLDivElement>(null);
   const landedOnceRef = useRef<string | undefined>(undefined);
   const [landed, setLanded] = useState<{ phaseId: string; key: string } | undefined>(undefined);
@@ -172,7 +172,7 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
     head.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
   }, [landed]);
 
-  // ç­å¾æ¶é¿è¦èªå·±èµ°ï¼ä¸ä¸ªå¨ç­ç­æ¡ï¼æç­è¡¥å¨ï¼ç run **æ°æ°ä¸åäºä»¶**ãå®æ¶å¨åªå¨æäººå¨ç­æ¶å­å¨ã
+  // 等待时长要自己走：一个在等答案（或等补全）的 run **恰恰不发事件**。定时器只在有人在等时存在。
   const [now, setNow] = useState(() => Date.now());
   const hasQuestions =
     pendingQuestions.length > 0 ||
@@ -183,7 +183,7 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
     const timer = setInterval(() => setNow(Date.now()), QUESTION_TICK_MS);
     return () => clearInterval(timer);
   }, [hasQuestions]);
-  // æ­£å¨ç­è¡¥å¨ççç½èªå·±å±å¼ï¼ä¸æ­£å¨è¿è¡çç«åä¸æ¡è§åï¼å®æ¯å½åç«ï¼ã
+  // 正在等补全的留白自己展开（与正在运行的站同一条规则：它是当前站）。
   const waitingHoleKey = model.stations
     .filter((station) => station.hole?.state === "waiting")
     .map((station) => station.id)
@@ -221,12 +221,12 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
     const key = questionKey(question);
     return key === undefined || !attachedKeys.has(key);
   });
-  // æ¯ä¸èè¦ç»çç«è½¨ä¸èé´çæ¥å¤´è¡ï¼`workflowRunSpine.ts`ï¼ï¼æå­åæ´æ ¹èçº¿å±ç¨ä¸ä¸ªå·¦ç¼ã
+  // 每一节要画的竖轨与节间的接头行（`workflowRunSpine.ts`）；文字列整根脊线共用一个左缘。
   const spine = spineLayout(model);
-  // è¡¥å¨çæ¡ï¼WorkflowRunFillFrames.tsxï¼ï¼å¤´ï¼æ é¢è¡ / ç¬æ ï¼ä¸æ¬åæé®çç¦ç¹æ¶ç»åºé£ä¸ä¸ªã
+  // 补全的框（WorkflowRunFillFrames.tsx）：头（标题行 / 笔标）上悬停或键盘焦点时画出那一个。
   const fillFrames = useSpineFillFrames(rootRef, model);
   const textColumn = spine.gutter === 0 ? undefined : { paddingLeft: 39 + spine.gutter };
-  // è¯ä¸¸çå½åãæå¼ä¸å°¾æ§½ï¼WorkflowRunPhasePills.tsxï¼ã
+  // 药丸的命名、打开与尾槽（WorkflowRunPhasePills.tsx）。
   const { nameOf, pillProps, renderPill } = phasePillRenderers({
     actorModels,
     format,
@@ -254,10 +254,10 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
         const pending = status === "pending";
         const section = spine.sections[index] ?? { rails: [] };
         const roster = stationRosterOf(station, ROSTER_PINS_PANE);
-        // çç½ï¼docs/dynamic-workflow/presentation.mdãHoles on the timelineãçãThe paneãï¼ï¼èå¤´æ¢èçº¿ç¯ï¼
-        // ç­å¾æ¶èä½è¯´ç­äºå¤ä¹ãæé¶æ®µçè¡¥å¨å¨å®åä¸çç¬¬ä¸èåå¤ä¸è¡æ é¢ï¼é£å èä¸ç¼©è¿ï¼åµå¥ç±æ¡è¯´åºï¼ã
+        // 留白（docs/dynamic-workflow/presentation.md「Holes on the timeline」的「The pane」）：节头换虚线灯；
+        // 等待时节体说等了多久。有阶段的补全在它写下的第一节前多一行标题；那几节不缩进（嵌套由框说出）。
         const hole = station.hole;
-        // åèµ·äºè¿ä¸èçè¡¥å¨åæä¸è¡æ é¢ï¼å¤å±å¨åï¼æ¨¡åçæ¬¡åºï¼ï¼åå±çæ¡ä»å®èªå·±çæ é¢éèµ·ã
+        // 同起于这一节的补全各有一行标题，外层在前（模型的次序）：内层的框从它自己的标题量起。
         const headings = (model.fills ?? []).filter((fill) => fill.from === index);
         const column = textColumn;
         return (
@@ -300,7 +300,7 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
                   landed?.phaseId === station.id && "wf-landed",
                 )}
                 data-testid="workflow-run-phase-toggle"
-                // åè½æ¶æ¢ key éæèå¤´ï¼åä¸ä¸ªç±»åä¸ä¼è®© CSS å¨ç»éæ¥ã
+                // 再落时换 key 重挂节头：同一个类名不会让 CSS 动画重来。
                 key={landed?.phaseId === station.id ? landed.key : "head"}
                 onClick={() => toggle(station.id)}
                 style={column}
@@ -371,7 +371,7 @@ export const WorkflowRunPhaseList = memo(function WorkflowRunPhaseList({
                               size="row"
                               {...pillProps(pill)}
                             >
-                              {/* ç¬¬å­ä¸ªåä»¥åçæé®èè½å¨ååéï¼å°¾æ§½åä¸æ ?ï¼é®é¢æ¬èº«ä¸å¨è¿ééå¤ã */}
+                              {/* 第六个及以后的提问者落在名单里：尾槽前一枚 ?，问题本身不在这里重复。 */}
                               {pill.asking === true ? (
                                 <CircleHelpIcon
                                   aria-hidden

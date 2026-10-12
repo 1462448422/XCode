@@ -6,15 +6,15 @@ import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { workflowRunQuestionWaitedLabel } from "@/app-shell/workflowRunQuestions.js";
 
 /**
- * çç½éç¥è¡ï¼docs/dynamic-workflow/transcript-and-notifications.mdãThe notification rowãç hole ä¸è¡ã
- * ãThe hole row's live stateãï¼ãä» WorkflowNotificationToolRow.tsx æåºï¼max-lines é¨ï¼ï¼åä¸å¥
- * ToolLayout è¯­æ³ï¼ç¬å¾æ ï¼ç§ç±»è¯æ run æå½±ç `holes` æ´»ç¿»è½¬ââ
- *   run å¨åºä¸æ­¤ siteId æ¯ waiting â ãå·¥ä½æµçç½ Â· ç­å¾è¡¥å¨ãï¼ç­å¾æ¶é¿æ¯ 30 ç§å·ä¸æ¬¡ï¼
- *   run å¨åºä¸å·² filled â ãçç½å·²è¡¥å¨ãï¼
- *   run ä¸å¨æå½±éï¼`holes` ç¼ºå¸­ï¼â ä¸­æ§çãå·¥ä½æµçç½ãã
- * ä¸»ææ¬ `Â· <run å> Â· <çç½å>` å ç±»åå¾½æ ï¼å±å¼ä½æ¯æç¤ºå¨æãå®ç«å¨åªä¸¤ç«ä¹é´ãé¡»è¿åä»ä¹ãèç¨¿
- * è·¯å¾ãç­äºå¤ä¹ãrun é¾æ¥ã**æ°¸ä¸ shimmer**ï¼çç½ç­çæ¯ä¸»ä»£çï¼ä¸æ¯å·¥ä½ãä½ä¸å¼ç¨è¡¥å¨ä»£ç ââé£å¨ç¸é»
- * ç FillWorkflowHole å·¥å·å¡ä¸ã
+ * 留白通知行（docs/dynamic-workflow/transcript-and-notifications.md「The notification row」的 hole 一行、
+ * 「The hole row's live state」）。从 WorkflowNotificationToolRow.tsx 拆出（max-lines 门）：同一套
+ * ToolLayout 语法，笔图标，种类词按 run 投影的 `holes` 活翻转——
+ *   run 在场且此 siteId 是 waiting → 「工作流留白 · 等待补全」，等待时长每 30 秒刷一次；
+ *   run 在场且已 filled → 「留白已补全」；
+ *   run 不在投影里（`holes` 缺席）→ 中性的「工作流留白」。
+ * 主文本 `· <run 名> · <留白名>` 加类型徽标；展开体是提示全文、它站在哪两站之间、须返回什么、草稿
+ * 路径、等了多久、run 链接。**永不 shimmer**：留白等的是主代理，不是工作。体不引用补全代码——那在相邻
+ * 的 FillWorkflowHole 工具卡上。
  */
 export type WorkflowHoleNotification = Extract<WorkflowNotificationMeta, { kind: "hole" }>;
 
@@ -52,7 +52,7 @@ export function WorkflowNotificationHoleRow({
   notification: WorkflowHoleNotification;
   runName: string;
   toolId: string;
-  /** run æå½±éççç½è¡¨ï¼undefined = run ä¸å¨æ´»æå½±ï¼ä¸­æ§è¯ï¼ã */
+  /** run 投影里的留白表；undefined = run 不在活投影（中性词）。 */
   holes: readonly WorkflowRunHole[] | undefined;
   onOpenRun?: () => void;
   forceOpen?: boolean;
@@ -60,7 +60,7 @@ export function WorkflowNotificationHoleRow({
   const { intl } = useXCodeIntl();
   const state = holeRowState(holes, notification.siteId);
 
-  // ç­å¾æ¶é¿è¦å¨æ²¡æäºä»¶æµæ¶ä¹ç§èµ°ï¼åé©»ç run æ°æ°ä¸åäºä»¶ï¼ï¼30 ç§åä¸æ¬¡æ°çãç°å¨ãï¼åªå¨ç­å¾æ¶èµ°ã
+  // 等待时长要在没有事件流时也照走（停驻的 run 恰恰不发事件），30 秒喂一次新的「现在」；只在等待时走。
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (state !== "waiting") return undefined;
@@ -78,9 +78,9 @@ export function WorkflowNotificationHoleRow({
   const primaryText = useMemo(
     () => (
       <span className="inline-flex min-w-0 items-center gap-2">
-        <span aria-hidden>Â·</span>
+        <span aria-hidden>·</span>
         <span className="min-w-0 truncate">{runName}</span>
-        <span aria-hidden>Â·</span>
+        <span aria-hidden>·</span>
         <span className="min-w-0 truncate" data-testid="workflow-hole-notification-name">
           {notification.name}
         </span>

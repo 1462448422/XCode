@@ -12,11 +12,11 @@ export function pendingTopicPreparations(
     acceptedIds.add(row.botGroupSource.messageId);
     for (const message of row.botGroupSource.messages ?? []) acceptedIds.add(message.messageId);
   }
-  // å¤±è´¥ææä¸åæå½±ä¸ºä¸´æ¶æ¶æ¯ï¼è¿åæ¥æºä¸èµ·ç§»é¤ï¼é¿åæ®çç©ºç½è½®æ¬¡æéè¯¯åã
+  // 失败材料不再投影为临时消息，连同来源一起移除，避免残留空白轮次或错误块。
   return items.filter((item) => item.status !== "failed" && !acceptedIds.has(item.messageId));
 }
 
-/** åå¤æ¶æ¯è¿å¥ç°æè½®æ¬¡çæ¶æ¯æµåæµé«/æ»å¨é¾è·¯ï¼ä¸ä¼ªé  CLI accepted rowã */
+/** 准备消息进入现有轮次的消息流及测高/滚动链路；不伪造 CLI accepted row。 */
 export function withTopicPreparationMessages(
   units: ConversationTurnRenderUnit[],
   rows: readonly ConversationRow[],
@@ -26,7 +26,7 @@ export function withTopicPreparationMessages(
   if (!pending.length) return units;
   const last = units.at(-1);
   if (last) return [...units.slice(0, -1), { ...last, topicPreparations: pending }];
-  // å°æ  CLI æ¶æ¯æ¶åªåå»ºæ¬å°å±ç¤ºååï¼ä¸äº§çä»»å¡ãè½®æ¬¡æå¯ç¼è¾çåæ¶æ¯ã
+  // 尚无 CLI 消息时只创建本地展示单元，不产生任务、轮次或可编辑的假消息。
   return [
     {
       key: "topic-preparation",

@@ -10,9 +10,9 @@ import { MCP_APPS_SET_WIDGET_STATE_METHOD, concatMcpAppsTextContent } from "@zco
 import { z } from "zod";
 import type { PluginUiHostBridge } from "./pluginUiHostBridge.js";
 
-/** å®¿ä¸»å®ä¾æ³¨å¥çäº¤äºåè°ï¼ç¼ºçæ¶å¯¹åºè¯·æ±å -32601ï¼è½åå£°æä¸åè°ä¸ä¸å¯¹åºï¼ã */
+/** 宿主实例注入的交互回调；缺省时对应请求回 -32601（能力声明与回调一一对应）。 */
 export interface PluginUiInteractionCallbacks {
-  /** sendFollowUpMessage è¿å reject è¡¨ç¤ºç¨æ·åæ¶ææ æéã */
+  /** sendFollowUpMessage 返回 reject 表示用户取消或无权限。 */
   onSendFollowUpMessage?(
     payload: {
       prompt: string;
@@ -25,15 +25,15 @@ export interface PluginUiInteractionCallbacks {
     content: Array<Record<string, unknown>>;
     structuredContent?: unknown;
   }): Promise<void>;
-  /** é¡µé¢ `ui/set-widget-state { widgetState }`ï¼å®¿ä¸»åæ­¥ååå­ store åååã */
+  /** 页面 `ui/set-widget-state { widgetState }`；宿主同步写内存 store 后回包。 */
   onUpdateWidgetState?(widgetState: unknown): Promise<void>;
-  /** `ui/download-file`ï¼éé¡¹ä¿å­ï¼åæ¶ / å¤±è´¥å `{ isError: true }`ã */
+  /** `ui/download-file`；逐项保存，取消 / 失败回 `{ isError: true }`。 */
   onDownloadFile?(contents: McpAppsDownloadFileItem[]): Promise<{ isError?: boolean }>;
 }
 
 /**
- * `ui/message` çåæ°ï¼å®æ¹ schema åªè®¤ role + contentï¼ä¼å¥æé¡¶å±æªç¥é®ï¼æ©å±ç `structuredContent`
- * è¦çä¸æ¥ï¼æ¼æ ```json åéæ¶æ¯ååºï¼ï¼æä»¥å®¿ä¸»ç¨èªå·±ç loose schema æ³¨åè¿ä¸ªæ¹æ³ï¼èä¸æ¯ `onmessage`ã
+ * `ui/message` 的参数：官方 schema 只认 role + content，会剥掉顶层未知键；扩展的 `structuredContent`
+ * 要留下来（拼成 ```json 块随消息发出），所以宿主用自己的 loose schema 注册这个方法，而不是 `onmessage`。
  */
 const pluginUiMessageParamsSchema = z
   .object({
@@ -44,7 +44,7 @@ const pluginUiMessageParamsSchema = z
   .loose();
 const pluginUiSetWidgetStateParamsSchema = z.object({ widgetState: z.unknown() }).loose();
 
-/** åè°æåºçå¸¦ `code` çéè¯¯ï¼-32601 / -32000 / -32602ï¼ç¿»è¯æ JSON-RPC éè¯¯ï¼å¶ä½æåé¨éè¯¯å¤çã */
+/** 回调抛出的带 `code` 的错误（-32601 / -32000 / -32602）翻译成 JSON-RPC 错误，其余按内部错误处理。 */
 function toProtocolError(error: unknown): unknown {
   const code = (error as { code?: unknown } | null)?.code;
   if (error instanceof ProtocolError) return error;
@@ -56,8 +56,8 @@ const unsupported = (method: string) =>
   new ProtocolError(METHOD_NOT_FOUND, `${method} is not available for this app`);
 
 /**
- * ä¼è¯äº¤äºï¼ui/messageãui/update-model-contextãui/download-fileãXCode æ©å± ui/set-widget-stateï¼æ¥å°å®æ¹
- * AppBridgeï¼ç¼ºçåè°å -32601ï¼ui/message çæå¿ token ç± main å¨ guest input-event è®°å½ãä¸æ¬¡æ§æ¶è´¹ï¼æ²¡æå¥æè§ä¸ºæ æå¿ã
+ * 会话交互（ui/message、ui/update-model-context、ui/download-file、XCode 扩展 ui/set-widget-state）接到官方
+ * AppBridge：缺省回调回 -32601；ui/message 的手势 token 由 main 在 guest input-event 记录、一次性消费，没有句柄视为无手势。
  */
 export function wirePluginUiInteractions(
   bridge: PluginUiHostBridge,
