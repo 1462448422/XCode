@@ -6,6 +6,7 @@ import {
   type TraceContext,
   type TurnInputIntentMetadata,
 } from "@zcode/contracts";
+import { sortReasoningLevelsByIntensity } from "@zcode/shared";
 import { getCurrentModelInvocationContext } from "../deps.js";
 import type { AgentRuntimeInternal } from "../internal.js";
 import { cloneModelSelection } from "../model-selection.js";
@@ -85,7 +86,9 @@ export async function applySubmissionExecutionState(
           modelSelection: appliedSelection,
           effectiveReasoningLevel: model.options.reasoningLevel,
           previousModelSelection: previousSelection,
-          supportedThoughtLevels: model.optionSpecs.reasoningLevel.values,
+          supportedThoughtLevels: sortReasoningLevelsByIntensity(
+            model.optionSpecs.reasoningLevel.values,
+          ),
           traceContext,
         });
       }

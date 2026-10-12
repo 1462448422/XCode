@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sortReasoningLevelsByIntensity } from "@zcode/shared";
 import { createServiceLogger } from "../logger/serviceLogger.js";
 import { describeCodeBuddyAccessToken } from "./codebuddyAuth.js";
 
@@ -103,7 +104,8 @@ function pickEfforts(record: CodeBuddyConfigModelRecord): {
     typeof record.reasoning?.defaultEffort === "string"
       ? record.reasoning.defaultEffort
       : undefined;
-  return { efforts, ...(defaultEffort ? { defaultEffort } : {}) };
+  // XCode fork：与 Qoder 同规则，按强度升序而非上游数组原序。
+  return { efforts: sortReasoningLevelsByIntensity(efforts), ...(defaultEffort ? { defaultEffort } : {}) };
 }
 
 /** 从 Keycloak JWT 解出 sub 作为 X-User-Id；非 JWT 令牌返回空。 */

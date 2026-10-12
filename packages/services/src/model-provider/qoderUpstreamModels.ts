@@ -1,4 +1,5 @@
 import { createCipheriv, createHash, publicEncrypt, randomUUID, constants as cryptoConstants } from "node:crypto";
+import { sortReasoningLevelsByIntensity } from "@zcode/shared";
 import { createServiceLogger } from "../logger/serviceLogger.js";
 
 /**
@@ -292,7 +293,9 @@ export function parseQoderCatalog(payload: unknown): QoderCatalogModel[] {
       if (effortsObj) {
         const keys = Object.keys(effortsObj);
         if (keys.length > 0) {
-          thinkingEfforts = keys;
+          // XCode fork：按强度升序，不透传 Object.keys() 的上游序列化序
+          // （Go map 遍历序，与强度无关，会让 UI 出现非单调的档位序列）。
+          thinkingEfforts = sortReasoningLevelsByIntensity(keys);
           const defaulted = Object.entries(effortsObj).find(
             ([, v]) => (v as Record<string, unknown> | null)?.is_default === true,
           );

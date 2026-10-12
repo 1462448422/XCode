@@ -23,7 +23,7 @@ import {
   type ModelRequestAuth,
 } from "@zcode/contracts";
 import type { RegistryProviderConfig } from "@zcode/provider";
-import { withOpenRouterAttributionHeaders } from "@zcode/shared";
+import { isOffReasoningLevel, withOpenRouterAttributionHeaders } from "@zcode/shared";
 import { createAnthropicCompatFetch } from "./anthropic-stream-compat.js";
 import { createOpenAIResponsesJsonCompatFetch } from "./openai-responses-json-compat.js";
 import { createModelOptionMapFetch, type RawRequestBodyCapture } from "./model-option-map-fetch.js";
@@ -589,10 +589,12 @@ function stripCodeBuddyIncompatibleReasoningFields(body: Record<string, unknown>
   delete body.reasoning;
   // 网关没有 "none" 档（与 Qoder 同规则）：禁用思考时 reasoning_effort 直接
   // 不发（对齐官方 CLI / 9router），发了会被 400 拒绝。
-  if (
-    body.reasoning_effort === "none" ||
-    body.reasoning_effort === "off"
-  ) {
+  //
+  // XCode fork：原先只判 none/off，漏掉了模型配置里真实存在的关闭档位名
+  // （导入上游模型时写入的是 "disabled"），它会被原样发出去并被网关拒绝。
+  // 这里改为按关闭族整族剥离，而不是逐个枚举。
+  const effort = body.reasoning_effort;
+  if (typeof effort === "string" && isOffReasoningLevel(effort)) {
     delete body.reasoning_effort;
   }
 }

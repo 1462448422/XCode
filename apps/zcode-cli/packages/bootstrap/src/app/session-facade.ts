@@ -1,4 +1,5 @@
 import { updateUiLocaleInFileConfig, type ConfigResult } from "@zcode/adapters/config";
+import { sortReasoningLevelsByIntensity } from "@zcode/shared";
 import {
   McpResourceSubscribeUnsupportedError,
   resolveMcpToolVisibility,
@@ -370,9 +371,14 @@ export function createSessionFacade(deps: CreateSessionFacadeDeps): SessionFacad
     getModelOption: (selection) => getRegistryBackedModel(deps.providerRegistry, selection),
     listThoughtLevels: () => {
       const registryState = currentRegistrySelection();
-      return registryState.owned
-        ? [...(registryState.selection?.model.config.optionSpecs.reasoningLevel.values ?? [])]
-        : [];
+      if (!registryState.owned) return [];
+      // XCode fork：按强度升序返回。上游把档位放在 JSON 对象键里
+      // （Qoder thinking_config.efforts），Object.keys() 拿到的是上游序列化序，
+      // 与强度无关——直接透传会让 UI 出现「关闭/极高/低/中/高」这种非单调序列。
+      // 排序放在读取边界，保证已经写坏的历史配置也能显示正确。
+      return sortReasoningLevelsByIntensity(
+        registryState.selection?.model.config.optionSpecs.reasoningLevel.values ?? [],
+      );
     },
     listMcpServers: async () =>
       listMcpServerStatuses(

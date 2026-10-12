@@ -15,6 +15,7 @@ import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 import type { ModelConfigObject } from "@zcode/provider";
 import type { UpstreamModelEntry, UpstreamModelListResult } from "@zcode/shared";
+import { sortReasoningLevelsByIntensity } from "@zcode/shared";
 import { TECHNICAL_INPUT_ATTRIBUTES } from "@/lib/technicalInputAttributes.js";
 import { formatQoderPriceFactor } from "@/lib/qoderModelDisplayNames.js";
 import {
@@ -169,8 +170,11 @@ function buildUpstreamEntryConfig(entry: UpstreamModelEntry | undefined): ModelC
   // CodeBuddy reasoning.supportedEfforts），聊天的思考强度选择器即可选
   // 上游档位；payload 只读 reasoning_effort。
   if (entry.thinkingEfforts?.length) {
+    // XCode fork：上游档位按强度升序写入。上游把档位放在 JSON 对象键里
+    // （Qoder thinking_config.enabled.efforts），键序与强度无关；不排序就会把
+    // 「关闭/极高/低/中/高」这种序列持久化进 optionSpecs。
     optionSpecs.reasoningLevel = {
-      values: ["disabled", ...entry.thinkingEfforts],
+      values: sortReasoningLevelsByIntensity(["disabled", ...entry.thinkingEfforts]),
       map: QODER_REASONING_LEVEL_MAP,
     };
   }

@@ -1,4 +1,5 @@
 import { createHash, createCipheriv, publicEncrypt, randomUUID, constants as cryptoConstants } from "node:crypto";
+import { mapReasoningEffortForQoder } from "@zcode/shared";
 /**
  * XCode fork：Qoder 推理协议移植（对齐 9router open-sse/shared/qoder +
  * executors/qoder.js）。
@@ -698,15 +699,13 @@ export async function buildSignedQoderRequest(params: {
   }
 
   // 思考强度跟随客户端：模型选项层已把用户的思考强度写成 body.reasoning_effort
-  // （禁用→"none"、启用→"high"、自定义档位名原样）。映射到 Qoder 的档位值域
-  // （low/medium/xhigh，CN 官方抓包证实）；"none" 不发，上游按自身默认。
-  const rawEffort = typeof openAiBody.reasoning_effort === "string" ? openAiBody.reasoning_effort.trim() : "";
-  const reasoningEffort =
-    !rawEffort || rawEffort === "none" || rawEffort === "disabled"
-      ? undefined
-      : rawEffort === "high"
-        ? "xhigh"
-        : rawEffort;
+  // （关闭族→"none"/"disabled"、开关式旧值→"on"、自定义档位名原样）。
+  // 这里按 **白名单** 翻译到 Qoder 的合法值域，绝不原样透传：
+  // 上游目录里的档位名（thinking_config.efforts 的键）不受我们控制，
+  // 透传一个陌生键会让 Qoder 用 400 拒掉整个请求（用户实测
+  // "'reasoning_effort' must be one of: 'none','minimal','low','medium','high','xhigh','max'"）。
+  // 表外的值（关闭族 + 任何未知值）一律不发该字段，上游按自身默认思考。
+  const reasoningEffort = mapReasoningEffortForQoder(openAiBody.reasoning_effort);
 
   // 上游上下文 = 该模型最大档（CN 与国际版同规则）
   const maxContextTokens = resolveMaxContextTokens(modelConfig);
