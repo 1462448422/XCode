@@ -3751,8 +3751,9 @@ import "../attachment-source.js";
 import "../subagent-runtime-config.js";
 
 // ── 1010 新增模块导出（导入时补齐）──
+// 注：zcodeProtocolTraceSchema / ZCodeProtocolTrace 本文件已在 L275 附近定义（fork 版 XCode 命名），
+// trace.js 的重名导出在此跳过，避免 TS2323 重复声明
 export { channelReplyRequestSchema, channelReplyResultSchema } from "../channel-mention.js";
-export { zcodeProtocolTraceSchema, type ZCodeProtocolTrace } from "./trace.js";
 export { conversationQuoteSchema, conversationQuotesSchema } from "../conversationSelection.js";
 export { attachmentSourceKindSchema, type AttachmentSourceKind } from "../attachment-source.js";
 export { activeWorkSummarySchema, type ActiveWorkSummary } from "../zcode-protocol-v4/snapshot.js";
