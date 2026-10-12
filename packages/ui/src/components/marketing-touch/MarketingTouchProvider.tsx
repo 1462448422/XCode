@@ -267,7 +267,10 @@ export function MarketingTouchProvider({
           if (!result.success)
             return {
               status: "failure",
-              terminal: [1001, 1002, 1003, 1004, 1005].includes(result.code),
+              // claimManualPlan 的 code 是 optional（fork 的返回类型比 1010 宽）
+              terminal:
+                result.code !== undefined &&
+                [1001, 1002, 1003, 1004, 1005].includes(result.code),
               message: result.message?.trim()
                 ? result.message
                 : intl.formatMessage({ id: "manualClaimPlan.claim.failure.generic" }),
