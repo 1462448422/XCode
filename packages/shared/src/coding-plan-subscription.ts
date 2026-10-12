@@ -533,3 +533,12 @@ export interface EnterpriseCodingPlanOrderStatusResponse {
   organizationId?: string | null;
   projectId?: string | null;
 }
+
+// ── 1010 新增导出 ──
+export interface CodingPlanBillingDiscountLocaleCopy {
+  cardTitle?: string;
+  cardBody?: string;
+  badgeBody?: string;
+  infoTitle?: string;
+  infoBody?: string;
+}
