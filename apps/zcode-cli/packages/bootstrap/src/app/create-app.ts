@@ -1131,12 +1131,14 @@ export async function createXCodeApp(options: XCodeAppOptions): Promise<XCodeApp
               runId: string;
               afterSequence?: number;
               limit?: number;
+              maxBytes?: number;
             }) =>
               dynamicWorkflowRunPort.listEvents(input.runId, {
                 ...(input.afterSequence === undefined
                   ? {}
                   : { afterSequence: input.afterSequence }),
                 ...(input.limit === undefined ? {} : { limit: input.limit }),
+                ...(input.maxBytes === undefined ? {} : { maxBytes: input.maxBytes }),
               }),
           }),
       // workflow run 的**用户面产物**读面。三条一起注册、
@@ -1156,12 +1158,16 @@ export async function createXCodeApp(options: XCodeAppOptions): Promise<XCodeApp
               artifactId: string;
               afterSequence?: number;
               limit: number;
+              maxBytes: number;
+              fields?: readonly string[];
             }) =>
               dynamicWorkflowRunPort.listArtifactItems!(input.runId, input.artifactId, {
                 ...(input.afterSequence === undefined
                   ? {}
                   : { afterSequence: input.afterSequence }),
                 limit: input.limit,
+                maxBytes: input.maxBytes,
+                ...(input.fields === undefined ? {} : { fields: input.fields }),
               }),
             readDynamicWorkflowRunArtifact: async (input: {
               runId: string;

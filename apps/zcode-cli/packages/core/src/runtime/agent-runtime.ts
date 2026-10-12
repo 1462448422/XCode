@@ -509,6 +509,11 @@ export interface AgentRuntime {
     childSessionId: SessionId;
     event: SessionEvent;
     traceContext?: TraceContext;
+    /**
+     * 子 runtime 的交互归属（与 `createChildClientPorts` 同一份）。在场时交互事件
+     * （PermissionRequested / Resolved / Denied）另镜像一份到本会话，确认窗才能在父界面出现。
+     */
+    interactionOrigin?: ChildClientPortsContext;
   }): Promise<void>;
   /**
    * 外部子 runtime 的接缝（三）：铸造子 runtime 的对外交互端口（permission broker +

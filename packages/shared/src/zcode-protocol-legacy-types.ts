@@ -14,11 +14,13 @@ const timestampMsSchema = z.number().int().nonnegative();
 export const zcodeDeliveryKindSchema = z.enum(["desktop-continuous", "web-remote-replayable"]);
 export const zcodeMessageVisibilitySchema = z.enum(["user-visible", "model-only"]);
 export const zcodeSyntheticUserMessageSourceSchema = z.enum([
+  "agent_listing_delta",
   "background_task",
   "fork",
   "goal_state_change",
   "goal-continuation",
   "plugin_reference",
+  "bot_topic_context",
   "rewind",
   "selection_side_chat",
   "subagent",

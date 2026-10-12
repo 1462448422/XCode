@@ -61,8 +61,6 @@ export interface CompiledDynamicWorkflowScript {
   lowered: string;
   scriptHash: string;
   askSpecs: Map<string, AskSpec>;
-  /** world.run 的已批准命令集（编译期字面量收集）。 */
-  declaredRunCommands: ReadonlySet<string>;
   /** 每个 actor 站点的 submit profile。 */
   actorSubmitProfiles: ReadonlyMap<string, ActorSubmitProfile>;
   /** 站点 → 词法出生阶段名（docs/execution-engine.md「Identity: sites, ordinals, phases」）。 */
@@ -248,7 +246,6 @@ export function launchDynamicWorkflowRun(
           artifactStore: deps.artifactStore,
           parentSessionId: deps.parentSessionId as SessionId,
         }),
-    declaredRunCommands: compiled.declaredRunCommands,
     // 每个 actor 站点拿哪一种 submit_result（typed / generic / 无），编译期已定。
     actorSubmitProfiles: compiled.actorSubmitProfiles,
     runId,

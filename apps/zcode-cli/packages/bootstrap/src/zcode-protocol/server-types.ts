@@ -13,11 +13,13 @@ import {
 import type { McpTelemetryTracker } from "@zcode/adapters";
 import type { WorkspaceHookPolicyProvider } from "@zcode/core";
 import type { AccountProviderConfigSnapshot } from "@zcode/provider";
+
 import {
   zcodeProtocolErrorCodes,
   type XCodeAutomationBotDeliveryTarget,
   type XCodeDeliveryKind,
   type ModelSelection,
+  type DynamicWorkflowMode,
   type XCodeModelContextBudgetStrategy,
   type XCodeProtocolMessage,
   type XCodeProtocolMethod,
@@ -172,6 +174,8 @@ export interface XCodeProtocolAgentServerContext {
      * 工作流工具面、`/workflow` 与 dynamic-workflows 技能一律不露出。
      */
     dynamicWorkflowEnabled: boolean;
+    /** 1010 新增：与布尔同行的灰度 mode（launch.md「On demand: activation」）；缺省按 alwaysOn。 */
+    dynamicWorkflowMode?: DynamicWorkflowMode;
   };
   // 竖切：v4 conversation 通道（订阅/帧/命令），与旧 session/* 方法并存。
   // 构造顺序问题（gateway 闭包持有 context）用可选字段收口，server 构造完立即赋值。

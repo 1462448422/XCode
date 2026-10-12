@@ -346,7 +346,9 @@ export type ConversationRowTargetAction =
   | "fileChanges"
   | "fileRewindPreview"
   | "setAssistantFeedback"
-  | "editAssistantMessage";
+  | "editAssistantMessage"
+  // 1010 新增：高速卡指标上报（fork 的 editAssistantMessage 语义不同，两者并存）
+  | "setHighspeedMetrics";
 
 export type ConversationRowTargetResolution =
   | {
