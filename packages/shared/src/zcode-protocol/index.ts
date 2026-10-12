@@ -3744,3 +3744,31 @@ export * from "../localTtft.js";
 
 // 桌面本地 TTFT 的严格事实合同；检查点不能替代实际内容帧。
 export { localTtftFactsSchema } from "../localTtft.js";
+import "../channel-mention.js";
+import "./trace.js";
+import "../conversationSelection.js";
+import "../attachment-source.js";
+import "../subagent-runtime-config.js";
+
+// ── 1010 新增模块导出（导入时补齐）──
+export { channelReplyRequestSchema, channelReplyResultSchema } from "../channel-mention.js";
+export { zcodeProtocolTraceSchema, type ZCodeProtocolTrace } from "./trace.js";
+export { conversationQuoteSchema, conversationQuotesSchema } from "../conversationSelection.js";
+export { attachmentSourceKindSchema, type AttachmentSourceKind } from "../attachment-source.js";
+export { activeWorkSummarySchema, type ActiveWorkSummary } from "../zcode-protocol-v4/snapshot.js";
+export {
+  subagentRuntimeConfigSchema,
+  type SubagentRuntimeConfig,
+} from "../subagent-runtime-config.js";
+export {
+  botIdentitySchema,
+  botTopicInputMessageSchema,
+  botGroupInputSourceSchema,
+  type BotGroupInputSource,
+} from "../bots.js";
+export {
+  botTopicContextSchema,
+  botTopicMessageSchema,
+  type BotTopicHistoryBatch,
+  type BotTopicMessage,
+} from "../bots.js";

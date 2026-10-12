@@ -314,3 +314,66 @@ export * from "./clientConfig.js";
 export * from "./pluginStoreOrdering.js";
 export * from "./session-debug.js";
 export { redactFeedbackText } from "./feedbackPrivacy.js";
+import "./cloudContent.js";
+import "./networkCapture.js";
+import "./zcode-session-content-profile.js";
+import "./web-remote-control.js";
+import "./web-remote-control-heartbeat.js";
+import "./web-remote-control-rpc-transport.js";
+import "./memory.js";
+import "./output-style.js";
+import "./highspeed.js";
+import "./subagent-runtime-config.js";
+import "./subagent-profile.js";
+import "./subagent-profile-parser.js";
+import "./marketingTouch.js";
+import "./rewardsEmbedded.js";
+import "./rewardsBridge.js";
+import "./api-key-usage-scene.js";
+import "./project-access-token.js";
+import "./project-access-token-client.js";
+import "./conversationSelection.js";
+import "./attachment-source.js";
+import "./channel-mention.js";
+import "./request-security-edition/policy.js";
+import "./request-security-edition/verification-policy.js";
+
+// ── 1010 新增模块导出（导入时补齐）──
+export { cloudContentPayloadSchema, contentBundleSchema } from "./cloudContent.js";
+export * from "./networkCapture.js";
+export type {
+  CloudContentPayload,
+  CloudContentBundle,
+  CloudContentHeroType,
+} from "./cloudContent.js";
+export * from "./zcode-session-content-profile.js";
+export * from "./web-remote-control.js";
+export * from "./web-remote-control-heartbeat.js";
+export * from "./web-remote-control-rpc-transport.js";
+export * from "./memory.js";
+export * from "./output-style.js";
+export * from "./highspeed.js";
+export * from "./subagent-runtime-config.js";
+export * from "./subagent-profile.js";
+export { parseAgentProfileFromMarkdown } from "./subagent-profile-parser.js";
+export * from "./marketingTouch.js";
+export * from "./rewardsEmbedded.js";
+export * from "./rewardsBridge.js";
+export { API_KEY_USAGE_SCENE, type ApiKeyCreationUsageScene } from "./api-key-usage-scene.js";
+export {
+  projectAccessTokenFingerprint,
+  ProjectAccessTokenTransientError,
+} from "./project-access-token.js";
+export {
+  ProjectAccessTokenClient,
+  type ProjectAccessTokenInput,
+  type ProjectAccessTokenMaterial,
+} from "./project-access-token-client.js";
+export * from "./conversationSelection.js";
+export * from "./attachment-source.js";
+export * from "./channel-mention.js";
+export {
+  requestSecuritySensitiveHeaders,
+  isRequestSecurityFailure,
+} from "./request-security-edition/policy.js";
+export * from "./request-security-edition/verification-policy.js";
