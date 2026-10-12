@@ -1,3 +1,8 @@
+import {
+  createTurnAgentDefinitions,
+  createAgentDefinitionsReader,
+  type GetAgentDefinitions,
+} from "../subagent/definitions.js";
 import { DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY, resolveExecutionState } from "@zcode/shared";
 import type { BackgroundBashOutputResult } from "@zcode/shared";
 import {
@@ -173,6 +178,14 @@ export class AgentRuntime {
   private mcpInitialized = false;
   private mcpToolsRegistered = false;
   private subagentPort?: SubagentPort;
+  /**
+   * 1010 拆出「读」与「准备」两条子 Agent 契约：read 给列表面板，prepare 在每轮开跑前
+   * 把 profile 物化（过滤/解析模型覆盖）。turn.ts 走 prepare，只读界面走 get。
+   */
+  private readonly getAgentDefinitions: GetAgentDefinitions;
+  private readonly prepareAgentDefinitions: ReturnType<
+    typeof createTurnAgentDefinitions
+  >["prepare"];
   private dynamicWorkflowRunPort?: DynamicWorkflowRunPort;
   private modelCatalogPort?: ModelCatalogPort;
   private runtimeTaskRegistry: RuntimeTaskRegistry;
@@ -235,6 +248,15 @@ export class AgentRuntime {
       modelContextBudgetStrategy: DEFAULT_XCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
     });
     Object.assign(this.config, resolveExecutionState(config));
+    const definitions = createTurnAgentDefinitions(
+      deps.getAgentDefinitions ??
+        createAgentDefinitionsReader(this.config.subagents?.profiles ?? [], {
+          builtInModelSelectionOverrides: this.config.subagents?.builtInModelSelectionOverrides,
+        }),
+      deps.loadAgentDefinitions,
+    );
+    this.getAgentDefinitions = definitions.get;
+    this.prepareAgentDefinitions = definitions.prepare;
     this.agentTelemetry = new RuntimeTelemetryFacade({
       agentName: config.agentName,
       causation: deps.agentTelemetryCausation,

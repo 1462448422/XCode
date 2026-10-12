@@ -24,6 +24,7 @@ export function ConversationUserInputBubble({
   return (
     <div
       data-v4-user-input-bubble="true"
+      data-ds-part="message"
       className="flex max-w-full flex-col gap-2 rounded-xl rounded-tr-xs border border-border bg-surface px-4 py-3 text-ui-base text-foreground @min-[624px]/conversation:max-w-xl"
     >
       {text.trim() ? (
