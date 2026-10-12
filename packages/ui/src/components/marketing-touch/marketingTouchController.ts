@@ -14,7 +14,8 @@ export interface PreparedMarketingDelivery {
   success?: Promise<PreparedMarketingHero>;
   release: () => Promise<void>;
 }
-type Candidate = PreparedMarketingDelivery & { scope: string };
+// scope 与 snapshot.scope 同宽度（1010 的服务端可能不下发 scope）
+type Candidate = PreparedMarketingDelivery & { scope: string | undefined };
 // 导出以便 controller 类型（经 MarketingTouchContext）可被 .d.ts 命名引用。
 export interface MarketingTouchState {
   banner: Candidate | null;
@@ -68,14 +69,16 @@ export function createMarketingTouchController(options: {
   }));
   let disposed = false;
   let generation = 0;
-  let snapshotScope = "";
+  // 1010 的 snapshot.scope 是 optional（旧服务端可能不下发）；此处保持同宽度
+  let snapshotScope: string | undefined = "";
   let lastSuccess = 0;
   let failureLogged = false;
   let deferredBanner: Candidate | null | undefined;
   let waitingPopup: Candidate | null = null;
   let waitingResult: Candidate | null = null;
   const lifetime = new AbortController();
-  const key = (delivery: MarketingDelivery) =>
+  // 只读 resource_position / campaign_id：放宽到结构类型，兼容 fork 的 MarketingTouchDelivery
+  const key = (delivery: { resource_position: string; campaign_id: string }) =>
     `${delivery.resource_position}:${delivery.campaign_id}`;
   const release = (value: PreparedMarketingDelivery | null | undefined) => {
     if (value)

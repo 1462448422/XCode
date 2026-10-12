@@ -177,7 +177,8 @@ export type MarketingTouchReportActionType =
   | "cancel";
 
 export interface MarketingTouchReport {
-  scope: string;
+  /** 1010 的 snapshot 可能不下发 scope（旧服务端），故为可选。 */
+  scope?: string;
   campaignId: string;
   actionType: MarketingTouchReportActionType;
   locale: string;
