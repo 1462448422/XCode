@@ -568,6 +568,7 @@ export async function createXCodeApp(options: XCodeAppOptions): Promise<XCodeApp
       mcpPort,
       modelFactory,
       permissionService,
+      pluginSkillRoots: pluginOutcome.skillRoots,
       prepareUserExecutionBoundary,
       getRuntime,
       runtimeConfig,
@@ -639,6 +640,7 @@ export async function createXCodeApp(options: XCodeAppOptions): Promise<XCodeApp
                   // 不各自冻结一份。
                   modelFactory,
                   permissionService,
+                  pluginSkillRoots: pluginOutcome.skillRoots,
                   runtime: getRuntime(),
                   runtimeConfig,
                   sessionId,
