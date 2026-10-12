@@ -121,7 +121,7 @@ export function createPage(
     }
     starting = false;
     try {
-      // 页面独立持有已有 workspace 连接租约；卡片或 pane 退出不会让后台页面失联。
+      // é¡µé¢ç¬ç«ææå·²æ workspace è¿æ¥ç§çº¦ï¼å¡çæ pane éåºä¸ä¼è®©åå°é¡µé¢å¤±èã
       const connection = acquireWorkspaceConnection(
         latest.current.scope,
         services.zcodeAgentService,
@@ -161,12 +161,12 @@ export function createPage(
       ...(latest.current.availableDisplayModes
         ? { availableDisplayModes: latest.current.availableDisplayModes }
         : {}),
-      // 主题 token 随初始 hostContext 下发，主题切换时经 updateHostContext 更新。
+      // ä¸»é¢ token éåå§ hostContext ä¸åï¼ä¸»é¢åæ¢æ¶ç» updateHostContext æ´æ°ã
       styleVariables: readPluginUiStyleVariables(),
     });
     const scope = latest.current.scope;
     const presentation = latest.current.presentation;
-    // 平台交互（downloadFile）与调用方注入的会话交互合成一份；能力声明按合成后的回调是否存在。
+    // å¹³å°äº¤äºï¼downloadFileï¼ä¸è°ç¨æ¹æ³¨å¥çä¼è¯äº¤äºåæä¸ä»½ï¼è½åå£°ææåæåçåè°æ¯å¦å­å¨ã
     const platformInteractions = createPluginUiDownloadInteraction({
       platform,
       bridge,
@@ -185,7 +185,7 @@ export function createPage(
       platform: sandboxPlatform,
       scope,
       presentation,
-      // 按代际登记到路由表；该会话的投影 store 收到 pluginUi.* 增量后按 (scopeId, generation) 投递。
+      // æä»£éç»è®°å°è·¯ç±è¡¨ï¼è¯¥ä¼è¯çæå½± store æ¶å° pluginUi.* å¢éåæ (scopeId, generation) æéã
       resourceNotifications: createPluginUiResourceNotificationRegistrar(
         scope,
         presentation.serverName,
@@ -197,8 +197,8 @@ export function createPage(
         ...(latest.current.toolResult ? { toolResult: latest.current.toolResult } : {}),
         ...(latest.current.toolCancelled ? { toolCancelled: true } : {}),
       }),
-      // widgetState 初值直接读宿主内存 store（唯一 owner），不经 props 再缓存一份；
-      // 端口投递时才读，离屏回收后重建也拿到页面最近一次主动保存的值。
+      // widgetState åå¼ç´æ¥è¯»å®¿ä¸»åå­ storeï¼å¯ä¸ ownerï¼ï¼ä¸ç» props åç¼å­ä¸ä»½ï¼
+      // ç«¯å£æéæ¶æè¯»ï¼ç¦»å±åæ¶åéå»ºä¹æ¿å°é¡µé¢æè¿ä¸æ¬¡ä¸»å¨ä¿å­çå¼ã
       getWidgetState: () => getPluginUiWidgetState(surfaceKey),
       getHostCapabilities: () =>
         buildPluginUiHostCapabilities({
@@ -211,7 +211,7 @@ export function createPage(
           ...(scope.scope.kind === "surface" ? { surfaceId: scope.scope.surfaceId } : {}),
         }),
       ...platformInteractions,
-      // 经 latest ref 转调，回调 identity 变化不触发 controller 重建；缺省回 -32601（端口层翻译成 ProtocolError）。
+      // ç» latest ref è½¬è°ï¼åè° identity ååä¸è§¦å controller éå»ºï¼ç¼ºçå -32601ï¼ç«¯å£å±ç¿»è¯æ ProtocolErrorï¼ã
       onSendFollowUpMessage: (payload, context) =>
         latest.current.interactions?.onSendFollowUpMessage
           ? latest.current.interactions.onSendFollowUpMessage(payload, context)
@@ -225,7 +225,7 @@ export function createPage(
       },
       onPhase: (next, detail) => {
         if (controller !== nextController) return;
-        // 生命周期事件每个沙箱只有几条，走 lifecycle 才能进主日志（排查用户现场用）。
+        // çå½å¨æäºä»¶æ¯ä¸ªæ²ç®±åªæå æ¡ï¼èµ° lifecycle æè½è¿ä¸»æ¥å¿ï¼ææ¥ç¨æ·ç°åºç¨ï¼ã
         logger.lifecycle.info("[plugin-ui] lifecycle", {
           phase: next,
           sessionId: latest.current.scope.sessionId,
@@ -241,10 +241,10 @@ export function createPage(
         setPhase(next);
         if (detail?.handle) {
           setHandle(detail.handle);
-          // 资源声明的初始高度替代固定 240；仍受 min / max clamp。
+          // èµæºå£°æçåå§é«åº¦æ¿ä»£åºå® 240ï¼ä»å min / max clampã
           const hint = detail.handle.resourceMeta?.heightHint;
           if (hint !== undefined) setHeight(clampCardHeight(hint, detail.handle));
-          // 资源声明的浏览器权限随句柄到达（早于端口），进 hostContext 让页面 feature detect（规范草案 `permissions`）。
+          // èµæºå£°æçæµè§å¨æééå¥æå°è¾¾ï¼æ©äºç«¯å£ï¼ï¼è¿ hostContext è®©é¡µé¢ feature detectï¼è§èèæ¡ `permissions`ï¼ã
           const permissions = detail.handle.resourceMeta?.permissions;
           if (permissions?.length) {
             nextController.updateHostContext({
@@ -308,7 +308,7 @@ export function createPage(
       return off;
     },
     update(next) {
-      // 背景内联锚点不能覆盖侧栏当前的交互上下文。
+      // èæ¯åèéç¹ä¸è½è¦çä¾§æ å½åçäº¤äºä¸ä¸æã
       if (next.enabled === false) return;
       latest.current = next;
       const nextContextInputs = JSON.stringify([
@@ -353,7 +353,7 @@ export function createPage(
       const candidate = controller;
       if (!force && (starting || (candidate && !(await candidate.tryRecycle().catch(() => false)))))
         return false;
-      // 审批接纳与后台回收在 Agent 原子裁决；等待期间替换的 controller 不受旧结果影响。
+      // å®¡æ¹æ¥çº³ä¸åå°åæ¶å¨ Agent åå­è£å³ï¼ç­å¾æé´æ¿æ¢ç controller ä¸åæ§ç»æå½±åã
       if (!force && candidate !== controller) return false;
       incarnation++;
       starting = false;
@@ -365,8 +365,8 @@ export function createPage(
       releaseFeed = undefined;
       releaseLease = undefined;
       patch({ phase: "idle", handle: null, appCapabilities: undefined });
-      // 先前释放未完成时不能重新预备；反复重试也只等待同一个释放链。
-      // Main 主动导航到 about:blank 会触发 navigation；先解除旧代际观察，避免回收被误报为崩溃。
+      // ååéæ¾æªå®ææ¶ä¸è½éæ°é¢å¤ï¼åå¤éè¯ä¹åªç­å¾åä¸ä¸ªéæ¾é¾ã
+      // Main ä¸»å¨å¯¼èªå° about:blank ä¼è§¦å navigationï¼åè§£é¤æ§ä»£éè§å¯ï¼é¿ååæ¶è¢«è¯¯æ¥ä¸ºå´©æºã
       if (previousHandle) plane.prepareUnmount(previousHandle.sandboxId);
       const closing = previous?.dispose();
       releasing = Promise.all([releasing, closing]).then(() => {
@@ -376,7 +376,7 @@ export function createPage(
         pluginUiPages.released(page);
       });
       await releasing;
-      // 等待 Agent 回收答复时锚点可能重新可见；释放完成后由同一 owner 恢复，避免停在空页面。
+      // ç­å¾ Agent åæ¶ç­å¤æ¶éç¹å¯è½éæ°å¯è§ï¼éæ¾å®æåç±åä¸ owner æ¢å¤ï¼é¿ååå¨ç©ºé¡µé¢ã
       if (!force && page.visible && !disposed) void ensure();
       return true;
     },
@@ -392,7 +392,7 @@ export function createPage(
   return page;
 }
 
-/** 卡片高度 clamp：下限取资源 `minFrameHeight` 与宿主最小值的较大者，上限固定。 */
+/** å¡çé«åº¦ clampï¼ä¸éåèµæº `minFrameHeight` ä¸å®¿ä¸»æå°å¼çè¾å¤§èï¼ä¸éåºå®ã */
 function clampCardHeight(next: number, handle: PluginSandboxHandle | null): number {
   const min = Math.max(PLUGIN_UI_CARD_MIN_HEIGHT_PX, handle?.resourceMeta?.minFrameHeight ?? 0);
   return Math.min(PLUGIN_UI_CARD_MAX_HEIGHT_PX, Math.max(min, next));

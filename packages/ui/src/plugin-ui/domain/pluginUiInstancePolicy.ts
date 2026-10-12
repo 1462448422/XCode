@@ -1,25 +1,25 @@
 import type { ConversationRow, ToolCallRow } from "@zcode/shared/zcode-protocol-v4";
 import { resolvePluginUiLogicalScope } from "./pluginUiLogicalScope.js";
 
-/** ：最近几个回合的插件卡片默认展开，更早的按默认收进折叠区。 */
+/** ï¼æè¿å ä¸ªååçæä»¶å¡çé»è®¤å±å¼ï¼æ´æ©çæé»è®¤æ¶è¿æå åºã */
 export const PLUGIN_UI_AUTO_EXPAND_TURNS = 3;
 
-/** 一个逻辑 UI：仅显式 surface 或权限范围一致的 widgetSessionId 共用，其余调用独立。 */
+/** ä¸ä¸ªé»è¾ UIï¼ä»æ¾å¼ surface ææéèå´ä¸è´ç widgetSessionId å±ç¨ï¼å¶ä½è°ç¨ç¬ç«ã */
 export interface PluginUiLogicalInstance {
   key: string;
-  /** 当前显示的调用：最新一次成功（非 isError）的；没有成功的就是最新一条。 */
+  /** å½åæ¾ç¤ºçè°ç¨ï¼ææ°ä¸æ¬¡æåï¼é isErrorï¼çï¼æ²¡ææåçå°±æ¯ææ°ä¸æ¡ã */
   activeToolCallId: string;
-  /** 被较新成功结果替代的成功调用；它们不建沙箱，只保留普通工具记录。 */
+  /** è¢«è¾æ°æåç»ææ¿ä»£çæåè°ç¨ï¼å®ä»¬ä¸å»ºæ²ç®±ï¼åªä¿çæ®éå·¥å·è®°å½ã */
   supersededToolCallIds: string[];
 }
 
-/** 单条插件工具行的展示裁决；渲染层据此决定进不进折叠区、要不要建沙箱。 */
+/** åæ¡æä»¶å·¥å·è¡çå±ç¤ºè£å³ï¼æ¸²æå±æ®æ­¤å³å®è¿ä¸è¿æå åºãè¦ä¸è¦å»ºæ²ç®±ã */
 export interface PluginUiRowDisposition {
   key: string;
   superseded: boolean;
-  /** 所在回合在最近 PLUGIN_UI_AUTO_EXPAND_TURNS 个回合内。 */
+  /** æå¨ååå¨æè¿ PLUGIN_UI_AUTO_EXPAND_TURNS ä¸ªåååã */
   autoExpand: boolean;
-  /** 工具级 `openai/widgetShowCodexWidgetInline`（display.ui.showInline）。 */
+  /** å·¥å·çº§ `openai/widgetShowCodexWidgetInline`ï¼display.ui.showInlineï¼ã */
   forcedInline: boolean;
 }
 
@@ -47,16 +47,16 @@ function isSuccessfulUiRow(row: ToolCallRow): boolean {
 }
 
 /**
- * 纯函数：从投影行推导逻辑 UI 实例与每行的展示裁决（V-a）。
- * key 同时绑定来源、server、资源、权限与逻辑视图；同 key 内最新一次成功结果替代更早的成功结果，
- * running / failed / isError 的行既不替代别人也不被替代（各自显示自己的状态）。
- * autoExpand 按全部行的回合顺序取最近 N 个回合（回合里没有插件卡片也算一个回合）。
+ * çº¯å½æ°ï¼ä»æå½±è¡æ¨å¯¼é»è¾ UI å®ä¾ä¸æ¯è¡çå±ç¤ºè£å³ï¼V-aï¼ã
+ * key åæ¶ç»å®æ¥æºãserverãèµæºãæéä¸é»è¾è§å¾ï¼å key åææ°ä¸æ¬¡æåç»ææ¿ä»£æ´æ©çæåç»æï¼
+ * running / failed / isError çè¡æ¢ä¸æ¿ä»£å«äººä¹ä¸è¢«æ¿ä»£ï¼åèªæ¾ç¤ºèªå·±çç¶æï¼ã
+ * autoExpand æå¨é¨è¡çååé¡ºåºåæè¿ N ä¸ªååï¼ååéæ²¡ææä»¶å¡çä¹ç®ä¸ä¸ªååï¼ã
  */
 export function deriveLogicalUiInstances(
   rows: readonly ConversationRow[],
   options: { autoExpandTurns?: number } = {},
 ): PluginUiInstanceDerivation {
-  // domain 不用 Map / Set（模块边界约束），全部用数组与普通对象。
+  // domain ä¸ç¨ Map / Setï¼æ¨¡åè¾¹ççº¦æï¼ï¼å¨é¨ç¨æ°ç»ä¸æ®éå¯¹è±¡ã
   const turnOrder: string[] = [];
   for (const row of rows) {
     if (!turnOrder.includes(row.turnId)) turnOrder.push(row.turnId);

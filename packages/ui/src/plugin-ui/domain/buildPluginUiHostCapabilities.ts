@@ -6,24 +6,24 @@ import {
   buildMcpAppsCspExperimentalCapability,
 } from "@zcode/shared/mcp-apps";
 
-/** 宿主实例真实可用的交互；缺省项对应的能力不声明，插件据此降级。 */
+/** å®¿ä¸»å®ä¾çå®å¯ç¨çäº¤äºï¼ç¼ºçé¡¹å¯¹åºçè½åä¸å£°æï¼æä»¶æ®æ­¤éçº§ã */
 export interface PluginUiHostCapabilityInput {
   canSample?: boolean;
   canSendFollowUpMessage: boolean;
   canUpdateModelContext: boolean;
   canSetWidgetState: boolean;
-  /** 宿主能代理 resources/subscribe 并把 server 通知路由回本实例。 */
+  /** å®¿ä¸»è½ä»£ç resources/subscribe å¹¶æ server éç¥è·¯ç±åæ¬å®ä¾ã */
   canSubscribeResources: boolean;
-  /** 平台有 saveFile（桌面）才声明 downloadFile。 */
+  /** å¹³å°æ saveFileï¼æ¡é¢ï¼æå£°æ downloadFileã */
   canDownloadFile: boolean;
-  /** 常驻面板实例：宣告 `experimental["zcode/surface"]: { id }`，页面据此判断自己运行在面板里。 */
+  /** å¸¸é©»é¢æ¿å®ä¾ï¼å®£å `experimental["zcode/surface"]: { id }`ï¼é¡µé¢æ®æ­¤å¤æ­èªå·±è¿è¡å¨é¢æ¿éã */
   surfaceId?: string;
 }
 
 /**
- * hostCapabilities 的唯一构造点。声明与 handler 一一对应：没有会话动作绑定就不声明 message，没有 composer 就不声明
- * updateModelContext。XCode 扩展（widgetState、resourceSubscribe、surface、csp 放宽）一律放 `experimental["zcode/…"]`，
- * 官方 SDK 的 zod 会剥掉标准位之外的未知能力键。
+ * hostCapabilities çå¯ä¸æé ç¹ãå£°æä¸ handler ä¸ä¸å¯¹åºï¼æ²¡æä¼è¯å¨ä½ç»å®å°±ä¸å£°æ messageï¼æ²¡æ composer å°±ä¸å£°æ
+ * updateModelContextãXCode æ©å±ï¼widgetStateãresourceSubscribeãsurfaceãcsp æ¾å®½ï¼ä¸å¾æ¾ `experimental["zcode/â¦"]`ï¼
+ * å®æ¹ SDK ç zod ä¼å¥ææ åä½ä¹å¤çæªç¥è½åé®ã
  */
 export function buildPluginUiHostCapabilities(
   input: PluginUiHostCapabilityInput,
@@ -35,7 +35,7 @@ export function buildPluginUiHostCapabilities(
     logging: {},
     ...(input.canSample ? { sampling: {} } : {}),
     ...(input.canDownloadFile ? { downloadFile: {} } : {}),
-    // image 随 text 一起声明（png / jpeg / webp，单张 ≤ 4 MiB）。
+    // image é text ä¸èµ·å£°æï¼png / jpeg / webpï¼åå¼  â¤ 4 MiBï¼ã
     ...(input.canSendFollowUpMessage ? { message: { text: {}, image: {} } } : {}),
     ...(input.canUpdateModelContext
       ? { updateModelContext: { text: {}, structuredContent: {}, image: {} } }

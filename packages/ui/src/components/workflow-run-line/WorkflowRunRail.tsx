@@ -1,6 +1,6 @@
-// 工作流运行的迷你轨道（docs/dynamic-workflow/presentation.md「The sidebar run line」）：6px 灯按
-// 声明序排开，之间是 6×1px 的轨段——控制流走过的段用强色，并行的两站之间画双线段；超过六站时折到
-// 运行站 ±2 并带「+n」尾。侧栏运行行与任务岛的 run 行共用这一个组件：一条 run 在两处长得一样。
+// å·¥ä½æµè¿è¡çè¿·ä½ è½¨éï¼docs/dynamic-workflow/presentation.mdãThe sidebar run lineãï¼ï¼6px ç¯æ
+// å£°æåºæå¼ï¼ä¹é´æ¯ 6Ã1px çè½¨æ®µââæ§å¶æµèµ°è¿çæ®µç¨å¼ºè²ï¼å¹¶è¡çä¸¤ç«ä¹é´ç»åçº¿æ®µï¼è¶è¿å­ç«æ¶æå°
+// è¿è¡ç« Â±2 å¹¶å¸¦ã+nãå°¾ãä¾§æ è¿è¡è¡ä¸ä»»å¡å²ç run è¡å±ç¨è¿ä¸ä¸ªç»ä»¶ï¼ä¸æ¡ run å¨ä¸¤å¤é¿å¾ä¸æ ·ã
 import { cn } from "@/components/lib/utils.js";
 import { STATUS_DOT } from "@/components/workflow-graph/run-status-presentation.js";
 import type { WorkflowRunRail as WorkflowRunRailModel } from "@/lib/workflowRunLine.js";
@@ -36,8 +36,8 @@ export function WorkflowRunRail({
         <span key={`${station.name}:${index}`} className="flex items-center">
           {index > 0 ? (
             station.twin === true ? (
-              // 双线段：本站与前一站并行，控制流没有从那站走到这站。两条 1px 线相距 2px
-              // （容器 4px，上下各贴一条），宽度与墨色规则与普通段完全相同。
+              // åçº¿æ®µï¼æ¬ç«ä¸åä¸ç«å¹¶è¡ï¼æ§å¶æµæ²¡æä»é£ç«èµ°å°è¿ç«ãä¸¤æ¡ 1px çº¿ç¸è· 2px
+              // ï¼å®¹å¨ 4pxï¼ä¸ä¸åè´´ä¸æ¡ï¼ï¼å®½åº¦ä¸å¢¨è²è§åä¸æ®éæ®µå®å¨ç¸åã
               <span
                 aria-hidden="true"
                 data-rail-segment={station.reached ? "strong" : "faint"}
@@ -70,8 +70,8 @@ export function WorkflowRunRail({
               className={cn("size-1.5 rounded-full", STATUS_DOT[station.status])}
             />
           ) : (
-            // 留白（docs/dynamic-workflow/presentation.md「Holes on the timeline」的「The sidebar」）：
-            // 虚线 6px 灯，等待时警示色。补全后它就是普通站，这一支不再走。
+            // çç½ï¼docs/dynamic-workflow/presentation.mdãHoles on the timelineãçãThe sidebarãï¼ï¼
+            // èçº¿ 6px ç¯ï¼ç­å¾æ¶è­¦ç¤ºè²ãè¡¥å¨åå®å°±æ¯æ®éç«ï¼è¿ä¸æ¯ä¸åèµ°ã
             <span
               aria-hidden="true"
               data-rail-station={station.status}

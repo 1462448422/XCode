@@ -14,18 +14,18 @@ export function getUserFacingEventSummary(
   formatMessage?: MessageFormatter,
 ) {
   const normalizedSummary = event.summary.trim();
-  // Bugfix: 后端事件摘要会持久化为中文，切到英文后历史数据仍会原样透出。
-  // 这里仅翻译已知系统摘要，保留用户/运营手写内容，避免误改真实回复。
+  // Bugfix: åç«¯äºä»¶æè¦ä¼æä¹åä¸ºä¸­æï¼åå°è±æååå²æ°æ®ä»ä¼åæ ·éåºã
+  // è¿éä»ç¿»è¯å·²ç¥ç³»ç»æè¦ï¼ä¿çç¨æ·/è¿è¥æååå®¹ï¼é¿åè¯¯æ¹çå®åå¤ã
   const knownSummary = formatKnownSystemEventSummary(normalizedSummary, formatMessage);
   if (knownSummary) {
     return knownSummary;
   }
-  // Bugfix: 用户侧只需要理解「产品经理 / 研发」两个处理身份，不能把具体开发姓名透出。
-  if (event.type === "assignee_changed" && /^已交由 .+ 跟进$/.test(normalizedSummary)) {
+  // Bugfix: ç¨æ·ä¾§åªéè¦çè§£ãäº§åç»ç / ç åãä¸¤ä¸ªå¤çèº«ä»½ï¼ä¸è½æå·ä½å¼åå§åéåºã
+  if (event.type === "assignee_changed" && /^å·²äº¤ç± .+ è·è¿$/.test(normalizedSummary)) {
     return formatOptionalMessage(
       formatMessage,
       "feedback.timeline.assignedToDev",
-      "已交由研发跟进",
+      "å·²äº¤ç±ç åè·è¿",
     );
   }
   return event.summary;
@@ -40,19 +40,19 @@ function formatKnownSystemEventSummary(
     return formatOptionalMessage(formatMessage, directMessageId, summary);
   }
 
-  const statusChanged = summary.match(/^状态更新为「(.+)」$/);
+  const statusChanged = summary.match(/^ç¶ææ´æ°ä¸ºã(.+)ã$/);
   if (statusChanged) {
     const status = toKnownFeedbackStatus(statusChanged[1]);
     if (!status) return summary;
     return formatOptionalMessage(
       formatMessage,
       "feedback.timeline.event.statusChanged",
-      `状态更新为「${status}」`,
+      `ç¶ææ´æ°ä¸ºã${status}ã`,
       { status: formatStatusLabel(status, formatMessage) },
     );
   }
 
-  const agentSubmitted = summary.match(/^(.+) 通过 Agent 提交反馈$/);
+  const agentSubmitted = summary.match(/^(.+) éè¿ Agent æäº¤åé¦$/);
   if (agentSubmitted) {
     const name = agentSubmitted[1] ?? "";
     return formatOptionalMessage(
@@ -63,7 +63,7 @@ function formatKnownSystemEventSummary(
     );
   }
 
-  const progressWithStatus = summary.match(/^进度更新（状态→(.+)）：(.+)$/);
+  const progressWithStatus = summary.match(/^è¿åº¦æ´æ°ï¼ç¶æâ(.+)ï¼ï¼(.+)$/);
   if (progressWithStatus) {
     const status = toKnownFeedbackStatus(progressWithStatus[1]);
     const message = progressWithStatus[2] ?? "";
@@ -76,12 +76,12 @@ function formatKnownSystemEventSummary(
     );
   }
 
-  const progressWithMessage = summary.match(/^进度更新：(.+)$/);
+  const progressWithMessage = summary.match(/^è¿åº¦æ´æ°ï¼(.+)$/);
   if (progressWithMessage) {
     return formatProgressWithMessage(progressWithMessage[1] ?? "", formatMessage);
   }
 
-  const markedStatus = summary.match(/^标记为「(.+)」：(.+)$/);
+  const markedStatus = summary.match(/^æ è®°ä¸ºã(.+)ãï¼(.+)$/);
   if (markedStatus) {
     const status = toKnownFeedbackStatus(markedStatus[1]);
     const message = markedStatus[2] ?? "";
@@ -99,18 +99,18 @@ function formatKnownSystemEventSummary(
 
 function getKnownSystemSummaryMessageId(summary: string) {
   switch (summary) {
-    case "反馈已提交":
+    case "åé¦å·²æäº¤":
       return "feedback.timeline.event.submitted";
-    case "你补充了信息":
+    case "ä½ è¡¥åäºä¿¡æ¯":
       return "feedback.timeline.yourSupplement";
-    case "官方回复":
+    case "å®æ¹åå¤":
       return "feedback.timeline.officialReply";
-    case "处理进度更新":
+    case "å¤çè¿åº¦æ´æ°":
       return "feedback.timeline.event.progressUpdated";
-    case "处理结论":
+    case "å¤çç»è®º":
       return "feedback.timeline.event.conclusion";
-    case "完整日志已上传，反馈进入待评估":
-    case "完整日志已上传，反馈进入已提交":
+    case "å®æ´æ¥å¿å·²ä¸ä¼ ï¼åé¦è¿å¥å¾è¯ä¼°":
+    case "å®æ´æ¥å¿å·²ä¸ä¼ ï¼åé¦è¿å¥å·²æäº¤":
       return "feedback.timeline.event.fullLogUploaded";
     default:
       return null;
@@ -124,7 +124,7 @@ function formatProgressWithMessage(
   return formatOptionalMessage(
     formatMessage,
     "feedback.timeline.event.progressUpdatedWithMessage",
-    `进度更新：${message}`,
+    `è¿åº¦æ´æ°ï¼${message}`,
     { message },
   );
 }

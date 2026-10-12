@@ -8,8 +8,8 @@ export type OpenScopedPluginUiSideTabRequest = OpenPluginUiSideTabRequest & {
 };
 
 /**
- * 与 plan-detail 同构：按 workspaceKey + parentSessionId + 作用域派生稳定 id。
- * 工具卡片 `…:<toolCallId>`；面板 `…:surface:<surfaceId>`（面板 id 与 toolCallId 不同命名空间，前缀防撞）。
+ * ä¸ plan-detail åæï¼æ workspaceKey + parentSessionId + ä½ç¨åæ´¾çç¨³å® idã
+ * å·¥å·å¡ç `â¦:<toolCallId>`ï¼é¢æ¿ `â¦:surface:<surfaceId>`ï¼é¢æ¿ id ä¸ toolCallId ä¸åå½åç©ºé´ï¼åç¼é²æï¼ã
  */
 export function createPluginUiSidePaneTab(
   options: OpenScopedPluginUiSideTabRequest,
@@ -35,7 +35,7 @@ export function createPluginUiSidePaneTab(
   };
 }
 
-/** 同一作用域只保留一个 tab；重复打开只刷新标题并激活。 */
+/** åä¸ä½ç¨ååªä¿çä¸ä¸ª tabï¼éå¤æå¼åªå·æ°æ é¢å¹¶æ¿æ´»ã */
 export function openPluginUiSidePane(
   current: WorkspaceSidePaneState | null,
   options: OpenScopedPluginUiSideTabRequest,

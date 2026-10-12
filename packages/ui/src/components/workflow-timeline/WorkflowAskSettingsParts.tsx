@@ -1,8 +1,8 @@
 // ============================================================
-// 确认窗两句设置的零件（docs/dynamic-workflow/presentation.md「The confirmation window」）
+// ç¡®è®¤çªä¸¤å¥è®¾ç½®çé¶ä»¶ï¼docs/dynamic-workflow/presentation.mdãThe confirmation windowãï¼
 // ============================================================
-// 从 WorkflowAskSettingsLines.tsx 拆出（max-lines 门）：两句共用的类名与「· 原为 X ↺」尾巴、上界那一句、
-// 以及块缺席（旧 agent）时的纯文本条件行。状态都在 WorkflowAskSettings 里，这里的组件只收烹熟的值。
+// ä» WorkflowAskSettingsLines.tsx æåºï¼max-lines é¨ï¼ï¼ä¸¤å¥å±ç¨çç±»åä¸ãÂ· åä¸º X âºãå°¾å·´ãä¸çé£ä¸å¥ã
+// ä»¥ååç¼ºå¸­ï¼æ§ agentï¼æ¶ççº¯ææ¬æ¡ä»¶è¡ãç¶æé½å¨ WorkflowAskSettings éï¼è¿éçç»ä»¶åªæ¶ç¹ççå¼ã
 
 import { MinusIcon, PlusIcon, Undo2Icon } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
@@ -16,14 +16,14 @@ import {
 import { useXCodeIntl } from "@/i18n/IntlProvider.js";
 import { clampWorkflowRunSettingsBound } from "./workflowRunSettings.js";
 
-/** 句中的值画成一枚芯片：平时是一小块 surface，悬停才出边框与输入底色（composer 模型触发器的语汇）。 */
+/** å¥ä¸­çå¼ç»æä¸æè¯çï¼å¹³æ¶æ¯ä¸å°å surfaceï¼æ¬åæåºè¾¹æ¡ä¸è¾å¥åºè²ï¼composer æ¨¡åè§¦åå¨çè¯­æ±ï¼ã */
 export const WORKFLOW_ASK_CHIP_CLASS_NAME =
   "h-6 min-w-0 max-w-[260px] gap-1 rounded-md border border-transparent bg-surface pl-[7px] pr-1 text-ui-sm text-foreground hover:border-border-hover hover:bg-input focus-visible:border-input-border-focused data-[state=open]:border-border-hover data-[state=open]:bg-input [&_svg]:size-3";
 export const WORKFLOW_ASK_LINE_CLASS_NAME =
   "flex min-h-6 min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-ui-sm text-foreground-subtle";
 export const WORKFLOW_ASK_TAIL_CLASS_NAME = "text-foreground-subtlest";
 
-/** 「· 原为 X ↺」：改过的那一行才有；↺ 把这一行放回起点。 */
+/** ãÂ· åä¸º X âºãï¼æ¹è¿çé£ä¸è¡ææï¼âº æè¿ä¸è¡æ¾åèµ·ç¹ã */
 export function WorkflowAskWasTail({
   disabled,
   onReset,
@@ -37,11 +37,11 @@ export function WorkflowAskWasTail({
 }) {
   const { intl } = useXCodeIntl();
   const resetLabel = intl.formatMessage({ id: "chat.permission.workflow.settings.reset" });
-  // 按钮只有图标：aria-label 给读屏，title 给悬停（spec：「恢复原值」）。
+  // æé®åªæå¾æ ï¼aria-label ç»è¯»å±ï¼title ç»æ¬åï¼specï¼ãæ¢å¤åå¼ãï¼ã
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-0.5", WORKFLOW_ASK_TAIL_CLASS_NAME)}>
       <span className="min-w-0 truncate" data-testid={`${testId}-was`}>
-        · {intl.formatMessage({ id: "chat.permission.workflow.settings.was" }, { value })}
+        Â· {intl.formatMessage({ id: "chat.permission.workflow.settings.was" }, { value })}
       </span>
       <Button
         aria-label={resetLabel}
@@ -71,7 +71,7 @@ export function WorkflowAskBoundLine({
 }: {
   bound: number | null;
   changed: boolean;
-  /** 默认并发 D：只用来写「· 默认 N」与判「= 默认」，不是步进器的上界。 */
+  /** é»è®¤å¹¶å Dï¼åªç¨æ¥åãÂ· é»è®¤ Nãä¸å¤ã= é»è®¤ãï¼ä¸æ¯æ­¥è¿å¨çä¸çã */
   defaultConcurrency: number | undefined;
   disabled: boolean;
   initial: number | null;
@@ -127,7 +127,7 @@ export function WorkflowAskBoundLine({
             const parsed = Number.parseInt(event.target.value, 10);
             if (Number.isFinite(parsed)) onChange(clampWorkflowRunSettingsBound(parsed));
           }}
-          placeholder="—"
+          placeholder="â"
           value={bound === null ? "" : String(bound)}
         />
         <InputGroupAddon align="inline-end">
@@ -148,7 +148,7 @@ export function WorkflowAskBoundLine({
           className={WORKFLOW_ASK_TAIL_CLASS_NAME}
           data-testid="workflow-permission-settings-bound-tail"
         >
-          · {tail}
+          Â· {tail}
         </span>
       )}
       {changed ? (
@@ -164,8 +164,8 @@ export function WorkflowAskBoundLine({
 }
 
 /**
- * 块缺席时的纯文本条件行（旧 agent）：只有调用设了的字段，模型在上、上界在下，`text-ui-xs` 最淡色。
- * 与可调的两行同一个次序，好让新旧两种窗读起来是同一件事。模型说解析好的名字，规范串只进 tooltip。
+ * åç¼ºå¸­æ¶ççº¯ææ¬æ¡ä»¶è¡ï¼æ§ agentï¼ï¼åªæè°ç¨è®¾äºçå­æ®µï¼æ¨¡åå¨ä¸ãä¸çå¨ä¸ï¼`text-ui-xs` ææ·¡è²ã
+ * ä¸å¯è°çä¸¤è¡åä¸ä¸ªæ¬¡åºï¼å¥½è®©æ°æ§ä¸¤ç§çªè¯»èµ·æ¥æ¯åä¸ä»¶äºãæ¨¡åè¯´è§£æå¥½çåå­ï¼è§èä¸²åªè¿ tooltipã
  */
 export function WorkflowAskPlainSettings({
   maxConcurrency,
@@ -173,7 +173,7 @@ export function WorkflowAskPlainSettings({
   subagentModel,
 }: {
   maxConcurrency: number | undefined;
-  /** 脚本给某些子代理点名了模型：模型那一句说「默认」（它不再替每一个子代理说话）。 */
+  /** èæ¬ç»æäºå­ä»£çç¹åäºæ¨¡åï¼æ¨¡åé£ä¸å¥è¯´ãé»è®¤ãï¼å®ä¸åæ¿æ¯ä¸ä¸ªå­ä»£çè¯´è¯ï¼ã */
   scriptNamesModels?: boolean;
   subagentModel: { text: string; tooltip: string } | undefined;
 }) {

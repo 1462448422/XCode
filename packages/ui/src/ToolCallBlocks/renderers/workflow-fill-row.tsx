@@ -16,9 +16,9 @@ import type { WorkflowKindVocabulary } from "@/ToolCallBlocks/renderers/createWo
 import { isFillWorkflowHoleToolCall } from "@/lib/workflowToolNames.js";
 
 /**
- * 留白补全行在 create-workflow 渲染器里的那几样（docs/dynamic-workflow/presentation.md「The fill row」）。
- * 从 create-workflow.tsx 拆出（max-lines 门）：同一个渲染器换留白词汇；主文本是留白的名字（来自 display
- * 的 `fill` 块——行的入参没有名字）；草稿阶段线是父轨道上补全所在的那一截（新的站全墨、两侧邻站 ghost）。
+ * çç½è¡¥å¨è¡å¨ create-workflow æ¸²æå¨éçé£å æ ·ï¼docs/dynamic-workflow/presentation.mdãThe fill rowãï¼ã
+ * ä» create-workflow.tsx æåºï¼max-lines é¨ï¼ï¼åä¸ä¸ªæ¸²æå¨æ¢çç½è¯æ±ï¼ä¸»ææ¬æ¯çç½çåå­ï¼æ¥èª display
+ * ç `fill` åââè¡çå¥åæ²¡æåå­ï¼ï¼èç¨¿é¶æ®µçº¿æ¯ç¶è½¨éä¸è¡¥å¨æå¨çé£ä¸æªï¼æ°çç«å¨å¢¨ãä¸¤ä¾§é»ç« ghostï¼ã
  */
 export function useWorkflowHoleRow(
   toolCall: {
@@ -45,7 +45,7 @@ export function useWorkflowHoleRow(
   return { fill, holeTarget, vocabulary: fill ? "hole" : amend };
 }
 
-/** 卡上的时间线模型：有图按图（补全行收窄到补全那一截），流式中按草稿扫描，其余没有。 */
+/** å¡ä¸çæ¶é´çº¿æ¨¡åï¼æå¾æå¾ï¼è¡¥å¨è¡æ¶çªå°è¡¥å¨é£ä¸æªï¼ï¼æµå¼ä¸­æèç¨¿æ«æï¼å¶ä½æ²¡æã */
 export function useWorkflowCardModel({
   graph,
   holeTarget,
@@ -61,7 +61,7 @@ export function useWorkflowCardModel({
 }): WorkflowTimelineModel | undefined {
   return useMemo(() => {
     if (graph !== undefined) {
-      // 补全行：有效脚本的图收窄到补全所在的那一截（邻站 ghost）；名字来自工具回填的入参。
+      // è¡¥å¨è¡ï¼ææèæ¬çå¾æ¶çªå°è¡¥å¨æå¨çé£ä¸æªï¼é»ç« ghostï¼ï¼åå­æ¥èªå·¥å·åå¡«çå¥åã
       if (holeTarget?.holeId !== undefined) {
         const labels = new Map(
           holeTarget.name === undefined ? [] : [[holeTarget.holeId, { name: holeTarget.name }]],
@@ -71,22 +71,22 @@ export function useWorkflowCardModel({
       }
       return buildWorkflowTimeline(graph, run);
     }
-    // 流式草稿：display 还没到，站先从半截脚本里扫出来；display 一到整个模型被替换。
+    // æµå¼èç¨¿ï¼display è¿æ²¡å°ï¼ç«åä»åæªèæ¬éæ«åºæ¥ï¼display ä¸å°æ´ä¸ªæ¨¡åè¢«æ¿æ¢ã
     if (writing && scriptText !== undefined) return draftTimeline(scanWorkflowDraft(scriptText));
     return undefined;
   }, [graph, holeTarget, run, scriptText, writing]);
 }
 
 /**
- * 启动前 / 反馈行的主文本。ToolLayout 是 memo 组件：交给它的节点必须引用稳定。补全行是
- * `· <留白名>`；其余只有名字。留白的类型不上界面。
+ * å¯å¨å / åé¦è¡çä¸»ææ¬ãToolLayout æ¯ memo ç»ä»¶ï¼äº¤ç»å®çèç¹å¿é¡»å¼ç¨ç¨³å®ãè¡¥å¨è¡æ¯
+ * `Â· <çç½å>`ï¼å¶ä½åªæåå­ãçç½çç±»åä¸ä¸çé¢ã
  */
 export function useWorkflowRowPrimaryText(fill: boolean, name: string): ReactNode {
   return useMemo(
     () =>
       fill ? (
         <span className="inline-flex min-w-0 items-center gap-2 text-foreground-subtlest">
-          <span aria-hidden>·</span>
+          <span aria-hidden>Â·</span>
           <span className="truncate" data-testid="workflow-fill-hole-name">
             {name}
           </span>

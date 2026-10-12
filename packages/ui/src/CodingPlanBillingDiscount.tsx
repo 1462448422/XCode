@@ -76,7 +76,7 @@ export function useCodingPlanBillingDiscountFromService(
         loading: false,
       });
     } catch (error) {
-      logger.warn("[CodingPlanBillingDiscount] 读取 Coding Plan 活动配置失败", {
+      logger.warn("[CodingPlanBillingDiscount] è¯»å Coding Plan æ´»å¨éç½®å¤±è´¥", {
         error: error instanceof Error ? error.message : String(error),
       });
       setState({ active: false, config: undefined, loading: false });
@@ -142,8 +142,8 @@ export function CodingPlanBillingDiscountBadgePill({
   return (
     <div
       className={cn(
-        // Bugfix: 活动徽标文案来自服务端多语言配置，英文可能需要保留 Title Case。
-        // 不能用 uppercase 强制转写，否则 "150% Quota" 会被渲染成 "150% QUOTA"。
+        // Bugfix: æ´»å¨å¾½æ ææ¡æ¥èªæå¡ç«¯å¤è¯­è¨éç½®ï¼è±æå¯è½éè¦ä¿ç Title Caseã
+        // ä¸è½ç¨ uppercase å¼ºå¶è½¬åï¼å¦å "150% Quota" ä¼è¢«æ¸²ææ "150% QUOTA"ã
         "inline-flex items-center py-0.5 whitespace-nowrap",
         size === "compact"
           ? "gap-0.5 px-1.5 text-ui-xs leading-none"
@@ -228,7 +228,7 @@ export function CodingPlanBillingDiscountInfoDialog({
 }) {
   const { intl, locale } = useXCodeIntl();
   const copy = resolveCodingPlanBillingDiscountCopy(config, locale);
-  // M5②.5 store 耦合剥离：MessageResponse 不再自取 store，主题/代码预览设置由调用方传入。
+  // M5â¡.5 store è¦åå¥ç¦»ï¼MessageResponse ä¸åèªå storeï¼ä¸»é¢/ä»£ç é¢è§è®¾ç½®ç±è°ç¨æ¹ä¼ å¥ã
   const theme = useXCodeStoreWithDefault((state) => state.theme, "system");
   const codePreviewSettings = useXCodeStoreWithDefault(
     (state) => state.codePreviewSettings,
@@ -237,8 +237,8 @@ export function CodingPlanBillingDiscountInfoDialog({
   const openLabel = intl.formatMessage({
     id: "settings.modelProvider.codingPlan.billingDiscountInfo.open",
   });
-  // 活动规则会随服务端运营配置变化，必须整体使用远端标题和 Markdown 正文，
-  // 缺失时隐藏入口，避免本地旧规则与当前活动不一致。
+  // æ´»å¨è§åä¼éæå¡ç«¯è¿è¥éç½®ååï¼å¿é¡»æ´ä½ä½¿ç¨è¿ç«¯æ é¢å Markdown æ­£æï¼
+  // ç¼ºå¤±æ¶éèå¥å£ï¼é¿åæ¬å°æ§è§åä¸å½åæ´»å¨ä¸ä¸è´ã
   if (!copy.infoTitle || !copy.infoBody) {
     return null;
   }

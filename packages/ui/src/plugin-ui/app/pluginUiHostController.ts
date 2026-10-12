@@ -48,10 +48,10 @@ export function createPluginUiHostController(
   let preparation: Promise<void> | null = null;
   let recycling = false;
   let closedDuringRecycle = false;
-  // initialized 已到：可以直接 send*；之前的 notify* 不排队——initialized 时按 getToolFeed 读最新值。
+  // initialized å·²å°ï¼å¯ä»¥ç´æ¥ send*ï¼ä¹åç notify* ä¸æéââinitialized æ¶æ getToolFeed è¯»ææ°å¼ã
   let attached = false;
   let cancelHandshakeTimer: (() => void) | null = null;
-  // 进行中的页面工具调用 id，dispose 时逐个取消到 agent。
+  // è¿è¡ä¸­çé¡µé¢å·¥å·è°ç¨ idï¼dispose æ¶éä¸ªåæ¶å° agentã
   const activeCalls = new Set<string>();
   let unregisterNotifications: (() => void) | null = null;
   const createCallId = deps.createCallId ?? (() => crypto.randomUUID());
@@ -82,7 +82,7 @@ export function createPluginUiHostController(
     setPhase("error", { error: message });
   };
 
-  /** 经桥的请求共用的归属范围：workspace + session + 本插件 server。 */
+  /** ç»æ¡¥çè¯·æ±å±ç¨çå½å±èå´ï¼workspace + session + æ¬æä»¶ serverã */
   const baseScope = () => ({
     workspacePath: deps.scope.workspacePath,
     ...(deps.scope.workspaceIdentity ? { workspaceIdentity: deps.scope.workspaceIdentity } : {}),
@@ -115,7 +115,7 @@ export function createPluginUiHostController(
     isDisposed: () => disposed,
   });
 
-  // App-Provided Tools：握手后发现页面工具并登记；信箱投递到达时认领并让页面执行。没有通道时整段跳过。
+  // App-Provided Toolsï¼æ¡æååç°é¡µé¢å·¥å·å¹¶ç»è®°ï¼ä¿¡ç®±æéå°è¾¾æ¶è®¤é¢å¹¶è®©é¡µé¢æ§è¡ãæ²¡æééæ¶æ´æ®µè·³è¿ã
   const appTools = deps.appTools
     ? createPluginUiAppTools({
         bridge: deps.appTools,
@@ -142,11 +142,11 @@ export function createPluginUiHostController(
     void transport?.close().catch(() => undefined);
     attached = false;
     cancelHandshakeTimer?.();
-    // 新端口 = 页面重载或重挂载：旧代际的订阅退掉、旧实例的工具登记注销；通知入口按新代际重新登记。
+    // æ°ç«¯å£ = é¡µé¢éè½½æéæè½½ï¼æ§ä»£éçè®¢ééæãæ§å®ä¾çå·¥å·ç»è®°æ³¨éï¼éç¥å¥å£ææ°ä»£ééæ°ç»è®°ã
     resources.unsubscribeAll();
     appTools?.resetForAttach();
     const widgetState = deps.getWidgetState();
-    // widgetState 初值随握手经 hostContext 的扩展键下发（hostContext 允许附加键）；之后不再从宿主推送。
+    // widgetState åå¼éæ¡æç» hostContext çæ©å±é®ä¸åï¼hostContext åè®¸éå é®ï¼ï¼ä¹åä¸åä»å®¿ä¸»æ¨éã
     const contextAtCreate: McpUiHostContext =
       widgetState === undefined
         ? hostContext
@@ -158,7 +158,7 @@ export function createPluginUiHostController(
     );
     const baseContext = hostContext;
     bridge = active;
-    // 同一页面里两个 App（页面自建 + 别名）会各发一次 initialize / initialized：只按第一次进入 running 并投喂。
+    // åä¸é¡µé¢éä¸¤ä¸ª Appï¼é¡µé¢èªå»º + å«åï¼ä¼ååä¸æ¬¡ initialize / initializedï¼åªæç¬¬ä¸æ¬¡è¿å¥ running å¹¶æåã
     let initializedOnce = false;
     active.oninitialized = () => {
       if (disposed || bridge !== active || initializedOnce) return;
@@ -173,7 +173,7 @@ export function createPluginUiHostController(
         active.getAppCapabilities(),
         () => !disposed && bridge === active,
       );
-      // 握手窗口内的更新不能丢弃：只补当前实例的最新值，不新增会话状态 owner。
+      // æ¡æçªå£åçæ´æ°ä¸è½ä¸¢å¼ï¼åªè¡¥å½åå®ä¾çææ°å¼ï¼ä¸æ°å¢ä¼è¯ç¶æ ownerã
       if (hostContext !== baseContext) active.setHostContext(hostContext);
       sendFeed(active, deps.getToolFeed());
     };
@@ -227,7 +227,7 @@ export function createPluginUiHostController(
         return closed;
       } finally {
         recycling = false;
-        // 回收 RPC 失败也不能吞掉等待期间已经收到的来源撤销通知。
+        // åæ¶ RPC å¤±è´¥ä¹ä¸è½åæç­å¾æé´å·²ç»æ¶å°çæ¥æºæ¤ééç¥ã
         if (!closed && closedDuringRecycle && !disposed) deps.onInstanceClosed?.();
         closedDuringRecycle = false;
       }
@@ -249,7 +249,7 @@ export function createPluginUiHostController(
               ? { prefersBorder: deps.presentation.prefersBorder }
               : {}),
           });
-          // prepare 已在 Host/Main 完成登记时，卸载不能只忽略回包，否则沙箱无人释放。
+          // prepare å·²å¨ Host/Main å®æç»è®°æ¶ï¼å¸è½½ä¸è½åªå¿½ç¥ååï¼å¦åæ²ç®±æ äººéæ¾ã
           if (disposed) {
             await deps.bridge.closeInstance({ ...baseScope(), instance: prepared.instance });
             await deps.platform.disposeSandbox(prepared.sandboxId, prepared.initId);
@@ -273,11 +273,11 @@ export function createPluginUiHostController(
           }
           handle = prepared;
           boundScope = { ...baseScope(), instance: prepared.instance };
-          // 先订阅端口再挂 webview：main 在 guest dom-ready 后投递端口，挂载后订阅可能错过。
+          // åè®¢éç«¯å£åæ webviewï¼main å¨ guest dom-ready åæéç«¯å£ï¼æè½½åè®¢éå¯è½éè¿ã
           unsubscribePorts?.();
           unsubscribePorts = deps.platform.onPorts((event) => {
             if (disposed || !handle || event.sandboxId !== handle.sandboxId) return;
-            // 旧 initId 的端口一律丢弃（guest reload / 重复挂载防串线）。
+            // æ§ initId çç«¯å£ä¸å¾ä¸¢å¼ï¼guest reload / éå¤æè½½é²ä¸²çº¿ï¼ã
             if (event.initId < handle.initId) return;
             handle = { ...handle, initId: event.initId };
             attachPort(event.port);
@@ -346,7 +346,7 @@ export function createPluginUiHostController(
       const active = bridge,
         activeTransport = transport,
         wasAttached = attached;
-      // 注销请求捕获原凭证，不能在 await 后从新句柄读取代际。
+      // æ³¨éè¯·æ±æè·åå­è¯ï¼ä¸è½å¨ await åä»æ°å¥æè¯»åä»£éã
       bridge = null;
       transport = null;
       attached = false;

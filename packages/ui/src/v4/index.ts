@@ -1,5 +1,5 @@
-// UI 侧 v4 数据层（M3 m3-ui-core，docs/v4-refactor/06-ui）。
-// 纯新增：与旧 store/zcodeSessionStore* 并存，删除发生在竖切可用后（11-deletion-plan 波次 1）。
+// UI ä¾§ v4 æ°æ®å±ï¼M3 m3-ui-coreï¼docs/v4-refactor/06-uiï¼ã
+// çº¯æ°å¢ï¼ä¸æ§ store/zcodeSessionStore* å¹¶å­ï¼å é¤åçå¨ç«åå¯ç¨åï¼11-deletion-plan æ³¢æ¬¡ 1ï¼ã
 export {
   conversationTopic,
   type ConversationTransport,
@@ -19,7 +19,7 @@ export {
   createAgentConversationTransport,
   type AgentConversationTransportTarget,
 } from "@/v4/agentConversationTransport.js";
-// ── sessions-index 读路径（列表活性/detail 数据源；持久行来自 tasks-index）──
+// ââ sessions-index è¯»è·¯å¾ï¼åè¡¨æ´»æ§/detail æ°æ®æºï¼æä¹è¡æ¥èª tasks-indexï¼ââ
 export {
   applySessionsIndexFrame,
   SessionsIndexStore,
@@ -63,7 +63,7 @@ export { ConversationTimeline } from "@/v4/ConversationTimeline.js";
 export { ConversationComposer } from "@/v4/ConversationComposer.js";
 export { SessionPane, type SessionPaneProps } from "@/v4/SessionPane.js";
 export { V4ChatPane, type V4ChatPaneProps } from "@/v4/V4ChatPane.js";
-// ── 分屏二期：Layout/Focus 两层（二叉分割树）+ workspace 工作台宿主 ──
+// ââ åå±äºæï¼Layout/Focus ä¸¤å±ï¼äºååå²æ ï¼+ workspace å·¥ä½å°å®¿ä¸» ââ
 export {
   bindPaneSession,
   canAddPane,

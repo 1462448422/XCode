@@ -115,7 +115,7 @@ export function createGenUiPage(input: GenUiPageInput): GenUiPage {
   const offPorts = platform.onPorts((event) => {
     if (disposed || event.sandboxId !== handle?.sandboxId || event.initId !== handle.initId) return;
     void bridge?.close();
-    // SDK 持有上一份上下文用于差异比较，不能与可写投影共享同一对象。
+    // SDK ææä¸ä¸ä»½ä¸ä¸æç¨äºå·®å¼æ¯è¾ï¼ä¸è½ä¸å¯åæå½±å±äº«åä¸å¯¹è±¡ã
     const active = new AppBridge(
       null,
       { name: "zcode-gen-ui", version: "1" },
@@ -130,7 +130,7 @@ export function createGenUiPage(input: GenUiPageInput): GenUiPage {
       pushContext();
     };
     active.onsizechange = ({ height }) => {
-      // 预览使用独立视口；保持正文占位高度，避免遮罩下的时间线跳动。
+      // é¢è§ä½¿ç¨ç¬ç«è§å£ï¼ä¿ææ­£æå ä½é«åº¦ï¼é¿åé®ç½©ä¸çæ¶é´çº¿è·³å¨ã
       if (
         context.displayMode !== "fullscreen" &&
         typeof height === "number" &&
@@ -149,7 +149,7 @@ export function createGenUiPage(input: GenUiPageInput): GenUiPage {
         throw new Error("External links require an absolute HTTP(S) URL");
       if (!(await platform.consumeUserGesture(handle!.sandboxId)))
         throw new Error("External links require a user gesture");
-      // 手势校验跨进程返回时，卡片可能已隐藏或重建，不能执行旧页面的打开请求。
+      // æå¿æ ¡éªè·¨è¿ç¨è¿åæ¶ï¼å¡çå¯è½å·²éèæéå»ºï¼ä¸è½æ§è¡æ§é¡µé¢çæå¼è¯·æ±ã
       current();
       assertCurrent();
       await input.openExternal(link.href);
@@ -227,7 +227,7 @@ export function createGenUiPage(input: GenUiPageInput): GenUiPage {
       },
     );
     clearTimeout(handshake);
-    // 超时只报告握手失败，不参与同步或恢复。
+    // è¶æ¶åªæ¥åæ¡æå¤±è´¥ï¼ä¸åä¸åæ­¥ææ¢å¤ã
     handshake = setTimeout(() => fail(new Error("Gen UI handshake timed out")), 15_000);
     void active.connect(createPluginUiMessagePortTransport(event.port)).catch(fail);
   });
@@ -263,7 +263,7 @@ export function createGenUiPage(input: GenUiPageInput): GenUiPage {
       return;
     }
     handle = prepared;
-    // 登记 HTML 含状态快照；随后读取最新状态，且不以迟到查询覆盖期间已收到的通知。
+    // ç»è®° HTML å«ç¶æå¿«ç§ï¼éåè¯»åææ°ç¶æï¼ä¸ä¸ä»¥è¿å°æ¥è¯¢è¦çæé´å·²æ¶å°çéç¥ã
     const revision = stateRevision;
     const latest = await input.state.getState(stateTarget);
     if (revision === stateRevision) context[GEN_UI_STATE_CONTEXT_KEY] = latest;

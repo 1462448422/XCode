@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- 远端 workspace 历史集中维护持久化、凭据和 MCP 路径映射元数据，拆分会扩大恢复链路回归面。 */
+/* eslint-disable max-lines -- è¿ç«¯ workspace åå²éä¸­ç»´æ¤æä¹åãå­æ®å MCP è·¯å¾æ å°åæ°æ®ï¼æåä¼æ©å¤§æ¢å¤é¾è·¯åå½é¢ã */
 import type {
   AppSettings,
   PersistedWorkspaceSessionEntry,
@@ -6,6 +6,7 @@ import type {
   RemoteTargetSnapshot,
   RemoteWorkspaceSessionEntry,
 } from "@zcode/shared";
+import { buildServerRemoteWorkspaceIdentity } from "@zcode/shared";
 import type { WindowTabState } from "@/store/tabStore.js";
 import { isWorkspaceTab } from "@/store/tabStore.js";
 
@@ -34,6 +35,10 @@ function buildRemoteWorkspacePrivateKeyPassphraseCredentialKey(workspaceKey: str
   return `remote-workspace:${workspaceKey}:private-key-passphrase`;
 }
 
+function buildRemoteWorkspaceServerTokenCredentialKey(workspaceKey: string): string {
+  return `remote-workspace:${workspaceKey}:server-token`;
+}
+
 function collectRemoteWorkspaceCredentialKeys(snapshot: RemoteTargetSnapshot): string[] {
   if (snapshot.kind === "ssh") {
     return [snapshot.passwordCredentialKey, snapshot.privateKeyPassphraseCredentialKey].filter(
@@ -41,7 +46,19 @@ function collectRemoteWorkspaceCredentialKeys(snapshot: RemoteTargetSnapshot): s
     );
   }
 
+  if (snapshot.kind === "server") {
+    return [snapshot.tokenCredentialKey].filter(
+      (key): key is string => typeof key === "string" && key.length > 0,
+    );
+  }
+
   return [];
+}
+
+export function getWorkspaceDisplayLabel(workspacePath: string): string {
+  const normalized = workspacePath.replace(/\\/g, "/");
+  const segments = normalized.split("/").filter(Boolean);
+  return segments[segments.length - 1] ?? workspacePath;
 }
 
 export function hasRemoteWorkspaceIdentity(entry: {
@@ -50,6 +67,10 @@ export function hasRemoteWorkspaceIdentity(entry: {
   workspaceIdentity?: string;
 }): boolean {
   return Boolean(entry.remoteSessionId || entry.remoteTarget || entry.workspaceIdentity);
+}
+
+export function isSshRemoteWorkspaceIdentity(workspaceIdentity?: string | null): boolean {
+  return workspaceIdentity?.trim().startsWith("remote:ssh:") === true;
 }
 
 type WslRemoteTargetLike = Extract<RemoteTarget | RemoteTargetSnapshot, { kind: "wsl" }>;
@@ -67,18 +88,36 @@ function formatWslRemoteTargetAuthority(target: WslRemoteTargetLike): string {
   return user ? `wsl:default:${user}` : "wsl";
 }
 
+function getServerRemoteTargetDisplayName(
+  target: Extract<RemoteTarget | RemoteTargetSnapshot, { kind: "server" }>,
+): string {
+  return target.name?.trim() || target.serverId?.trim() || formatServerRemoteTargetHost(target);
+}
+
+function formatServerRemoteTargetHost(
+  target: Extract<RemoteTarget | RemoteTargetSnapshot, { kind: "server" }>,
+): string {
+  try {
+    return new URL(target.url.trim()).host;
+  } catch {
+    return target.url.trim();
+  }
+}
+
 export function formatRemoteWorkspaceTargetSubtitle(
   target: RemoteTarget | RemoteTargetSnapshot,
 ): string {
   switch (target.kind) {
     case "ssh":
-      return `SSH · ${target.username}@${target.host}${target.port ? `:${target.port}` : ""}`;
+      return `SSH Â· ${target.username}@${target.host}${target.port ? `:${target.port}` : ""}`;
     case "wsl": {
       const user = getWslRemoteTargetUser(target);
-      return ["WSL", target.distro, user].filter(Boolean).join(" · ");
+      return ["WSL", target.distro, user].filter(Boolean).join(" Â· ");
     }
     case "docker":
-      return `Docker · ${target.container}`;
+      return `Docker Â· ${target.container}`;
+    case "server":
+      return `Server Â· ${getServerRemoteTargetDisplayName(target)}`;
   }
 }
 
@@ -92,6 +131,8 @@ export function formatRemoteWorkspaceHeaderHostLabel(
       return formatWslRemoteTargetAuthority(target);
     case "docker":
       return `docker:${target.container}`;
+    case "server":
+      return formatServerRemoteTargetHost(target);
   }
 }
 
@@ -108,8 +149,8 @@ export function formatRemoteWorkspaceDisplayLabel(
 }
 
 function normalizeWorkspacePathForIdentity(path: string): string {
-  // 远程目录可能出现符号链接别名（例如 /dev 与 /home/dev）。
-  // 身份计算前统一做分隔符归一化与收尾斜杠清理，避免同一路径文本噪声导致身份漂移。
+  // è¿ç¨ç®å½å¯è½åºç°ç¬¦å·é¾æ¥å«åï¼ä¾å¦ /dev ä¸ /home/devï¼ã
+  // èº«ä»½è®¡ç®åç»ä¸ååéç¬¦å½ä¸åä¸æ¶å°¾ææ æ¸çï¼é¿ååä¸è·¯å¾ææ¬åªå£°å¯¼è´èº«ä»½æ¼ç§»ã
   const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
   return normalized.length > 0 ? normalized : "/";
 }
@@ -123,14 +164,21 @@ function getRemoteWorkspaceAuthorityKey(target: RemoteTarget | RemoteTargetSnaps
       return ["ssh", normalizedHost, normalizedPort, normalizedUsername].join(":");
     }
     case "wsl": {
-      // WSL 默认用户与 root/其他显式用户的文件权限边界不同，
-      // workspace identity 必须区分显式 user，避免 session、缓存和队列串用。
+      // WSL é»è®¤ç¨æ·ä¸ root/å¶ä»æ¾å¼ç¨æ·çæä»¶æéè¾¹çä¸åï¼
+      // workspace identity å¿é¡»åºåæ¾å¼ userï¼é¿å sessionãç¼å­åéåä¸²ç¨ã
       const user = getWslRemoteTargetUser(target);
       const base = ["wsl", target.distro ?? "default"];
       return user ? [...base, user].join(":") : base.join(":");
     }
     case "docker":
       return ["docker", target.container].join(":");
+    case "server": {
+      const identity = buildServerRemoteWorkspaceIdentity({
+        serverId: getServerRemoteTargetIdentityId(target),
+        workspacePath: "/",
+      });
+      return identity.slice("remote:".length, -":/".length);
+    }
   }
 }
 
@@ -138,9 +186,22 @@ export function buildRemoteWorkspaceIdentity(
   workspacePath: string,
   target: RemoteTarget | RemoteTargetSnapshot,
 ): string {
+  if (target.kind === "server") {
+    return buildServerRemoteWorkspaceIdentity({
+      serverId: getServerRemoteTargetIdentityId(target),
+      workspacePath,
+    });
+  }
+
   const authority = getRemoteWorkspaceAuthorityKey(target);
   const normalizedPath = normalizeWorkspacePathForIdentity(workspacePath);
   return `remote:${authority}:${normalizedPath}`;
+}
+
+function getServerRemoteTargetIdentityId(
+  target: Extract<RemoteTarget | RemoteTargetSnapshot, { kind: "server" }>,
+): string {
+  return target.serverId?.trim() || target.name?.trim() || formatServerRemoteTargetHost(target);
 }
 
 export function resolveRemoteWorkspaceSessionIdentity(
@@ -161,7 +222,7 @@ function normalizeOptionalPath(path: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function findMatchingRemoteWorkspaceSessionEntry(
+export function findMatchingRemoteWorkspaceSessionEntry(
   sessions: RemoteWorkspaceSessionEntry[],
   workspacePath: string,
   target: RemoteTarget | RemoteTargetSnapshot,
@@ -173,7 +234,7 @@ function findMatchingRemoteWorkspaceSessionEntry(
   );
 }
 
-function createRemoteTargetSnapshot(
+export function createRemoteTargetSnapshot(
   workspaceKey: string,
   target: RemoteTarget,
   previousSnapshot?: RemoteTargetSnapshot,
@@ -214,6 +275,20 @@ function createRemoteTargetSnapshot(
         kind: "docker",
         container: target.container,
       };
+    case "server":
+      return {
+        kind: "server",
+        url: target.url,
+        ...(target.name?.trim() ? { name: target.name.trim() } : {}),
+        ...(target.workspacePath?.trim() ? { workspacePath: target.workspacePath.trim() } : {}),
+        ...(target.serverId?.trim() ? { serverId: target.serverId.trim() } : {}),
+        tokenCredentialKey:
+          target.token && target.token.length > 0
+            ? previousSnapshot?.kind === "server" && previousSnapshot.tokenCredentialKey
+              ? previousSnapshot.tokenCredentialKey
+              : buildRemoteWorkspaceServerTokenCredentialKey(workspaceKey)
+            : undefined,
+      };
   }
 }
 
@@ -222,6 +297,7 @@ export function createRemoteTargetFromSnapshot(
   credentials: {
     password: string | null;
     privateKeyPassphrase: string | null;
+    token?: string | null;
   },
 ): RemoteTarget {
   switch (snapshot.kind) {
@@ -250,10 +326,19 @@ export function createRemoteTargetFromSnapshot(
         kind: "docker",
         container: snapshot.container,
       };
+    case "server":
+      return {
+        kind: "server",
+        url: snapshot.url,
+        ...(snapshot.name ? { name: snapshot.name } : {}),
+        ...(snapshot.workspacePath ? { workspacePath: snapshot.workspacePath } : {}),
+        ...(snapshot.serverId ? { serverId: snapshot.serverId } : {}),
+        ...(credentials.token ? { token: credentials.token } : {}),
+      };
   }
 }
 
-function upsertRemoteWorkspaceSessionEntries(
+export function upsertRemoteWorkspaceSessionEntries(
   sessions: RemoteWorkspaceSessionEntry[],
   nextEntry: RemoteWorkspaceSessionEntry,
 ): RemoteWorkspaceSessionEntry[] {
@@ -325,8 +410,8 @@ export function buildRemoteWorkspaceSessionMutation(params: {
   const nextEntry: RemoteWorkspaceSessionEntry = {
     kind: "remote",
     workspacePath: params.workspacePath,
-    // filesystem MCP 同步需要用“本机 workspace -> 远端 workspace”映射。
-    // 远端历史之前只保存远端路径，已连接后的 Settings/Header 入口无法再恢复本机基准路径。
+    // filesystem MCP åæ­¥éè¦ç¨âæ¬æº workspace -> è¿ç«¯ workspaceâæ å°ã
+    // è¿ç«¯åå²ä¹ååªä¿å­è¿ç«¯è·¯å¾ï¼å·²è¿æ¥åç Settings/Header å¥å£æ æ³åæ¢å¤æ¬æºåºåè·¯å¾ã
     ...(localWorkspacePath ? { localWorkspacePath } : {}),
     workspaceIdentity: resolvedWorkspaceIdentity,
     target: nextSnapshot,
@@ -389,6 +474,18 @@ export function buildRemoteWorkspaceSessionMutation(params: {
     });
   }
 
+  if (
+    params.target.kind === "server" &&
+    nextSnapshot.kind === "server" &&
+    params.target.token &&
+    nextSnapshot.tokenCredentialKey
+  ) {
+    credentialsToSave.push({
+      key: nextSnapshot.tokenCredentialKey,
+      value: params.target.token,
+    });
+  }
+
   return {
     entry: nextEntry,
     nextRemoteSessions,
@@ -410,9 +507,9 @@ export function buildPersistedWorkspaceSessionEntries(
       const workspaceKey = buildWorkspaceSessionKey(tab);
       const remoteEntry = remoteSessionsByWorkspaceKey.get(workspaceKey);
 
-      // lastWorkspaceSession 现在是远端 workspace 的唯一持久化来源。
-      // 如果这里因为 tab 断连就把 remote 项漏掉，下次启动会直接丢失“手动重连”的入口。
-      // 因此只要当前 tab 具有远端身份，就必须写回完整 remote 条目。
+      // lastWorkspaceSession ç°å¨æ¯è¿ç«¯ workspace çå¯ä¸æä¹åæ¥æºã
+      // å¦æè¿éå ä¸º tab æ­è¿å°±æ remote é¡¹æ¼æï¼ä¸æ¬¡å¯å¨ä¼ç´æ¥ä¸¢å¤±âæå¨éè¿âçå¥å£ã
+      // å æ­¤åªè¦å½å tab å·æè¿ç«¯èº«ä»½ï¼å°±å¿é¡»ååå®æ´ remote æ¡ç®ã
       if (!remoteEntry) {
         return entries;
       }
@@ -424,7 +521,9 @@ export function buildPersistedWorkspaceSessionEntries(
     entries.push({
       kind: "local",
       workspacePath: tab.workspacePath,
-      ...(tab.workspacePurpose ? { workspacePurpose: tab.workspacePurpose } : {}),
+      ...(tab.workspacePurpose
+        ? { workspacePurpose: tab.workspacePurpose }
+        : {}),
     });
     return entries;
   }, []);

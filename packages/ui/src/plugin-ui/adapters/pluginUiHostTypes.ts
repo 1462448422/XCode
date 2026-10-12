@@ -19,36 +19,36 @@ export interface UsePluginUiHostInput {
   displayMode: McpAppsDisplayMode;
   toolInput: Record<string, unknown> | undefined;
   toolResult: McpAppsToolResultPayload | undefined;
-  /** 投喂的是哪次调用；变化（面板换到新一次调用）时把 toolInput 作为 tool-input 通知推给页面。 */
+  /** æåçæ¯åªæ¬¡è°ç¨ï¼ååï¼é¢æ¿æ¢å°æ°ä¸æ¬¡è°ç¨ï¼æ¶æ toolInput ä½ä¸º tool-input éç¥æ¨ç»é¡µé¢ã */
   toolCallId?: string;
-  /** 宿主工具被停止；变为 true 时向页面发一次 tool-cancelled。 */
+  /** å®¿ä¸»å·¥å·è¢«åæ­¢ï¼åä¸º true æ¶åé¡µé¢åä¸æ¬¡ tool-cancelledã */
   toolCancelled?: boolean;
   hostVersion: string;
-  /** 本实例真实可切换到的模式；缺省两种都可。变化时经 host-context-changed 通知页面。 */
+  /** æ¬å®ä¾çå®å¯åæ¢å°çæ¨¡å¼ï¼ç¼ºçä¸¤ç§é½å¯ãååæ¶ç» host-context-changed éç¥é¡µé¢ã */
   availableDisplayModes?: readonly McpAppsDisplayMode[];
   onDisplayModeRequest?: (mode: McpAppsDisplayMode) => McpAppsDisplayMode;
   onOpenExternal?: (url: string) => void;
-  /** 容器宽度，用于 hostContext.containerDimensions；未知时 0。 */
+  /** å®¹å¨å®½åº¦ï¼ç¨äº hostContext.containerDimensionsï¼æªç¥æ¶ 0ã */
   width: number;
-  /** fullscreen 容器的头部；inline 不传。 */
+  /** fullscreen å®¹å¨çå¤´é¨ï¼inline ä¸ä¼ ã */
   titleBar?: McpAppsHostTitleBar;
-  /** false 时不创建沙箱（如侧栏已接管同一作用域）；默认 true。 */
+  /** false æ¶ä¸åå»ºæ²ç®±ï¼å¦ä¾§æ å·²æ¥ç®¡åä¸ä½ç¨åï¼ï¼é»è®¤ trueã */
   enabled?: boolean;
-  /** 会话交互回调：缺省时对应请求回 -32601，能力声明也不带该项。 */
+  /** ä¼è¯äº¤äºåè°ï¼ç¼ºçæ¶å¯¹åºè¯·æ±å -32601ï¼è½åå£°æä¹ä¸å¸¦è¯¥é¡¹ã */
   interactions?: Pick<PluginUiHostControllerDeps, "onSendFollowUpMessage" | "onUpdateModelContext">;
 }
 
 export interface UsePluginUiHostResult {
-  /** 平台或服务不支持插件 UI 时为 false，调用方回退到普通 MCP 卡片。 */
+  /** å¹³å°ææå¡ä¸æ¯ææä»¶ UI æ¶ä¸º falseï¼è°ç¨æ¹åéå°æ®é MCP å¡çã */
   pageKey: string;
   supported: boolean;
   phase: PluginUiHostPhase;
   handle: PluginSandboxHandle | null;
   height: number;
   error: string | null;
-  /** 页面 `ui/initialize` 声明的能力；握手前 undefined。`availableDisplayModes` 决定宿主能否把它切到 fullscreen。 */
+  /** é¡µé¢ `ui/initialize` å£°æçè½åï¼æ¡æå undefinedã`availableDisplayModes` å³å®å®¿ä¸»è½å¦æå®åå° fullscreenã */
   appCapabilities: McpUiAppCapabilities | undefined;
-  /** 销毁当前实例并重新 prepare（Agent 运行凭证换代）；guest 崩溃 / 加载失败后由错误态按钮触发。 */
+  /** éæ¯å½åå®ä¾å¹¶éæ° prepareï¼Agent è¿è¡å­è¯æ¢ä»£ï¼ï¼guest å´©æº / å è½½å¤±è´¥åç±éè¯¯ææé®è§¦åã */
   reload(): void;
 }
 

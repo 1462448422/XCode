@@ -11,27 +11,27 @@ export interface PluginUiHostContextInput {
   theme: "light" | "dark";
   locale: string;
   displayMode: McpUiDisplayMode;
-  /** 容器宽度（px）；未知时 0。 */
+  /** å®¹å¨å®½åº¦ï¼pxï¼ï¼æªç¥æ¶ 0ã */
   width: number;
-  /** 卡片高度上限（规范 `containerDimensions.maxHeight`：页面据此裁决 size-changed）；缺省宿主上限。 */
+  /** å¡çé«åº¦ä¸éï¼è§è `containerDimensions.maxHeight`ï¼é¡µé¢æ®æ­¤è£å³ size-changedï¼ï¼ç¼ºçå®¿ä¸»ä¸éã */
   maxHeight?: number;
   timeZone?: string;
-  /** fullscreen 容器的头部；inline 不传。宿主提供的扩展键（hostContext 允许附加键）。 */
+  /** fullscreen å®¹å¨çå¤´é¨ï¼inline ä¸ä¼ ãå®¿ä¸»æä¾çæ©å±é®ï¼hostContext åè®¸éå é®ï¼ã */
   titleBar?: McpAppsHostTitleBar;
-  /** 本实例真实可切换到的模式；缺省两种都可。 */
+  /** æ¬å®ä¾çå®å¯åæ¢å°çæ¨¡å¼ï¼ç¼ºçä¸¤ç§é½å¯ã */
   availableDisplayModes?: readonly McpUiDisplayMode[];
-  /** 主题 token 映射成的 MCP Apps 标准变量；缺省不带 styles。 */
+  /** ä¸»é¢ token æ å°æç MCP Apps æ ååéï¼ç¼ºçä¸å¸¦ stylesã */
   styleVariables?: McpAppsStyleVariables;
 }
 
-/** hostContext 的唯一构造点。 */
+/** hostContext çå¯ä¸æé ç¹ã */
 export function buildPluginUiHostContext(input: PluginUiHostContextInput): McpUiHostContext {
   return {
     theme: input.theme,
     locale: input.locale,
     displayMode: input.displayMode,
     availableDisplayModes: [...(input.availableDisplayModes ?? ["inline", "fullscreen"])],
-    // 规范：内联卡片高度跟随内容（size-changed），宿主只给上限；宽度是确定值。
+    // è§èï¼åèå¡çé«åº¦è·éåå®¹ï¼size-changedï¼ï¼å®¿ä¸»åªç»ä¸éï¼å®½åº¦æ¯ç¡®å®å¼ã
     containerDimensions: {
       width: Math.max(0, Math.round(input.width)),
       maxHeight: input.maxHeight ?? PLUGIN_UI_CARD_MAX_HEIGHT_PX,
@@ -40,7 +40,7 @@ export function buildPluginUiHostContext(input: PluginUiHostContextInput): McpUi
     platform: "desktop",
     userAgent: "zcode",
     timeZone: input.timeZone ?? resolveTimeZone(),
-    // 桌面宿主固定有 hover、无 touch。
+    // æ¡é¢å®¿ä¸»åºå®æ hoverãæ  touchã
     deviceCapabilities: { hover: true, touch: false },
     ...(input.styleVariables ? { styles: { variables: input.styleVariables as McpUiStyles } } : {}),
     ...(input.titleBar ? { titleBar: input.titleBar } : {}),
@@ -55,7 +55,7 @@ function resolveTimeZone(): string {
   }
 }
 
-/** 页面未声明 `availableDisplayModes` 视为都支持；声明了就只能切到声明过的模式（规范 MUST NOT）。 */
+/** é¡µé¢æªå£°æ `availableDisplayModes` è§ä¸ºé½æ¯æï¼å£°æäºå°±åªè½åå°å£°æè¿çæ¨¡å¼ï¼è§è MUST NOTï¼ã */
 export function appAllowsDisplayMode(
   capabilities: McpUiAppCapabilities | undefined,
   mode: McpUiDisplayMode,
@@ -64,7 +64,7 @@ export function appAllowsDisplayMode(
   return !declared || declared.includes(mode);
 }
 
-/** 内联实例收到 `ui/request-display-mode`：只在宿主可用集合内切换，`pip` 与不可用的模式如实回当前模式。 */
+/** åèå®ä¾æ¶å° `ui/request-display-mode`ï¼åªå¨å®¿ä¸»å¯ç¨éåååæ¢ï¼`pip` ä¸ä¸å¯ç¨çæ¨¡å¼å¦å®åå½åæ¨¡å¼ã */
 export function resolveRequestedDisplayMode(
   requested: McpUiDisplayMode,
   current: McpUiDisplayMode,
@@ -74,8 +74,8 @@ export function resolveRequestedDisplayMode(
 }
 
 /**
- * 侧栏实例收到 `ui/request-display-mode`：只有该作用域在会话流里还有内联卡片可接管时，请求 inline 才成立
- * （宿主关面板、回 inline）；否则如实回 fullscreen。pip 同样落回 fullscreen。
+ * ä¾§æ å®ä¾æ¶å° `ui/request-display-mode`ï¼åªæè¯¥ä½ç¨åå¨ä¼è¯æµéè¿æåèå¡çå¯æ¥ç®¡æ¶ï¼è¯·æ± inline ææç«
+ * ï¼å®¿ä¸»å³é¢æ¿ãå inlineï¼ï¼å¦åå¦å®å fullscreenãpip åæ ·è½å fullscreenã
  */
 export function resolveSidePaneDisplayModeRequest(
   requested: McpUiDisplayMode,

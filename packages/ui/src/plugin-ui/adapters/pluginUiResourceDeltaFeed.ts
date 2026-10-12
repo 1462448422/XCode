@@ -4,8 +4,8 @@ import type { ConversationProjectionStore } from "@/v4/conversationProjectionSto
 import { useEffect } from "react";
 
 /**
- * 把一个会话投影 store 的 live-only 增量接到资源通知路由表。
- * 同一 store 可能被 SessionPane 与多个侧栏 tab 同时持有，按 store 引用计数只挂一个监听，避免重复投递。
+ * æä¸ä¸ªä¼è¯æå½± store ç live-only å¢éæ¥å°èµæºéç¥è·¯ç±è¡¨ã
+ * åä¸ store å¯è½è¢« SessionPane ä¸å¤ä¸ªä¾§æ  tab åæ¶ææï¼æ store å¼ç¨è®¡æ°åªæä¸ä¸ªçå¬ï¼é¿åéå¤æéã
  */
 const feeds = new Map<ConversationProjectionStore, { count: number; off: () => void }>();
 
@@ -50,6 +50,6 @@ export function usePluginUiResourceDeltaFeed(
   useEffect(() => {
     if (!store || !scope) return;
     return attachPluginUiResourceDeltaFeed(store, scope);
-    // scope 按会话键比较（SessionPane 每次渲染可能新建对象），不把对象本身放进依赖。
+    // scope æä¼è¯é®æ¯è¾ï¼SessionPane æ¯æ¬¡æ¸²æå¯è½æ°å»ºå¯¹è±¡ï¼ï¼ä¸æå¯¹è±¡æ¬èº«æ¾è¿ä¾èµã
   }, [store, sessionKey]);
 }

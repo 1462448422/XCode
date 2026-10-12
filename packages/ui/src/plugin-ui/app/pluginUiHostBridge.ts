@@ -29,15 +29,15 @@ import type {
   McpUiUpdateModelContextRequest,
 } from "@modelcontextprotocol/ext-apps/app-bridge";
 
-/** 官方 SDK 请求 handler 的上下文子集：中止信号在 `ctx.mcpReq.signal`。 */
+/** å®æ¹ SDK è¯·æ± handler çä¸ä¸æå­éï¼ä¸­æ­¢ä¿¡å·å¨ `ctx.mcpReq.signal`ã */
 export interface PluginUiRequestContext {
   mcpReq?: { signal?: AbortSignal };
 }
 
 /**
- * 控制器用到的官方 `AppBridge` 成员子集。生产用 `new AppBridge(null, …)`，测试可注入假实现。
- * 自定义方法（XCode 扩展与需要放宽 schema 的 ui/message）走基类的三参 `setRequestHandler`；
- * 规范方法（resources/subscribe）走二参形式，handler 拿到完整 request。
+ * æ§å¶å¨ç¨å°çå®æ¹ `AppBridge` æåå­éãçäº§ç¨ `new AppBridge(null, â¦)`ï¼æµè¯å¯æ³¨å¥åå®ç°ã
+ * èªå®ä¹æ¹æ³ï¼XCode æ©å±ä¸éè¦æ¾å®½ schema ç ui/messageï¼èµ°åºç±»çä¸å `setRequestHandler`ï¼
+ * è§èæ¹æ³ï¼resources/subscribeï¼èµ°äºåå½¢å¼ï¼handler æ¿å°å®æ´ requestã
  */
 export interface PluginUiHostBridge {
   connect(transport: Transport): Promise<void>;
@@ -50,10 +50,10 @@ export interface PluginUiHostBridge {
     params: Record<string, never>,
     options?: { timeout?: number; signal?: AbortSignal },
   ): Promise<unknown>;
-  /** `initialized` 之后可读；页面声明的 availableDisplayModes 决定宿主能否切它到 fullscreen。 */
+  /** `initialized` ä¹åå¯è¯»ï¼é¡µé¢å£°æç availableDisplayModes å³å®å®¿ä¸»è½å¦åå®å° fullscreenã */
   getAppCapabilities(): McpUiAppCapabilities | undefined;
   notification(notification: { method: string; params?: Record<string, unknown> }): Promise<void>;
-  /** App-Provided Tools：宿主发现页面工具、把模型调用交给页面执行。 */
+  /** App-Provided Toolsï¼å®¿ä¸»åç°é¡µé¢å·¥å·ãææ¨¡åè°ç¨äº¤ç»é¡µé¢æ§è¡ã */
   listTools(
     params: ListToolsRequest["params"],
     options?: { timeout?: number; signal?: AbortSignal },

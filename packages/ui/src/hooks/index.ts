@@ -1,15 +1,15 @@
 /**
  * Hooks barrel export
  *
- * 所有服务和平台操作的 hooks 统一从此导出。
- * 组件应通过 hooks 访问服务，不再直接使用 services.* 或 window.zcode.*。
+ * æææå¡åå¹³å°æä½ç hooks ç»ä¸ä»æ­¤å¯¼åºã
+ * ç»ä»¶åºéè¿ hooks è®¿é®æå¡ï¼ä¸åç´æ¥ä½¿ç¨ services.* æ window.zcode.*ã
  */
 
-// 服务上下文
+// æå¡ä¸ä¸æ
 export { ServiceProvider, useServices } from "./useServices.js";
 export { useBaseWorkspaceServices, useWorkspaceServices } from "./useWorkspaceServices.js";
 
-// 平台操作上下文
+// å¹³å°æä½ä¸ä¸æ
 export {
   PlatformProvider,
   usePlatform,
@@ -17,32 +17,32 @@ export {
   useConnectRemote,
 } from "./usePlatform.js";
 
-// 文件服务
+// æä»¶æå¡
 export { useReaddir } from "./useFileService.js";
 
-// 文件监视服务
+// æä»¶çè§æå¡
 export { useWatchedReaddir } from "./useFileWatcherService.js";
 
-// 系统服务
+// ç³»ç»æå¡
 export { useSystemInfo, useIntranetProbe } from "./useSystemService.js";
 export { useWorkspaceHomePath } from "./useWorkspaceHomePath.js";
 
-// 终端服务
+// ç»ç«¯æå¡
 export { useTerminal } from "./useTerminalService.js";
 
-// 设置服务
+// è®¾ç½®æå¡
 export { useSettings, useRecentProjects } from "./useSettingService.js";
 export { useSkills } from "./useSkills.js";
 export { usePlugins } from "./usePlugins.js";
 
-// Onboarding 完成记录服务（本地持久化，后续上传服务器）
+// Onboarding å®æè®°å½æå¡ï¼æ¬å°æä¹åï¼åç»­ä¸ä¼ æå¡å¨ï¼
 export { useOnboardingRecordService } from "./useOnboardingRecordService.js";
 
-// 通用确认弹窗
+// éç¨ç¡®è®¤å¼¹çª
 export { useConfirmDialog } from "./useConfirmDialog.js";
 export { useAlertDialog } from "./useAlertDialog.js";
 
-// 凭据服务
+// å­æ®æå¡
 export { useCredentials, useAuthToken } from "./useCredentials.js";
 export { useXCodeAgentService } from "./useXCodeAgentService.js";
 
@@ -50,11 +50,8 @@ export { useXCodeAgentService } from "./useXCodeAgentService.js";
 export { useGitAutoRefresh } from "./useGitAutoRefresh.js";
 export { useGitRepository } from "./useGitRepository.js";
 export { useGitActions } from "./useGitActions.js";
-// workspace provider 配置路径
+// workspace provider éç½®è·¯å¾
+export { useWorkspaceProviderConfigFile } from "./useWorkspaceProviderConfigFile.js";
 export { useTaskNativeSessionLogFile } from "./useTaskNativeSessionLogFile.js";
 export { useTaskSessionFilePath } from "./useTaskSessionFilePath.js";
 export { useUsageStats } from "./useUsageStats.js";
-
-// ── 1010 新增 barrel 导出 ──
-export { useZCodeAgentService } from "./useZCodeAgentService.js";
-export { useWorkspaceProviderConfigFile } from "./useWorkspaceProviderConfigFile.js";

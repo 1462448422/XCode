@@ -1,19 +1,19 @@
 import type { ConversationRow } from "@zcode/shared/zcode-protocol-v4";
 import type { PluginUiRowDisposition } from "./pluginUiInstancePolicy.js";
 
-/** 渲染层提供的按 toolCallId 的裁决：推导结果 + 用户手动固定 / 收起。 */
+/** æ¸²æå±æä¾çæ toolCallId çè£å³ï¼æ¨å¯¼ç»æ + ç¨æ·æå¨åºå® / æ¶èµ·ã */
 export interface PluginUiRowPinContext {
   disposition?: PluginUiRowDisposition;
-  /** 用户手动固定（true）或收起（false）；undefined 按默认规则。 */
+  /** ç¨æ·æå¨åºå®ï¼trueï¼ææ¶èµ·ï¼falseï¼ï¼undefined æé»è®¤è§åã */
   manualPinned?: boolean;
 }
 
 export type PluginUiRowPinResolver = (toolCallId: string) => PluginUiRowPinContext | undefined;
 
 /**
- * 带插件 UI 的工具行是否留在"已工作 N 秒"折叠区外：
- * 失败 / 取消的行照常折叠；被较新成功结果替代的行进折叠区（普通工具记录）；其余按 手动状态 → 强制常驻 → 最近三回合自动展开。
- * 没有 resolver 的调用方（只读分享时间线）沿用"全部常驻"。
+ * å¸¦æä»¶ UI çå·¥å·è¡æ¯å¦çå¨"å·²å·¥ä½ N ç§"æå åºå¤ï¼
+ * å¤±è´¥ / åæ¶çè¡ç§å¸¸æå ï¼è¢«è¾æ°æåç»ææ¿ä»£çè¡è¿æå åºï¼æ®éå·¥å·è®°å½ï¼ï¼å¶ä½æ æå¨ç¶æ â å¼ºå¶å¸¸é©» â æè¿ä¸ååèªå¨å±å¼ã
+ * æ²¡æ resolver çè°ç¨æ¹ï¼åªè¯»åäº«æ¶é´çº¿ï¼æ²¿ç¨"å¨é¨å¸¸é©»"ã
  */
 export function isPluginUiPinnedToolRow(
   row: ConversationRow,
@@ -23,7 +23,7 @@ export function isPluginUiPinnedToolRow(
   if (row.status === "error" || row.status === "cancelled") return false;
   const display = row.display;
   if (display?.kind !== "mcp_tool" || display.ui === undefined) return false;
-  // MCP isError 不一定映射为行级 error；必须先排除，再应用固定/最近回合策略，避免错误卡片常驻。
+  // MCP isError ä¸ä¸å®æ å°ä¸ºè¡çº§ errorï¼å¿é¡»åæé¤ï¼ååºç¨åºå®/æè¿ååç­ç¥ï¼é¿åéè¯¯å¡çå¸¸é©»ã
   if (display.ui.isError === true) return false;
   if (!resolve) return true;
   const context = resolve(row.toolCallId);

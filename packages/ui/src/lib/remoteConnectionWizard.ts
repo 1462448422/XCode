@@ -1,5 +1,8 @@
 import type { RemoteAssetInstallMode, RemoteTarget } from "@zcode/shared";
-import { isValidWslUser, normalizeRemoteResourcePackageSelection } from "@zcode/shared";
+import {
+  isValidWslUser,
+  normalizeRemoteResourcePackageSelection,
+} from "@zcode/shared";
 import type { SSHAuthMethod } from "@/hooks/useRemoteConnectionForm.js";
 import type { RemoteWizardStep } from "@/RemoteConnectionWizardChrome.js";
 
@@ -22,6 +25,10 @@ interface RemoteConnectionFormSnapshot {
   wslUser?: string;
   dockerContainer: string;
   manualDockerContainer?: string;
+  serverUrl?: string;
+  serverName?: string;
+  serverToken?: string;
+  serverWorkspacePath?: string;
 }
 
 export function getRemoteWizardStepCopy(
@@ -109,8 +116,8 @@ export function buildRemoteTarget(
         },
       };
     case "docker":
-      // Docker 运行中列表可能因为探测失败或刷新延迟不完整。
-      // 手动输入必须独立于下拉选择，提交时优先使用手动输入，空值再回落到下拉选择。
+      // Docker è¿è¡ä¸­åè¡¨å¯è½å ä¸ºæ¢æµå¤±è´¥æå·æ°å»¶è¿ä¸å®æ´ã
+      // æå¨è¾å¥å¿é¡»ç¬ç«äºä¸æéæ©ï¼æäº¤æ¶ä¼åä½¿ç¨æå¨è¾å¥ï¼ç©ºå¼ååè½å°ä¸æéæ©ã
       const dockerContainer =
         snapshot.manualDockerContainer?.trim() || snapshot.dockerContainer.trim();
 
@@ -141,6 +148,36 @@ export function buildRemoteTarget(
         },
       };
     }
+    case "server": {
+      const url = snapshot.serverUrl?.trim() ?? "";
+      if (!url) {
+        return {
+          errorMessage: intl.formatMessage({ id: "server.validation.urlRequired" }),
+        };
+      }
+
+      try {
+        new URL(url);
+      } catch {
+        return {
+          errorMessage: intl.formatMessage({ id: "server.validation.invalidUrl" }),
+        };
+      }
+
+      const name = snapshot.serverName?.trim();
+      const token = snapshot.serverToken?.trim();
+      const workspacePath = snapshot.serverWorkspacePath?.trim();
+
+      return {
+        target: {
+          kind: "server",
+          url,
+          ...(name ? { name } : {}),
+          ...(token ? { token } : {}),
+          ...(workspacePath ? { workspacePath } : {}),
+        },
+      };
+    }
   }
 }
 
@@ -152,8 +189,8 @@ export function withDefaultRemoteResourcePackages(target: RemoteTarget): RemoteT
   return {
     ...target,
     resourcePackages: {
-      // 当前分支只保留一个 XCode Agent，SSH 向导再让用户手动挑资源包会产生无意义分叉。
-      // 这里统一走默认 active 资源集，历史重连传入的旧选择不再影响部署范围。
+      // å½ååæ¯åªä¿çä¸ä¸ª XCode Agentï¼SSH åå¯¼åè®©ç¨æ·æå¨æèµæºåä¼äº§çæ æä¹ååã
+      // è¿éç»ä¸èµ°é»è®¤ active èµæºéï¼åå²éè¿ä¼ å¥çæ§éæ©ä¸åå½±åé¨ç½²èå´ã
       selectedPackageIds: normalizeRemoteResourcePackageSelection(),
     },
   };

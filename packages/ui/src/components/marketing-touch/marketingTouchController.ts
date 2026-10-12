@@ -15,7 +15,7 @@ export interface PreparedMarketingDelivery {
   release: () => Promise<void>;
 }
 type Candidate = PreparedMarketingDelivery & { scope: string };
-// 导出以便 controller 类型（经 MarketingTouchContext）可被 .d.ts 命名引用。
+// å¯¼åºä»¥ä¾¿ controller ç±»åï¼ç» MarketingTouchContextï¼å¯è¢« .d.ts å½åå¼ç¨ã
 export interface MarketingTouchState {
   banner: Candidate | null;
   dialog: (Candidate & { result: boolean }) | null;
@@ -30,10 +30,10 @@ export type MarketingActionResult = {
   terminal?: boolean;
 };
 
-// 左下角活动槽位的唯一可见性判断：Banner 与 ConnectedBanner 的渲染守卫共用此谓词，
-// 避免仲裁层（SidebarBottomActivity）与展示层对「Banner 是否可见」出现两套判断而漂移。
-// 领取 pending 期间 banner 仍非空 → 判定可见，Highspeed 分享卡继续让位。
-// 用类型谓词收窄 delivery 到 banner 变体，保留调用点原有的 narrowing。
+// å·¦ä¸è§æ´»å¨æ§½ä½çå¯ä¸å¯è§æ§å¤æ­ï¼Banner ä¸ ConnectedBanner çæ¸²æå®å«å±ç¨æ­¤è°è¯ï¼
+// é¿åä»²è£å±ï¼SidebarBottomActivityï¼ä¸å±ç¤ºå±å¯¹ãBanner æ¯å¦å¯è§ãåºç°ä¸¤å¥å¤æ­èæ¼ç§»ã
+// é¢å pending æé´ banner ä»éç©º â å¤å®å¯è§ï¼Highspeed åäº«å¡ç»§ç»­è®©ä½ã
+// ç¨ç±»åè°è¯æ¶çª delivery å° banner åä½ï¼ä¿çè°ç¨ç¹åæç narrowingã
 type RenderableBannerCandidate = Candidate & {
   delivery: Extract<MarketingDelivery, { resource_position: "banner" }>;
 };
@@ -98,7 +98,7 @@ export function createMarketingTouchController(options: {
       );
   }
   function invalidatePendingSnapshot() {
-    // 原先按 Campaign 记录历史会拦住服务端重新投放；这里只丢弃操作前的迟到快照。
+    // ååæ Campaign è®°å½åå²ä¼æ¦ä½æå¡ç«¯éæ°ææ¾ï¼è¿éåªä¸¢å¼æä½åçè¿å°å¿«ç§ã
     generation++;
     release(deferredBanner);
     deferredBanner = undefined;
@@ -109,7 +109,7 @@ export function createMarketingTouchController(options: {
       const snapshot = await options.query();
       if (disposed || current !== generation) return;
       if (snapshotScope && snapshotScope !== snapshot.scope) {
-        // 同账号凭据更新也失效旧事件上下文，已打开业务操作不移交给新凭据。
+        // åè´¦å·å­æ®æ´æ°ä¹å¤±ææ§äºä»¶ä¸ä¸æï¼å·²æå¼ä¸å¡æä½ä¸ç§»äº¤ç»æ°å­æ®ã
         release(waitingPopup);
         waitingPopup = null;
       }
@@ -121,7 +121,7 @@ export function createMarketingTouchController(options: {
       const popupWire = snapshot.deliveries.find(
         (d) =>
           d.resource_position === "popup" &&
-          // 只避免当前已打开弹窗重复排队，不记录历史展示状态。
+          // åªé¿åå½åå·²æå¼å¼¹çªéå¤æéï¼ä¸è®°å½åå²å±ç¤ºç¶æã
           (!state.dialog || state.dialog.result || key(state.dialog.delivery) !== key(d)),
       );
       if (!popupWire || JSON.stringify(waitingPopup?.delivery) !== JSON.stringify(popupWire)) {
@@ -201,7 +201,7 @@ export function createMarketingTouchController(options: {
   }
   async function showPending() {
     const state = store.getState();
-    // 错误状态先于 React 弹窗挂载；仅检查 DOM 会让等待中的投放抢先出队并叠加。
+    // éè¯¯ç¶æåäº React å¼¹çªæè½½ï¼ä»æ£æ¥ DOM ä¼è®©ç­å¾ä¸­çææ¾æ¢ååºéå¹¶å å ã
     if (
       disposed ||
       state.pending ||
@@ -246,7 +246,7 @@ export function createMarketingTouchController(options: {
       succeeded = true;
       invalidatePendingSnapshot();
       report(candidate, "confirm");
-      // 复制是可重复操作；不能沿用领取的完成清理，否则首次复制就会移除内容。
+      // å¤å¶æ¯å¯éå¤æä½ï¼ä¸è½æ²¿ç¨é¢åçå®ææ¸çï¼å¦åé¦æ¬¡å¤å¶å°±ä¼ç§»é¤åå®¹ã
       if (action.type === "copy_text") return result;
       if (
         action.type !== "navigate" &&
@@ -256,7 +256,7 @@ export function createMarketingTouchController(options: {
         store.setState({ phase: "preparing" });
         const prepared = await candidate.success;
         if (disposed) return;
-        // 业务等待期间也可能打开别的 modal；结果排队到安全展示点，不能直接叠加。
+        // ä¸å¡ç­å¾æé´ä¹å¯è½æå¼å«ç modalï¼ç»ææéå°å®å¨å±ç¤ºç¹ï¼ä¸è½ç´æ¥å å ã
         waitingResult = { ...candidate, hero: prepared?.hero ?? candidate.hero };
       } else {
         if (store.getState().dialog === candidate) {
@@ -284,7 +284,7 @@ export function createMarketingTouchController(options: {
           release(state.banner);
         store.setState({ pending: false, phase: "idle", banner: next });
         await showPending();
-        // 新动作不改变领取资格；立即查询会与异步 confirm 竞争，可能用旧投放再次挡住目标页。
+        // æ°å¨ä½ä¸æ¹åé¢åèµæ ¼ï¼ç«å³æ¥è¯¢ä¼ä¸å¼æ­¥ confirm ç«äºï¼å¯è½ç¨æ§ææ¾åæ¬¡æ¡ä½ç®æ é¡µã
         if (succeeded && action.type !== "copy_text" && action.type !== "navigate" && !disposed)
           options.refresh();
       }

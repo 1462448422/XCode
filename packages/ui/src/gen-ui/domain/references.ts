@@ -14,8 +14,8 @@ interface ReferenceCandidate {
   end: number;
   decode(): unknown;
 }
-// 引用字段均为字符串；完整字符串后仍可能停在 key、冒号、value 或逗号处。
-// 仅识别 JSON 参数前缀，不能把缺失右括号后出现的普通正文一起隐藏。
+// å¼ç¨å­æ®µåä¸ºå­ç¬¦ä¸²ï¼å®æ´å­ç¬¦ä¸²åä»å¯è½åå¨ keyãåå·ãvalue æéå·å¤ã
+// ä»è¯å« JSON åæ°åç¼ï¼ä¸è½æç¼ºå¤±å³æ¬å·ååºç°çæ®éæ­£æä¸èµ·éèã
 const jsonString = String.raw`"(?:[^"\\\r\n]|\\.)*"`;
 const jsonParameterPrefix = new RegExp(
   String.raw`^\s*(?:${jsonString}\s*:\s*${jsonString}\s*,\s*)*(?:${jsonString}(?:\s*:\s*(?:${jsonString})?)?)?\s*$`,
@@ -23,13 +23,13 @@ const jsonParameterPrefix = new RegExp(
 export function projectGenUiReferences(text: string, completed: boolean): GenUiPart[] {
   const ranges = findMarkdownCodeRanges(text);
   const parts: GenUiPart[] = [];
-  // 实际模型即使读到 Unicode 示例也会输出 ::visualize；复用既有参数解析后统一校验，
-  // 避免正文被当作普通文字，也避免绕过代码区排除、完成门槛或执行端路径约束。
+  // å®éæ¨¡åå³ä½¿è¯»å° Unicode ç¤ºä¾ä¹ä¼è¾åº ::visualizeï¼å¤ç¨æ¢æåæ°è§£æåç»ä¸æ ¡éªï¼
+  // é¿åæ­£æè¢«å½ä½æ®éæå­ï¼ä¹é¿åç»è¿ä»£ç åºæé¤ãå®æé¨æ§ææ§è¡ç«¯è·¯å¾çº¦æã
   const candidates: ReferenceCandidate[] = extractAssistantDirectives(text, "visualize").map(
     (directive) => ({
       ...directive,
-      // 实际回复会保留 skill 的 JSON 参数但输出 ::visualize 前缀；通用 directive
-      // 只解析 key=value，需在 Gen UI 内解码 JSON，再走同一严格 schema，不能放宽其他指令。
+      // å®éåå¤ä¼ä¿ç skill ç JSON åæ°ä½è¾åº ::visualize åç¼ï¼éç¨ directive
+      // åªè§£æ key=valueï¼éå¨ Gen UI åè§£ç  JSONï¼åèµ°åä¸ä¸¥æ ¼ schemaï¼ä¸è½æ¾å®½å¶ä»æä»¤ã
       decode: () =>
         directive.parameters ?? JSON.parse(directive.raw.slice(directive.raw.indexOf("{"))),
     }),
@@ -38,9 +38,9 @@ export function projectGenUiReferences(text: string, completed: boolean): GenUiP
     isParameterPrefix: (source) => jsonParameterPrefix.test(source),
   });
   if (unclosed !== null) candidates.push({ start: unclosed, end: text.length, decode: () => null });
-  for (const match of text.matchAll(/visualize/gu)) {
+  for (const match of text.matchAll(/îvisualizeî/gu)) {
     const start = match.index;
-    const end = text.indexOf("", start + match[0].length);
+    const end = text.indexOf("î", start + match[0].length);
     candidates.push({
       start,
       end: end < 0 ? text.length : end + 1,
@@ -68,11 +68,11 @@ export function projectGenUiReferences(text: string, completed: boolean): GenUiP
   if (!completed) {
     const prefix = findAssistantDirectivePrefixStart(text, ["visualize"], ranges);
     if (prefix !== null && prefix >= cursor) tailEnd = prefix;
-    const index = text.lastIndexOf("");
+    const index = text.lastIndexOf("î");
     if (
       index >= cursor &&
       !ranges.some(([from, to]) => index >= from && index < to) &&
-      "visualize".startsWith(text.slice(index))
+      "îvisualizeî".startsWith(text.slice(index))
     )
       tailEnd = Math.min(tailEnd, index);
   }

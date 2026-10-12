@@ -10,7 +10,7 @@ type WriteState =
   | { status: "idle" }
   | { status: "pending" | "failed" | "succeeded"; operation: WriteOperation };
 
-/** main 站点权限 store 是唯一授权状态源；hook 只持有读取投影和用户操作的进度。 */
+/** main ç«ç¹æé store æ¯å¯ä¸ææç¶ææºï¼hook åªææè¯»åæå½±åç¨æ·æä½çè¿åº¦ã */
 export function useBrowserSitePermissions(origin: string, enabled: boolean) {
   const platform = usePlatform();
   const [states, setStates] = useState<Record<string, "allow" | "deny"> | null>(null);
@@ -25,7 +25,7 @@ export function useBrowserSitePermissions(origin: string, enabled: boolean) {
 
   useEffect(() => {
     setWrite({ status: "idle" });
-    // 隐藏标签不取消已提交写入；只有目标站点/平台更换或卸载才让旧操作失去 UI 归属。
+    // éèæ ç­¾ä¸åæ¶å·²æäº¤åå¥ï¼åªæç®æ ç«ç¹/å¹³å°æ´æ¢æå¸è½½æè®©æ§æä½å¤±å» UI å½å±ã
     return () => {
       pendingWrite.current = null;
     };
@@ -57,7 +57,7 @@ export function useBrowserSitePermissions(origin: string, enabled: boolean) {
 
   async function run(operation: WriteOperation) {
     if (!enabled || !supported || pendingWrite.current) return;
-    // React 状态尚未渲染时也只接受一次点击；该引用同时标识异步完成所属的操作。
+    // React ç¶æå°æªæ¸²ææ¶ä¹åªæ¥åä¸æ¬¡ç¹å»ï¼è¯¥å¼ç¨åæ¶æ è¯å¼æ­¥å®ææå±çæä½ã
     pendingWrite.current = operation;
     setWrite({ status: "pending", operation });
     try {
@@ -79,7 +79,7 @@ export function useBrowserSitePermissions(origin: string, enabled: boolean) {
       return;
     }
     if (pendingWrite.current !== operation) return;
-    // 写入和重读的失败属于不同操作。已成功写入不能因读取失败被再次提交。
+    // åå¥åéè¯»çå¤±è´¥å±äºä¸åæä½ãå·²æååå¥ä¸è½å è¯»åå¤±è´¥è¢«åæ¬¡æäº¤ã
     await refresh();
     if (pendingWrite.current !== operation) return;
     pendingWrite.current = null;
