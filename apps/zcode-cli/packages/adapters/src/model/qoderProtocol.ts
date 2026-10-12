@@ -69,6 +69,29 @@ const QODER_MACHINE_TYPE = "945d1ba41479d5d140";
 const FETCH_TIMEOUT_MS = 30_000;
 
 /**
+ * 该模型自己宣告的思考强度档位（`thinking_config.enabled.efforts` 的键）。
+ *
+ * 上游值域是**逐模型**的，不是全局的：实抓 `/model/list` 得到
+ * `qmodel_38max`/`qfmodel` = {xhigh, low, medium}（没有 `high`）、
+ * `gmodel`/`kmodel`/`dmodel` 系 = {high, low, max}（没有 `xhigh`）、
+ * `ultimate`/`Sonus`/`Cantus` = {xhigh, high, low, max, medium}（两者并存）。
+ * GLM 一路会真的按这个值域拒收越界档位，所以发请求前必须按它夹一次。
+ *
+ * 目录无 `enabled.efforts`（关闭/仅开关形态）时返回 undefined，表示
+ * 「该模型没有可调档位信息」，由调用方按上游默认处理。
+ */
+function resolveModelThinkingEfforts(modelConfig: QoderModelConfig): string[] | undefined {
+  const rawThinking = (modelConfig as Record<string, unknown>).thinking_config;
+  if (!rawThinking || typeof rawThinking !== "object") return undefined;
+  const enabled = (rawThinking as Record<string, unknown>).enabled;
+  if (!enabled || typeof enabled !== "object") return undefined;
+  const efforts = (enabled as Record<string, unknown>).efforts;
+  if (!efforts || typeof efforts !== "object" || Array.isArray(efforts)) return undefined;
+  const keys = Object.keys(efforts as Record<string, unknown>);
+  return keys.length > 0 ? keys : undefined;
+}
+
+/**
  * 发给上游的上下文长度 = **该模型的最大档**：从目录 context_config（map 或
  * 数组形态）里取最大的 token_count，同时镜像到 parameters.context_length 与
  * model_config.max_input_tokens（官方形状：参数值与所选档位一致）。
@@ -702,10 +725,19 @@ export async function buildSignedQoderRequest(params: {
   // （关闭族→"none"/"disabled"、开关式旧值→"on"、自定义档位名原样）。
   // 这里按 **白名单** 翻译到 Qoder 的合法值域，绝不原样透传：
   // 上游目录里的档位名（thinking_config.efforts 的键）不受我们控制，
-  // 透传一个陌生键会让 Qoder 用 400 拒掉整个请求（用户实测
-  // "'reasoning_effort' must be one of: 'none','minimal','low','medium','high','xhigh','max'"）。
+  // 透传一个陌生键会让 Qoder 用 400 拒掉整个请求（2026-10-12 实测原文：
+  // 网关层 "expected one of none, minimal, low, medium, high, xhigh, ultra, max"，
+  // 下游供应商层更窄、不含 ultra）。
   // 表外的值（关闭族 + 任何未知值）一律不发该字段，上游按自身默认思考。
-  const reasoningEffort = mapReasoningEffortForQoder(openAiBody.reasoning_effort);
+  //
+  // 再夹一层**该模型自己的** efforts 值域：上游值域是逐模型的，实抓目录显示
+  // Qwen 系 = {xhigh,low,medium}（没有 high）、GLM/Kimi/DeepSeek 系 = {high,low,max}
+  // （没有 xhigh）。GLM 一路会真按目录拒收——gmodel 收到 xhigh 返回
+  // 400 code 1210「该模型始终思考…请使用 low、high 或 max。」。
+  const reasoningEffort = mapReasoningEffortForQoder(
+    openAiBody.reasoning_effort,
+    resolveModelThinkingEfforts(modelConfig),
+  );
 
   // 上游上下文 = 该模型最大档（CN 与国际版同规则）
   const maxContextTokens = resolveMaxContextTokens(modelConfig);

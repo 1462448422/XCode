@@ -27,11 +27,24 @@ const OFF_REASONING_LEVELS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * 档位强度秩：值越小越弱。UI 下拉按此升序排列，保证「低 → 中 → 高 → 极高 → 最高」单调递增。
+ * 档位强度秩：值越小越弱。UI 下拉按此升序排列，保证「低 → 中 → 高 → 极高」单调递增。
  *
- * - `on` / `enabled` / `true` 语义等于 `high`：旧版思考强度是开关（开=high、关=none），
- *   新版是档位。两套值可能同时出现在同一模型配置里，给同一秩，稳定排序保持其原有相对次序。
- * - `ultra`（极致）排在 `max`（最高）之上：它语义上比「最高」更强，只是部分网关不认识。
+ * 秩的**相对次序取自上游自己声明的枚举顺序**，不是猜的：Qoder 网关的
+ * `reasoning_effort` 反序列化报错原文按此序列出全部合法值——
+ * `expected one of none, minimal, low, medium, high, xhigh, ultra, max`
+ * （2026-10-12 实测，api3.qoder.sh）。该序列即上游的强度次序。
+ *
+ * - `xhigh`（极高）严格高于 `high`（高）：两者在上游值域里是**并存的两个档位**，
+ *   不是别名。实测 `ultimate`/`Sonus`/`Cantus` 的 efforts 同时列出 `high` 与 `xhigh`，
+ *   而 Qwen 系（`qmodel_38max`/`qfmodel`）只有 `xhigh` 没有 `high`、
+ *   GLM/Kimi/DeepSeek 系只有 `high` 没有 `xhigh`——两个互不相交的家族，
+ *   恰好证明它们是不同的强度而不是同一强度的两种叫法。
+ * - `ultra` 排在 `xhigh` 与 `max` **之间**（照上游枚举序），不是最高档。
+ *   2026-10-12 之前的代码把 `ultra` 排在 `max` 之上，是在上游枚举里还没有
+ *   `ultra` 时按字面语义做的猜测；现在上游已明确把它列在 `max` 之前。
+ * - `on` / `enable` / `enabled` / `true` 语义等于 `high`：旧版思考强度是开关
+ *   （开=high、关=none），新版是档位。两套值可能同时出现在同一模型配置里，
+ *   给同一秩，稳定排序保持其原有相对次序。
  * - 未知值取 `Infinity` 排到末尾并保持原有相对次序——不丢档位，也不猜强度。
  */
 const REASONING_LEVEL_INTENSITY: Readonly<Record<string, number>> = {
@@ -47,8 +60,8 @@ const REASONING_LEVEL_INTENSITY: Readonly<Record<string, number>> = {
   xhigh: 50,
   "extra-high": 50,
   extra_high: 50,
-  max: 60,
-  ultra: 70,
+  ultra: 60,
+  max: 70,
 };
 
 /** 档位值归一化：去空白 + 转小写。比较与查表前必须先过这里。 */
@@ -77,10 +90,20 @@ export function sortReasoningLevelsByIntensity<T extends string>(
 }
 
 /**
- * Qoder `reasoning_effort` 的合法值域。取自上游 400 报错原文：
- * `'reasoning_effort' must be one of: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'`
- * ——注意 `none` 虽是合法值，但发过去等于让上游走默认思考，语义上等同于不选档位，
- * 因此本函数对关闭族**返回 undefined（不发该字段）**，与官方 CLI 的行为一致。
+ * Qoder `reasoning_effort` 的合法值域。
+ *
+ * 取值依据（2026-10-12 实测两处，均为上游原文，非推断）：
+ *   1. 网关层（Rust 反序列化器，api3.qoder.sh）：
+ *      `reasoning_effort: unknown variant X, expected one of
+ *       none, minimal, low, medium, high, xhigh, ultra, max`
+ *   2. 下游模型供应商层（更窄，不含 `ultra`）：
+ *      - Qwen： `'reasoning_effort' must be one of: 'none','minimal','low','medium','high','xhigh','max'`
+ *      - 自研/聚合：`Invalid value: 'ultra'. Supported values are: 'none','minimal','low','medium','high','xhigh','max'`
+ *
+ * 因此本类型取两层交集里**真正会到达模型**的那一层：`ultra` 虽在网关枚举里合法，
+ * 但下游供应商一律拒绝，且**没有任何一个模型的 thinking_config 宣告过它**，故不发。
+ * `none` 虽是合法值，但发过去等于让上游走默认思考，语义上等同于不选档位，
+ * 与官方 CLI 的行为一致——关闭族一律返回 undefined（不发该字段）。
  */
 export type QoderReasoningEffort =
   | "minimal"
@@ -89,6 +112,15 @@ export type QoderReasoningEffort =
   | "high"
   | "xhigh"
   | "max";
+
+const QODER_REASONING_EFFORT_VALUES: ReadonlySet<string> = new Set<QoderReasoningEffort>([
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
 
 /**
  * 输入档位 → Qoder 合法 `reasoning_effort` 的**白名单**。
@@ -99,6 +131,7 @@ const QODER_REASONING_EFFORT_BY_LEVEL: Readonly<Record<string, QoderReasoningEff
   minimal: "minimal",
   low: "low",
   medium: "medium",
+  // `high` 是上游真实存在的档位，**不抬成 xhigh**（详见下方注释）。
   high: "high",
   // 开关式旧值：语义等价于 high，翻译成合法档位而不是原样发出。
   on: "high",
@@ -109,9 +142,54 @@ const QODER_REASONING_EFFORT_BY_LEVEL: Readonly<Record<string, QoderReasoningEff
   "extra-high": "xhigh",
   extra_high: "xhigh",
   max: "max",
-  // 「极致」不在 Qoder 值域内，语义最接近「最高」。
+  // `ultra` 只在网关层合法、下游供应商一律拒绝，且无任何模型宣告该档位；
+  // 语义最接近的合法档位是 `max`（上游枚举里 ultra 正好排在 max 前面一档）。
   ultra: "max",
 };
+
+function reasoningIntensityOf(value: string): number {
+  return REASONING_LEVEL_INTENSITY[value] ?? Number.POSITIVE_INFINITY;
+}
+
+/**
+ * 把选中的档位夹进**该模型自己宣告的** efforts 值域。
+ *
+ * 为什么需要这一步（2026-10-12 实测）：上游的合法值域是**逐模型**的，不是全局的。
+ * 实抓 `api3.qoder.sh/algo/api/v2/model/list`：
+ *   Qwen 系 `qmodel_38max`/`qfmodel` = {xhigh, low, medium}   —— 没有 `high`
+ *   GLM/Kimi/DeepSeek 系            = {high, low, max}（或 {high, max}）—— 没有 `xhigh`
+ *   自研聚合 `ultimate`/`Sonus`/`Cantus` = {xhigh, high, low, max, medium} —— 两者都有
+ * 且至少 GLM 一路会**真的按目录值域拒绝**：`gmodel`（目录 high/low/max）收到
+ * `xhigh` 时返回 400 code 1210「该模型始终思考，不支持关闭思考；请使用 low、high 或 max。」
+ *
+ * 夹取规则：降到不高于所选强度的**最强**受支持档位（宁弱勿强，绝不偷偷升级用户的选择）；
+ * 若所选强度低于该模型的全部档位，则取该模型最弱的一档（总比不发字段让上游默认成 max 弱）。
+ */
+function clampToModelEfforts(
+  effort: QoderReasoningEffort,
+  supportedEfforts: readonly string[] | undefined,
+): QoderReasoningEffort {
+  if (!supportedEfforts || supportedEfforts.length === 0) return effort;
+  const supported = supportedEfforts
+    .map(normalizeReasoningLevel)
+    .filter((value): value is QoderReasoningEffort => QODER_REASONING_EFFORT_VALUES.has(value));
+  if (supported.length === 0) return effort;
+  if (supported.includes(effort)) return effort;
+
+  const target = reasoningIntensityOf(effort);
+  let best: QoderReasoningEffort | undefined;
+  for (const candidate of supported) {
+    const rank = reasoningIntensityOf(candidate);
+    if (rank <= target && (best === undefined || rank > reasoningIntensityOf(best))) {
+      best = candidate;
+    }
+  }
+  if (best) return best;
+  // 所选强度低于该模型的全部档位：取最弱的一档，而不是不发字段。
+  return supported.reduce((weakest, candidate) =>
+    reasoningIntensityOf(candidate) < reasoningIntensityOf(weakest) ? candidate : weakest,
+  );
+}
 
 /**
  * 把模型选项层写进 `body.reasoning_effort` 的档位值翻译成 Qoder 合法值；
@@ -120,13 +198,24 @@ const QODER_REASONING_EFFORT_BY_LEVEL: Readonly<Record<string, QoderReasoningEff
  * 白名单而非黑名单透传：上游目录里的档位名（`efforts` 的键）不受我们控制，
  * 原样透传等于把上游的一个陌生键直接送进 Qoder 的枚举校验。
  *
- * 关于历史上的 `high → xhigh`：fork 当初按 CN 抓包把值域记成 low/medium/xhigh，
- * 于是把 high 抬成 xhigh。但当前 API 的枚举里 `high` 是合法值——用户选「高」
- * 却实发「极高」是真实的行为错误，故不再改写。
+ * `supportedEfforts` 是**该模型**的 `thinking_config.enabled.efforts` 键集合。
+ * 传入后会再夹一次到模型自己的值域——全局白名单过了不代表该模型认，
+ * 真实 400 见 `clampToModelEfforts` 的注释。
+ *
+ * 关于历史上的 `high → xhigh`：**不要恢复**，那是过期遗留。
+ * fork 当年按 CN 抓包把值域记成 low/medium/xhigh —— 实测这只对 Qwen 系成立，
+ * 因为 `qmodel_38max`/`qfmodel` 的目录里确实只有 `xhigh` 没有 `high`。
+ * 但把它当全局值域就错了：GLM/Kimi/DeepSeek 系的目录里只有 `high` 没有 `xhigh`，
+ * 而 `ultimate`/`Sonus`/`Cantus` 两个档位并存，各自的下拉里都是独立的可选项。
+ * 在并存的两个档位之间强行映射，等于把「极高」的语义强加给用户选的「高」；
+ * 在只有 `high` 的模型上又会把 `xhigh` 发出去，正好撞上 GLM 的 400 code 1210。
  */
 export function mapReasoningEffortForQoder(
   value: unknown,
+  supportedEfforts?: readonly string[],
 ): QoderReasoningEffort | undefined {
   if (typeof value !== "string") return undefined;
-  return QODER_REASONING_EFFORT_BY_LEVEL[normalizeReasoningLevel(value)];
+  const mapped = QODER_REASONING_EFFORT_BY_LEVEL[normalizeReasoningLevel(value)];
+  if (!mapped) return undefined;
+  return clampToModelEfforts(mapped, supportedEfforts);
 }
