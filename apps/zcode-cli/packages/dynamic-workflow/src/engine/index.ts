@@ -73,3 +73,22 @@ export {
   type WorkflowReportSink,
   type WorldReadOp,
 } from "./types.js";
+
+export {
+  ALL_EVENTS,
+  NODE_KINDS,
+  NON_REPORT_NODE_KINDS,
+  type GetNodeOptions,
+  type ListActorsOptions,
+  type ListNodesOptions,
+  type RunEventType,
+} from "./journal-read-types.js";
+
+// ── 1010 新增具名导出 ──
+export {
+  HOLE_PROMPT_MAX_CHARS,
+  type FilledHole,
+  type FillHoleResult,
+  type HoleFill,
+  type OpenHole,
+} from "./engine-holes.js";

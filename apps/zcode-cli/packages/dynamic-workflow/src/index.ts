@@ -242,3 +242,54 @@ export {
   type ConcurrencyControllerSnapshot,
   type ConcurrencyThrottleReason,
 } from "./engine/index.js";
+
+// ── 1010 新增具名导出 ──
+export {
+  HOLE_SITE_ID_PATTERN,
+  holePrefixOf,
+  holeSiteId,
+  isHoleSiteId,
+} from "./analysis/hole-id.js";
+export {
+  MODEL_REFERENCE_CODE,
+  MODEL_UNRESOLVED_CODE,
+  type ModelReference,
+} from "./analysis/actor-models.js";
+export {
+  collectPhaseNames,
+  collectSitePhases,
+} from "./analysis/site-phases.js";
+export {
+  collectHoleDiagnostics,
+  HOLE_CODE,
+  HOLE_NAME_MAX_CHARS,
+} from "./analysis/hole-sites.js";
+export {
+  checkSiteStability,
+  spliceHoleBody,
+  type SiteStability,
+  type SplicedHoleBody,
+} from "./analysis/hole-splice.js";
+export {
+  MAIN_LANE,
+} from "./analysis/causality-graph-types.js";
+export {
+  interpret,
+} from "./analysis/interpret.js";
+export {
+  type CoreHoleSite,
+} from "./analysis/core.js";
+export {
+  ALL_EVENTS,
+  NODE_KINDS,
+  NON_REPORT_NODE_KINDS,
+  type GetNodeOptions,
+  type ListActorsOptions,
+  type ListNodesOptions,
+  type RunEventType,
+  HOLE_PROMPT_MAX_CHARS,
+  type FilledHole,
+  type FillHoleResult,
+  type HoleFill,
+  type OpenHole,
+} from "./engine/index.js";
