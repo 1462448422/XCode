@@ -193,6 +193,15 @@ export { createAccountRequestAuthService } from "./model-provider/accountRequest
 export type { IAccountRequestAuthService } from "./model-provider/accountRequestAuthService.js";
 export { createAccountProviderRequestAuthService } from "./model-provider/accountProviderRequestAuthService.js";
 export { resolveAccountTeamPlanRuntimeApiKey } from "./model-provider/accountProviderTeamPlanRequestKey.js";
+// 合并修复：以下 5 个 re-export 在「回退到 fork 基线」时从 node barrel 丢失，但
+// packages/desktop/src/host/remoteWorkspaceServiceCollection.ts 仍在 import，
+// 导致 host/main 的 tsup bundle 报 "No matching export" 而整个生产构建失败。
+// 实现文件都还在，这里只补回 barrel 转发。
+export { resolveAccountTeamPlanRuntimeMaterial } from "./model-provider/accountProviderTeamPlanRequestKey.js";
+export { createAccountProjectTokenClient } from "./model-provider/accountProjectTokenClient.js";
+export { createTopicResourceRelayChannel } from "./zcode-agent/topicResourceRelayChannel.js";
+export { localRuntimeNetworkCapture } from "./zcode-agent/localRuntimeNetworkCapture.js";
+export { createOutputStyleService } from "./output-style/outputStyleService.js";
 export { createAccountProviderCredentialService } from "./model-provider/accountProviderCredentialService.js";
 export { createUsageStatsService } from "./usage-stats/usageStatsService.js";
 // Storage：service 与 adapters 工厂；desktop host 负责组装（Worker runner 在 desktop 包内）

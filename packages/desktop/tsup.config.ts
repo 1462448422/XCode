@@ -208,6 +208,22 @@ function createSharedDefines() {
   };
 }
 
+// 合并修复：main 的 config 一直在调用 createMainDefines()，但这个工厂函数在「回退到 fork
+// 基线」时连同上游改动一起被删掉了，tsup 打包 config 时直接报
+// `ReferenceError: createMainDefines is not defined`，生产构建整个挂掉。
+// 这里按上游 1010 补回该工厂。刻意不补上游同处的 __XCODE_REMOTE_CDN_RELEASE_ROOTS__：
+// fork 的 createSharedDefines 已改用单一 __XCODE_CDN_BASE_URL__，全仓也没有任何消费方。
+function createMainDefines() {
+  return {
+    ...createSharedDefines(),
+    // 正式安装包无法继承 GitLab Runner 或开发终端环境。这里只把 CI 提供的低权限写入配置
+    // 编译进 Desktop Main，再由既有 Main -> Host -> Agent 安全边界定向传递。
+    __XCODE_PACKAGED_AGENT_TELEMETRY_ENV__: JSON.stringify(
+      resolveBuildPackagedAgentTelemetryEnv(process.env),
+    ),
+  };
+}
+
 const desktopNodeRuntimeExternals = [
   "electron",
   "node-pty",
