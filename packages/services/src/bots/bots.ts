@@ -51,6 +51,8 @@ export interface BotUserConfigOptionsParams {
 }
 
 export interface BotAutomationRunWatchParams {
+  /** ä¸è¯¥æ¬¡ sendPrompt.traceId ä¸è´ï¼é¿åæéæé´æ±¡æå¶ä»è½®æ¬¡ã */
+  runId?: string;
   target: XCodeAutomationBotDeliveryTarget;
   taskId: string;
   workspacePath: string;
@@ -125,8 +127,17 @@ export type BotFeishuRegistrationPollResult =
     };
 
 export interface IBotsService {
+  replyToChannel?(
+    params: import("@zcode/shared").ChannelReplyHostRequest,
+  ): Promise<import("@zcode/shared").ChannelReplyResult>;
+  validateTopicResource?(
+    params: import("#src/bots/topicResource.js").TopicResourceRequest,
+  ): Promise<void>;
+  readTopicResource?(
+    params: import("#src/bots/topicResource.js").TopicResourceRequest,
+  ): Promise<import("@zcode/shared").XCodePromptAttachment>;
   /**
-   * 将 App 全局交互偏好同步给 Bot 已持有的远端 runtime；不得为此建立新的远端连接。
+   * å° App å¨å±äº¤äºåå¥½åæ­¥ç» Bot å·²ææçè¿ç«¯ runtimeï¼ä¸å¾ä¸ºæ­¤å»ºç«æ°çè¿ç«¯è¿æ¥ã
    */
   syncAppRuntimePreferences(preferences: XCodeAgentAppRuntimePreferences): Promise<void>;
   getStatus(): Promise<BotServiceStatus>;
@@ -150,9 +161,48 @@ export interface IBotsService {
   deleteBot(botId: string): Promise<void>;
   testBot(botId: string): Promise<BotTestResult>;
   createBindCode(params: BotCreateBindCodeParams): Promise<BotBindCodeResult>;
+  getGroupMemberNames?(params: { botId: string; chatId: string }): Promise<Record<string, string>>;
   getBotStates(): Promise<BotContextState[]>;
+  retryTopicPreparation?(params: {
+    botId: string;
+    chatId: string;
+    threadId: string;
+    messageId: string;
+    taskId: string;
+    workspacePath: string;
+    workspaceIdentity?: string;
+  }): Promise<void>;
+  getTopicDetails?(params: {
+    botId: string;
+    chatId: string;
+    threadId?: string;
+    taskId: string;
+    workspacePath: string;
+    workspaceIdentity?: string;
+  }): Promise<{
+    messageCount: number;
+    hasGap: boolean;
+    historyEnabled: boolean;
+    summaries: Array<{ checkpoint: string; text: string }>;
+  }>;
+
+  setGroupEnabled?(params: { botId: string; chatId: string; enabled: boolean }): Promise<void>;
+  reconcileGroupResult?(params: {
+    botId: string;
+    chatId: string;
+    deliveryId: string;
+    threadId?: string;
+    received: boolean;
+  }): Promise<import("@zcode/shared").BotGroupDelivery>;
+  resendGroupResult?(params: {
+    botId: string;
+    chatId: string;
+    deliveryId: string;
+    threadId?: string;
+  }): Promise<import("@zcode/shared").BotGroupDelivery>;
+  retryPrivateDelivery?(params: { botId: string; deliveryId: string }): Promise<void>;
   resetBotState(contextKey: string): Promise<void>;
-  /** 在 automation prompt 派发前订阅终态，并把结果回推到创建它的 Bot 会话。 */
+  /** å¨ automation prompt æ´¾ååè®¢éç»æï¼å¹¶æç»æåæ¨å°åå»ºå®ç Bot ä¼è¯ã */
   watchAutomationRun(params: BotAutomationRunWatchParams): Promise<void>;
   handleInboundMessage(message: BotInboundMessage): Promise<BotOutboundMessage[]>;
   handleProviderCallback(provider: BotProvider, payload: unknown): Promise<BotOutboundMessage[]>;
