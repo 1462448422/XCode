@@ -7,6 +7,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { tmpdir } from "node:os";
+import type { createModelRequestSecurityState } from "./request-security-edition/index.js";
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import type { LanguageModel } from "ai";
@@ -58,7 +59,11 @@ export interface AiSdkModelExecutionConfig {
   network?: AiSdkNetworkConfig;
 }
 
+/** 1010 新增：请求安全状态（token 指纹防重放 / 项目 token 拒绝集）。
+ *  用返回类型推导，避免在 shared 侧重复声明这个结构。 */
 export interface AiSdkModelExecutionOptions {
+  /** 1010 新增：请求安全状态（token 指纹防重放 / 项目 token 拒绝集）。 */
+  requestSecurityState?: ReturnType<typeof createModelRequestSecurityState>;
   logger?: Logger;
   transport?: ProviderFetch;
 }

@@ -12,8 +12,6 @@ import type {
   StableForkGoalBoundaryMetadata,
   TraceContext,
 } from "@zcode/contracts";
-import type { XCodeAutomationBotDeliveryTarget } from "@zcode/shared";
-
 import type { DynamicWorkflowMode, XCodeAutomationBotDeliveryTarget } from "@zcode/shared";
 import type {
   CommandAck,
