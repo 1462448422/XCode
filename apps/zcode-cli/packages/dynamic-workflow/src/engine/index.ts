@@ -5,6 +5,22 @@
 export { WorkflowEngine, type EngineConfig, type RunSettlement } from "./engine.js";
 export { InMemoryJournalStore } from "./journal-memory.js";
 export {
+  HOLE_PROMPT_MAX_CHARS,
+  type FilledHole,
+  type FillHoleResult,
+  type HoleFill,
+  type OpenHole,
+} from "./engine-holes.js";
+export {
+  ALL_EVENTS,
+  NODE_KINDS,
+  NON_REPORT_NODE_KINDS,
+  type GetNodeOptions,
+  type ListActorsOptions,
+  type ListNodesOptions,
+  type RunEventType,
+} from "./journal-read-types.js";
+export {
   ConcurrencyController,
   CONCURRENCY_DECREASE_FACTOR,
   CONCURRENCY_FLOOR,
@@ -73,22 +89,3 @@ export {
   type WorkflowReportSink,
   type WorldReadOp,
 } from "./types.js";
-
-export {
-  ALL_EVENTS,
-  NODE_KINDS,
-  NON_REPORT_NODE_KINDS,
-  type GetNodeOptions,
-  type ListActorsOptions,
-  type ListNodesOptions,
-  type RunEventType,
-} from "./journal-read-types.js";
-
-// ── 1010 新增具名导出 ──
-export {
-  HOLE_PROMPT_MAX_CHARS,
-  type FilledHole,
-  type FillHoleResult,
-  type HoleFill,
-  type OpenHole,
-} from "./engine-holes.js";

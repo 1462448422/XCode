@@ -191,3 +191,7 @@ export function createStaticProviderEndpointRoutingPort(
     },
   };
 }
+
+// ── 1010 新增：静态 endpoint 路由端口（与 fork 网关转发共存）──
+/** 静态实现只提供 URL 决策；Host 清理、请求与响应透传由公共 fetch wrapper 负责。 */
+
