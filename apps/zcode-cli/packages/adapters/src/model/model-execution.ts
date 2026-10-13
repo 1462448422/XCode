@@ -8,6 +8,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { tmpdir } from "node:os";
 import type { createModelRequestSecurityState } from "./request-security-edition/index.js";
+import type { ModelRequestSecurityPort } from "./request-security.js";
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import type { LanguageModel } from "ai";
@@ -83,6 +84,7 @@ export interface AiSdkResolvedModel {
   providerKind: AiSdkProviderKind;
   providerOptions?: Record<string, unknown>;
   rawRequestBodyCapture?: RawRequestBodyCapture;
+  requestObservations?: ModelRequestSecurityPort;
 }
 
 export interface AiSdkBoundModelResolution {
