@@ -102,8 +102,13 @@ export const providerConfigDataSchema = z
     upstreamModelIdFilter: z.string().min(1).nullable().optional(),
     // XCode fork：上游请求画像。opencode-free-tier = OpenCode 免费档：
     // 请求体注入 bash/glob/grep/read 指纹工具并强制 stream（chat 通道）/
-    // store:false（responses 通道），配合 api.headers 里的 Bearer public 等
-    // 静态头，绕过「free tier can only be used from within OpenCode」客户端闸门。
+    // store:false（responses 通道），配合 api.headers 里的静态客户端头
+    // （UA、x-opencode-client、x-opencode-session/request/project）。
+    // 注意：free 档的「free tier can only be used from within OpenCode」闸门
+    // 判定的是真实 OpenCode 会话，不能用伪造 header 绕过；用户必须用官方
+    // OpenCode CLI 登录并把会话 token 填进 provider apiKey，SDK 才会上行
+    // Authorization: Bearer <token>（所以 api.headers 里不要硬编码 Authorization，
+    // 否则会按 SDK 头合并优先级遮蔽用户 token）。指纹+stream 是请求体侧必需契约。
     requestProfile: z.enum(["opencode-free-tier", "codebuddy", "qoder"]).nullable().optional(),
   })
   .strict();

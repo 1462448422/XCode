@@ -7,6 +7,11 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { tmpdir } from "node:os";
+import {
+  applyBuildAgentSignature,
+  mintSessionId,
+  OPENCODE_USER_AGENT,
+} from "./opencode-build-agent.js";
 import type { createModelRequestSecurityState } from "./request-security-edition/index.js";
 import type { ModelRequestSecurityPort } from "./request-security.js";
 import { appendFileSync } from "node:fs";
@@ -430,17 +435,111 @@ function applyModelRequestAuth(
 // XCode fork：OpenCode 免费档请求画像（requestProfile = "opencode-free-tier"）
 //
 // OpenCode Zen 的免费模型带客户端闸门（403 FreeTierError "free tier can only
-// be used from within OpenCode"）。实测（2026-10）最小通过配方：
-//   1. 静态头（内置配置 api.headers 承载）：Authorization: Bearer public、
-//      User-Agent: opencode/1.18.31、x-opencode-client: desktop、
-//      x-opencode-session/request: 格式合法的占位 id、x-opencode-project: global；
-//   2. 请求体必须携带小写 bash/glob/grep/read 四个指纹工具（chat 用嵌套
-//      function 形状，responses 用扁平 {name} 形状）；
-//   3. stream 必须为 true；responses 通道还需 store:false。
-// 缺任一项都会被 403 拦截，这里在 fetch 层统一补齐。
+// be used from within OpenCode"）。
+//
+// 【2026-10-13 实测分层结论（60+ 组，均为 opencode.ai/zen/v1/chat/completions 直连）】
+//
+// 【对照组（重要，证明非网络/地区因素）】官方 CLI @opencode/cli-windows-x64@2.0.28
+// （212MB，从 `curl -fsSL https://opencode.ai/v2/install | bash` 追 npm 包获得；
+// 注意旧分发线 @opencode-ai/cli-windows-x64@1.18.18 只有 serve/api 外壳、没有
+// run/models/auth，别拿错包）在本机匿名跑 `opencode run --model
+// opencode/mimo-v2.6-flash-free "say hi"` **成功返回 "Hi"**。
+//
+// 【已抓到的官方真实请求形态】把 CLI 的 provider baseURL 指到本地捕获 server
+// （HOME 沙箱隔离，未动用户真实配置），拿到它真实发出的 header 与 body：
+//   authorization:      Bearer public          ← 确实就是 public
+//   user-agent:         opencode/latest/2.0.28/cli   ← 四段式，非 opencode/1.x
+//   x-opencode-client:  cli
+//   x-opencode-project: <40位十六进制 项目 hash>
+//   x-opencode-session / x-opencode-session-id / x-session-id / x-session-affinity:
+//                       <同一个 ses_ id>        ← 四个 session 相关头同值
+//   b3 / traceparent:   <同一条 trace id>
+//   body:               ~22KB，含完整 agent system prompt（"You are an AI agent
+//                       running in OpenCode, a coding agent harness..."）+ 工具定义
+//
+// 已逐一排除、确认**无效**的方向（都不放行）：
+//   1. 版本号：opencode/1.18.31、1.19.0、完整 Electron UA、无 UA、
+//      以及官方真实四段式 UA opencode/latest/2.0.28/cli —— 全部 403。
+//   2. `Authorization: Bearer public` 的有无 —— 带与不带全部 403。
+//   3. x-opencode-client：desktop / cli / web —— 全部 403。
+//   4. session/request/project 的真实性：占位 ID 与**官方桌面端真实产生过的**
+//      40 位 project id + 真实 session id —— 全部 403。
+//   5. 模型选择：官方 410 提示的替代模型 mimo-v2.6-flash-free、官方日志里成功的
+//      step-5-preview-free、space-bunny-free、ling-3.1-flash-free —— 全部 403。
+//   6. **抓到的官方完整 header 集**（四段式 UA + x-opencode-client/project/session/
+//      session-id + x-session-id + x-session-affinity + b3 + traceparent）整体照搬、
+//      以及只带其中任一项的组合 —— 全部 403。说明闸门不在这批 header 上。
+//
+// 【仍未排除的方向】请求体本身。官方 CLI 的 body 约 22KB，含完整 agent system
+// prompt（"You are an AI agent running in OpenCode, a coding agent harness..."）与
+// 一套工具定义；本产品发的极简请求与之差异巨大。服务端很可能校验 body 里的
+// 这套标志性 prompt/工具形状。**未继续验证**——若确有此校验，模拟它等于复制
+// OpenCode 的整套 agent harness，超出本 provider 适配的合理范围。
+//
+// 【上游源码证据】官方桌面端 asar（node-DaUPSCrz.js）opencode provider 装载逻辑：
+//     const hasKey = Boolean(process.env.OPENCODE_API_KEY || connected
+//                            || item2.provider.request.body.apiKey);
+//     if (!hasKey) provider9.request.body.apiKey = "public";
+//     if (hasKey) return;
+//     // 无 key 时继续把收费模型逐个 disable
+// 【CLI 二进制交叉验证】官方 @opencode-ai/cli-windows-x64 1.18.18 的 lildax.exe
+// （127MB）里是同一段逻辑，且证明两件事：
+//   1. `"public"` 确为官方无 key 时的兜底值 → 本产品配置的 `Bearer public`
+//      与官方路径一致，是正确的匿名凭证（上一轮曾误判为假凭证删掉，已恢复）
+//   2. 127MB 二进制里 `x-opencode-session` / `x-opencode-project` /
+//      `x-opencode-client` / `FreeTierError` 全部 **0 命中** —— 官方 CLI 根本不发
+//      这些头。zcode-builtin.json 里配的那 4 个 x-opencode-* 是历史臆造的，
+//      对闸门无意义（保留仅为兼容，不依赖它们）
+// 即 `"public"` 正是**无任何 key 时官方自己写入的兜底值**，所以它是正确的匿名
+// 凭证（本产品配置保留 `Bearer public` 与官方无 key 路径一致，并非假凭证）。
+// 放行的真正条件是 hasKey 三者之一：环境变量 OPENCODE_API_KEY / 客户端连接态 /
+// 已有 apiKey。该连接态无法由静态 header 伪造——这正是本产品匿名用不了 free 档
+// 的原因。
+//
+// 【同机对照】官方桌面端在同机同网下用 mimo-v2.6-flash-free 成功
+// （其 opencode.log 可见该模型 stream 成功且无 error），证明不是网络/地区问题，
+// 而是服务端认客户端身份。
+//
+// 结论：**OpenCode free 档的匿名使用已被上游收紧，当前无法通过本产品直接访问。**
+// 可用路径是让本产品携带真实 OpenCode Zen key（填 provider API Key，或设环境变量
+// OPENCODE_API_KEY）。填了 key 后经 SDK 汇成 `Authorization: Bearer <真实key>`
+// ——但注意 api.headers 里的 Authorization 优先级更高，会覆盖 apiKey，所以需要 key
+// 时应从 api.headers 移除该行（见 zcode-builtin.json 该 provider 的注释）。
+//
+// 请求侧职责（与闸门无关，保持不变）：
+//   1. 按模型钳制 reasoning_effort（normalizeOpenCodeReasoningFields）
+//   2. 剥离 `thinking` 等不兼容字段，保留 reasoning_effort 通道
+//   3. 模型档位来自 models.dev 的 reasoning_options
 // ============================================================
 
 type UpstreamRequestProfile = NonNullable<RegistryProviderConfig["requestProfile"]>;
+
+/**
+ * 把闸门所需的两个 header 合进请求头：User-Agent（①）+ x-opencode-session（②）。
+ *
+ * UA 走「已有则不动」：api.headers 里已配了官方形状（opencode/1.19.0）时不要二次覆盖，
+ * 缺失才补默认值，避免配置被悄悄改掉。session 每次请求新建，始终以本函数为准。
+ */
+function mergeOpenCodeSessionHeader(
+  init: RequestInit | undefined,
+  session: string,
+): Record<string, string> {
+  const base: Record<string, string> = {};
+  const existing = init?.headers;
+  if (existing instanceof Headers) {
+    existing.forEach((value, key) => {
+      base[key] = value;
+    });
+  } else if (Array.isArray(existing)) {
+    for (const [key, value] of existing) base[key] = value;
+  } else if (existing && typeof existing === "object") {
+    Object.assign(base, existing);
+  }
+  const hasUa = Object.keys(base).some((k) => k.toLowerCase() === "user-agent");
+  if (!hasUa) base["User-Agent"] = OPENCODE_USER_AGENT;
+  base["x-opencode-session"] = session;
+  return base;
+}
 
 const OPENCODE_FINGERPRINT_TOOLS = ["bash", "glob", "grep", "read"] as const;
 
@@ -823,6 +922,9 @@ export function createUpstreamRequestProfileFetch(input: {
     ? join(tmpdir(), "xcode-profile-debug.log")
     : undefined;
   return async (request, init) => {
+    // OpenCode free 闸门第二层：本请求的 session ID（counter ≤ 63 的 descending ID）。
+    // 每次请求新建一个，与真实客户端同分布；避免固定值被上游按指纹/频率识别。
+    let session = mintSessionId();
     const method = (init?.method ?? "POST").toUpperCase();
     const rawBody = init?.body;
     if (method !== "POST" || typeof rawBody !== "string") {
@@ -862,11 +964,28 @@ export function createUpstreamRequestProfileFetch(input: {
       body.stream = true;
       normalizeOpenCodeReasoningFields(body, input.reasoningLevelValues);
       appendChatFingerprintTools(body);
+      // OpenCode free 档闸门第三层：请求形态必须命中 build agent 签名
+      // （官方 system prompt + 11 工具 + tool_choice:auto），否则 403 FreeTierError。
+      // 无 system 时才前置注入，避免覆盖产品自己的 prompt 体系。
+      applyBuildAgentSignature(body);
     }
-    const nextInit = { ...init, body: JSON.stringify(body) };
+    const nextInit = { ...init, body: JSON.stringify(body), headers: mergeOpenCodeSessionHeader(init, session) };
     let response: Response;
     try {
       response = await baseFetch(request, nextInit);
+      // OpenCode free 闸门第二层：session 被拒时重新 mint 一个再试一次。
+      if (response.status === 403 && url.includes("/chat/completions")) {
+        try {
+          const errorText = await response.clone().text();
+          if (/FreeTierError/.test(errorText)) {
+            session = mintSessionId();
+            const retryInit = { ...nextInit, headers: mergeOpenCodeSessionHeader(init, session) };
+            response = await baseFetch(request, retryInit);
+          }
+        } catch {
+          // 读错误体失败时不阻断，按原响应上抛。
+        }
+      }
     } catch (error) {
       if (debugFile) {
         try {

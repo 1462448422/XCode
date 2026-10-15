@@ -364,6 +364,12 @@ import { createObservableSettingService } from "./setting/observableSettingServi
 import { createCredentialService } from "./credential/credentialService.js";
 import { setCodeBuddyAccountStore } from "./model-provider/codebuddyAuth.js";
 import { setQoderAccountStore } from "./model-provider/qoderAuth.js";
+import { setQoderCheckinHistoryStore } from "./model-provider/qoderCheckin.js";
+import { setCodeBuddyCheckinHistoryStore } from "./model-provider/codebuddyCheckin.js";
+import {
+  setCodeBuddyAutoCheckinSettingsStore,
+  startCodeBuddyAutoCheckinScheduler,
+} from "./model-provider/codebuddyAutoCheckin.js";
 import { createBroadcastService } from "./broadcast/broadcastService.js";
 import { createXCodeAgentService } from "./zcode-agent/zcodeAgentService.js";
 import type { XCodeAgentCommandResolver } from "./zcode-agent/zcodeAgentProcessManager.js";
@@ -1699,6 +1705,24 @@ export function createLocalServices(options: {
     load: (key) => credentialService.load(key),
     save: (key, value) => credentialService.save(key, value),
   });
+  // Qoder 签到历史（本地连续签到天数）与账号列表同一加密通道持久化。
+  setQoderCheckinHistoryStore({
+    load: (key) => credentialService.load(key),
+    save: (key, value) => credentialService.save(key, value),
+  });
+  // CodeBuddy 签到历史（本地累计天数 + 自动签到"已领取当天"去重）与自动签到
+  // 设置（每账号开关 + HH:MM）同样走 credentialService 加密通道。
+  setCodeBuddyCheckinHistoryStore({
+    load: (key) => credentialService.load(key),
+    save: (key, value) => credentialService.save(key, value),
+  });
+  setCodeBuddyAutoCheckinSettingsStore({
+    load: (key) => credentialService.load(key),
+    save: (key, value) => credentialService.save(key, value),
+  });
+  // 自动签到调度（进程内单例 interval + globalThis 守卫，unref 不保活）。
+  // 启动即扫一次（10s 延迟）：用户下午打开应用也能补上当天的档期。
+  startCodeBuddyAutoCheckinScheduler();
   const providerRuntime = createProviderRuntimeFromConfigRuntime({
     configRuntime: providerConfigRuntime,
     accountSource: accountProviderConfigSource,

@@ -8,6 +8,22 @@ export {
   type ModelSelectionViewInput,
   type ProviderSettingsProviderView,
   type ProviderSettingsView,
+  type QoderCheckinRegion,
+  type QoderCheckinResult,
+  type QoderCheckinStats,
+  type QoderCheckinStatus,
+  type QoderCheckinSummary,
+  type CodeBuddyCheckinRegion,
+  type CodeBuddyCheckinResult,
+  type CodeBuddyCheckinStats,
+  type CodeBuddyCheckinStatus,
+  type CodeBuddyCheckinSummary,
+  type CodeBuddyAutoCheckinSettings,
+  // XCode fork：额度/配额查看（Qoder / CodeBuddy）共享类型。
+  type AccountQuotaSnapshot,
+  type QuotaBatchResult,
+  type QuotaProvider,
+  type QuotaSummary,
 } from "./model-provider/providerFacadeServices.js";
 export {
   createAccountRequestAuthService,

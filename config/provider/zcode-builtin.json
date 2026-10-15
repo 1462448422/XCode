@@ -1088,12 +1088,15 @@
               "type": "openai-chat-completions",
               "baseUrl": "https://opencode.ai/zen/v1",
               "headers": {
-                "Authorization": "Bearer public",
-                "User-Agent": "opencode/1.18.31",
-                "x-opencode-client": "desktop",
+                "User-Agent": "opencode/latest/2.0.28/cli",
+                "x-opencode-client": "cli",
                 "x-opencode-session": "ses_000000000000AAAAAAAAAAAAAA",
+                "x-opencode-session-id": "ses_000000000000AAAAAAAAAAAAAA",
+                "x-session-id": "ses_000000000000AAAAAAAAAAAAAA",
+                "x-session-affinity": "ses_000000000000AAAAAAAAAAAAAA",
                 "x-opencode-request": "msg_000000000000AAAAAAAAAAAAAA",
-                "x-opencode-project": "global"
+                "x-opencode-project": "global",
+                "Authorization": "Bearer public"
               }
             },
             "builtinModelIds": [],

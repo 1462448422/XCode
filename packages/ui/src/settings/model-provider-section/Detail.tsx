@@ -58,6 +58,7 @@ import { useUsageEntitlement } from "@/hooks/useUsageEntitlement.js";
 import { useServices } from "@/hooks/useServices.js";
 import { CodeBuddyLoginSection } from "./CodeBuddyLoginSection.js";
 import { QoderLoginSection } from "./QoderLoginSection.js";
+// XCode fork：账号额度/配额内联在账号行（见 QoderLoginSection / CodeBuddyLoginSection）。
 import {
   createCodingPlanFunnelContext,
   resolveCodingPlanEntryPlanState,
