@@ -389,24 +389,43 @@ async function fetchQoderCatalog(
   const creds = cosyCredsFrom(identity);
   if (!creds.userId || !creds.authToken) return undefined;
 
-  const response = await fetchImpl(modelListUrl, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Accept-Encoding": "identity",
-      // Authorization 必须来自 COSY 签名（Bearer COSY.<payload>.<sig>），
-      // 不能被普通 Bearer 覆盖——否则 Cosy-Key/Date/Bodyhash 等签名头还在、
-      // 令牌却是无签名的，上游解析必然失败，模型目录恒空。
-      ...buildCosyHeaders(Buffer.alloc(0), modelListUrl, creds),
-    },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
+  let response: Response;
+  try {
+    response = await fetchImpl(modelListUrl, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "Accept-Encoding": "identity",
+        // Authorization 必须来自 COSY 签名（Bearer COSY.<payload>.<sig>），
+        // 不能被普通 Bearer 覆盖——否则 Cosy-Key/Date/Bodyhash 等签名头还在、
+        // 令牌却是无签名的，上游解析必然失败，模型目录恒空。
+        ...buildCosyHeaders(Buffer.alloc(0), modelListUrl, creds),
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch (error) {
+    // 网络层失败（DNS/TLS/超时）同样必须留痕：与 HTTP 非 2xx 一样会让
+    // 聊天报 "model_config not available"。
+    console.warn(
+      `[qoder] model list fetch threw: region=${region} url=${modelListUrl} error=${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return undefined;
+  }
   if (!response.ok) {
-    // log.warn("Qoder model list fetch failed", { region, status: response.status });
+    // 必须保留：catalog 失败会让聊天报 "model_config not available"，而模型
+    // 连通性测试不走这里——症状就是「测试正常、聊天挂」，没有这行日志无从定位。
+    console.warn(
+      `[qoder] model list fetch failed: region=${region} status=${response.status} url=${modelListUrl}`,
+    );
     return undefined;
   }
   const body = (await response.json().catch(() => null)) as { chat?: Array<Record<string, unknown>> } | null;
-  if (!body || !Array.isArray(body.chat)) return undefined;
+  if (!body || !Array.isArray(body.chat)) {
+    console.warn(`[qoder] model list payload shape unexpected: region=${region}`);
+    return undefined;
+  }
 
   const rawConfigs = new Map<string, QoderModelConfig>();
   for (const entry of body.chat) {
@@ -666,6 +685,14 @@ export async function buildSignedQoderRequest(params: {
 
   const modelConfig = await getQoderModelConfig(region, identity, modelKey, fetchImpl);
   if (!modelConfig) {
+    // 这条是聊天报 provider_error(reason=unknown) 的最常见来源：模型目录拉不到
+    // 就等于拿不到该模型的 thinking_config/参数模板。上面 fetchQoderCatalog 的
+    // warn 会给出 HTTP 状态或网络错误，两条一起看即可定位。
+    console.warn(
+      `[qoder] model_config missing: region=${region} model=${modelKey} tokenKind=${describeQoderTokenKind(
+        identity.accessToken,
+      )}`,
+    );
     throw new Error(`qoder: model_config for "${modelKey}" not available (model list fetch failed)`);
   }
 
@@ -899,6 +926,37 @@ function hasValuableDelta(parsed: Record<string, unknown>): boolean {
  *
  * code 必须同时接受数字和字符串：实测 406 会以数字出现，只按字符串匹配会漏判。
  */
+/**
+ * 把 Qoder 的 HTTP 状态码映射成上层能识别的标准错误码。
+ *
+ * 上游的 `code` 字段对限流/额度耗尽一律报 `provider_error`（实测 429 +
+ * `{"code":"provider_error","message":"All backends failed"}`），语义全丢。
+ * 状态码本身才是有效信号，映射成 OpenAI 风格错误码后：
+ *   - 429 → rate_limit_exceeded：上层标 retryable 并提示限流（Qoder 的
+ *     "All backends failed" 多数是模型级并发/配额限流，换模型或稍后重试即可）；
+ *   - 402/403 → insufficient_quota：额度耗尽，重试无意义；
+ *   - 401 → invalid_api_key：凭证过期，需重新登录；
+ *   - 其余保留原 code，不臆造语义。
+ */
+function qoderErrorCodeForStatus(status: number, upstreamCode: string | undefined): string {
+  switch (status) {
+    case 429:
+      return "rate_limit_exceeded";
+    case 402:
+    case 403:
+      return "insufficient_quota";
+    case 401:
+      return "invalid_api_key";
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+      return "upstream_unavailable";
+    default:
+      return upstreamCode || String(status);
+  }
+}
+
 function classifyQoderInnerError(
   inner: unknown,
   depth = 0,
@@ -1024,7 +1082,13 @@ export function unwrapQoderSseStream(response: Response, fallbackModel: string):
         error: {
           message: upstreamQoderErrorMessage(classified, inner, `upstream status ${statusVal}`),
           type: classified?.type || "upstream_error",
-          code: classified?.code || String(statusVal),
+          // code 必须带上 HTTP 状态语义：上游把限流/额度耗尽也报成通用
+          // `provider_error`（Qoder 实测 429 + {"code":"provider_error",
+          // "message":"All backends failed"}），若原样透传，上层分类器只看到
+          // 一个不认识的字符串，只能降级成 reason=unknown、retryable=false，
+          // UI 既不提示限流也不重试。这里把状态码映射成标准 OpenAI 错误码，
+          // 让分类器能给出 rate_limit 语义（并保留原 code 便于排查）。
+          code: qoderErrorCodeForStatus(statusVal, classified?.code),
           param: null,
         },
       });
@@ -1057,11 +1121,18 @@ export function unwrapQoderSseStream(response: Response, fallbackModel: string):
     const innerError = classifyQoderInnerError(parsed.error ?? parsed);
     if (innerError && (innerError.code || innerError.type || innerError.message)) {
       if (!parsed.choices) {
+        // 内层同样可能自带状态语义（部分失败帧把 statusCodeValue 放进 body），
+        // 优先取它，取不到再用外层信封状态——避免又把 429 报成 provider_error。
+        const innerStatus = Number(
+          (parsed.statusCodeValue ?? (parsed.error as Record<string, unknown> | undefined)?.statusCodeValue) ?? NaN,
+        );
         emit(controller, {
           error: {
             message: upstreamQoderErrorMessage(innerError, inner, "qoder upstream error"),
             type: innerError.type || "upstream_error",
-            code: innerError.code || "upstream_error",
+            code: Number.isNaN(innerStatus)
+              ? innerError.code || "upstream_error"
+              : qoderErrorCodeForStatus(innerStatus, innerError.code),
             param: null,
           },
         });

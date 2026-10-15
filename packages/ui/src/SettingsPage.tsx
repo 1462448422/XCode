@@ -273,6 +273,7 @@ export function SettingsPage({
   isDesktop,
   isWindowsDesktop,
   isMacDesktop,
+  isWebRemoteControl = false,
   windowsWindowControlsRightPaddingPx: _windowsWindowControlsRightPaddingPx,
   captionWorkspacePath,
   onBack,
@@ -287,6 +288,7 @@ export function SettingsPage({
   isDesktop?: boolean;
   isWindowsDesktop?: boolean;
   isMacDesktop?: boolean;
+  isWebRemoteControl?: boolean;
   windowsWindowControlsRightPaddingPx?: number;
   captionWorkspacePath?: string | null;
   onBack?: () => void;
@@ -1852,6 +1854,7 @@ export function SettingsPage({
                             isDesktop={Boolean(isDesktop)}
                             isMacDesktop={Boolean(isMacDesktop)}
                             isWindowsDesktop={Boolean(isWindowsDesktop)}
+                            isWebRemoteControl={isWebRemoteControl}
                             initialTab={pluginTab}
                             initialScopeKey={pluginScopeKey}
                             workspacePath={activeWorkspacePath}
@@ -1868,6 +1871,7 @@ export function SettingsPage({
                           <PluginsSection
                             key={`mcp:${settingsSectionNavigationVersion}`}
                             mode="mcp"
+                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}
@@ -1881,6 +1885,7 @@ export function SettingsPage({
                           <PluginsSection
                             key={`skill:${settingsSectionNavigationVersion}`}
                             mode="skill"
+                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}
@@ -1920,6 +1925,7 @@ export function SettingsPage({
                         ) : activeSection === "commands" ? (
                           <PluginsSection
                             mode="command"
+                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}

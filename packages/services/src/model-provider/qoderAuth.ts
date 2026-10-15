@@ -525,15 +525,26 @@ function readEnv(name: string): string {
 }
 
 /**
- * mi-token 接口默认地址。用户可用 QODER_MI_TOKEN_URL 覆盖。
+ * mi-token 接口地址（按优先级）。登录取设备指纹与激活 PRO 都走它。
+ * 主 qdmt，备 tele，主不通自动切备。可用 QODER_MI_TOKEN_URL 覆盖（多个用逗号分隔）。
  * 匿名调用每次只能取 1 个（count>1 返回 403），带 X-Api-Key 才能批量。
  */
-const MI_TOKEN_DEFAULT_URL = "https://tele.869869869.xyz/generate";
+const MI_TOKEN_DEFAULT_URLS = [
+  "https://qdmt.869869869.xyz/generate",
+  "https://tele.869869869.xyz/generate",
+] as const;
 
-function miTokenConfig(): { url: string; apiKey: string; timeoutMs: number } {
+function miTokenConfig(): {
+  urls: readonly string[];
+  apiKey: string;
+  timeoutMs: number;
+} {
   const rawTimeout = Number(readEnv("QODER_MI_TOKEN_TIMEOUT_MS"));
+  const override = readEnv("QODER_MI_TOKEN_URL");
   return {
-    url: readEnv("QODER_MI_TOKEN_URL") || MI_TOKEN_DEFAULT_URL,
+    urls: override
+      ? override.split(",").map((item) => item.trim()).filter(Boolean)
+      : MI_TOKEN_DEFAULT_URLS,
     apiKey: readEnv("QODER_MI_TOKEN_API_KEY") || readEnv("QODER_MI_TOKEN_AUTH"),
     timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 30_000,
   };
@@ -584,12 +595,16 @@ function isProfessional(userType: string): boolean {
  * 响应为 `{ success, failed, tokens: [{ machineToken, machineType, machineCode }] }`。
  * 取不到返回 null，由调用方给出可读错误，而不是发一个注定被拒的 claim。
  */
-async function fetchMachineIdentity(): Promise<{
+/** 从单个 mi-token 端点取设备指纹；这个端点不可用时返回 null，由调用方切下一个。 */
+async function fetchMachineIdentityFrom(
+  url: string,
+  apiKey: string,
+  timeoutMs: number,
+): Promise<{
   machineToken: string;
   machineType: string;
   machineCode: string;
 } | null> {
-  const { url, apiKey, timeoutMs } = miTokenConfig();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort("timeout"), timeoutMs);
   try {
@@ -601,7 +616,7 @@ async function fetchMachineIdentity(): Promise<{
       signal: controller.signal,
     });
     if (!response.ok) {
-      logger().warn(undefined, "Qoder mi-token 接口返回非 2xx", { status: response.status });
+      logger().warn(undefined, "Qoder mi-token 接口返回非 2xx", { url, status: response.status });
       return null;
     }
     const data = (await response.json()) as {
@@ -613,7 +628,7 @@ async function fetchMachineIdentity(): Promise<{
     // 该服务把结果裹在 tokens[] 里；同时兼容平铺格式以便换用其他服务。
     const entry = data.tokens?.[0] ?? data;
     if (!entry?.machineToken) {
-      logger().warn(undefined, "Qoder mi-token 响应缺少 machineToken");
+      logger().warn(undefined, "Qoder mi-token 响应缺少 machineToken", { url });
       return null;
     }
     return {
@@ -623,12 +638,31 @@ async function fetchMachineIdentity(): Promise<{
     };
   } catch (error) {
     logger().warn(undefined, "Qoder mi-token 请求失败", {
+      url,
       message: error instanceof Error ? error.message : String(error),
     });
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * 取设备指纹三件套：按顺序试主端点，不通切备用。
+ * 每个端点只试一次（无状态领取，重试同一台没意义；有效降级是换一台）。
+ */
+async function fetchMachineIdentity(): Promise<{
+  machineToken: string;
+  machineType: string;
+  machineCode: string;
+} | null> {
+  const { urls, apiKey, timeoutMs } = miTokenConfig();
+  for (const url of urls) {
+    const identity = await fetchMachineIdentityFrom(url, apiKey, timeoutMs);
+    if (identity) return identity;
+  }
+  logger().warn(undefined, "Qoder mi-token 全部端点不可用", { urls });
+  return null;
 }
 
 /**

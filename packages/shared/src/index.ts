@@ -45,6 +45,7 @@ export type {
 export type {
   DockerConnectOptions,
   RemoteTarget,
+  ServerConnectOptions,
   SSHConnectOptions,
   WSLConnectOptions,
 } from "./remoteTarget.js";

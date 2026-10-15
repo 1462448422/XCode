@@ -345,6 +345,44 @@ for (const code of ["406", "416"]) {
 // 排队/算力紧张，属可恢复的瞬时拥塞。
 PROVIDER_BUSINESS_CODE_MAPPINGS.set("10605", RETRYABLE_RATE_LIMIT_MAPPING);
 
+// XCode fork: Qoder 的 HTTP 状态语义码。
+// 上游对限流/额度耗尽一律只报通用 `provider_error`（实测 429 +
+// {"code":"provider_error","message":"All backends failed"}），语义全丢，
+// 上层只能降级成 reason=unknown、retryable=false——用户看到的是一句
+// 无从下手的 "All backends failed"。qoderProtocol 会把信封状态码映射成
+// 下面这些标准码，这里登记其行为语义。
+for (const code of ["rate_limit_exceeded", "rate_limit_error", "rate_limited"]) {
+  // 429：模型级并发/配额限流。Qoder 实测同一账号换模型即可成功，
+  // 属可恢复，标 retryable 让上层重试/降级而不是直接判死。
+  PROVIDER_BUSINESS_CODE_MAPPINGS.set(code, RETRYABLE_RATE_LIMIT_MAPPING);
+}
+
+for (const code of ["insufficient_quota", "quota_exceeded"]) {
+  // 402/403：额度耗尽。要等计费周期重置，重试无意义。
+  PROVIDER_BUSINESS_CODE_MAPPINGS.set(code, TERMINAL_RATE_LIMIT_MAPPING);
+}
+
+PROVIDER_BUSINESS_CODE_MAPPINGS.set(
+  "invalid_api_key",
+  // 401：凭证过期。重试同样是 401，必须走重新登录（AuthRefresh 语义）。
+  {
+    code: ModelErrorCode.ModelRequestFailed,
+    reason: ModelFailureReasonValue.AuthFailed,
+    retryReason: ModelRetryReasonValue.AuthRefresh,
+    retryable: false,
+  },
+);
+
+for (const code of ["upstream_unavailable", "upstream_error"]) {
+  // 5xx 网关故障：典型可恢复。
+  PROVIDER_BUSINESS_CODE_MAPPINGS.set(code, {
+    code: ModelErrorCode.ModelRequestFailed,
+    reason: ModelFailureReasonValue.ServerError,
+    retryReason: ModelRetryReasonValue.ServerError,
+    retryable: true,
+  });
+}
+
 export function getProviderBusinessCodeMapping(
   providerCode: string,
 ): ProviderBusinessCodeMapping | undefined {
